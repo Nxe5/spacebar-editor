@@ -16,7 +16,8 @@ export const RECOMMENDED_OLLAMA_MODELS: OllamaModelConfig[] = [
   { id: "gemma2:2b", name: "Gemma 2 2B", provider: "ollama", contextWindow: 8192, contextLimitMax: 8192 },
 ];
 
-const MIN_CTX = 2048;
+/** Lower bound for context budget pickers (Ollama / chat meter). */
+export const MIN_CTX = 2048;
 const DEFAULT_MAX = 8192;
 
 /** Powers of two from MIN_CTX up to `max` (inclusive). */

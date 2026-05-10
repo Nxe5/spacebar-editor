@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions for main and settings windows (IPC, events, shell).",
+  "windows": ["main", "settings"],
+  "permissions": ["core:default", "shell:default"]
+}

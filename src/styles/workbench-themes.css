@@ -1,0 +1,318 @@
+/**
+ * Workbench palettes (editor, explorer, activity bar, terminal ANSI).
+ * Settings → Appearance, or `data-workbench-theme` on `<html class="dark">`.
+ *
+ * Presets: VS Code Dark (default, from globals.css), Catppuccin Mocha, Tokyo Night,
+ * One Dark Pro, Tiny Llama (One Dark Pro palette + tab accent), Dracula, GitHub Dark.
+ */
+
+.dark[data-workbench-theme="catppuccin-mocha"] {
+  --editor-bg: #1e1e2e;
+  --editor-fg: #cdd6f4;
+  --editor-gutter-fg: #7f849c;
+  --editor-line-hl: #313244;
+  --editor-selection: rgba(137, 180, 250, 0.35);
+
+  --background: #1e1e2e;
+  --foreground: #cdd6f4;
+  --card: #181825;
+  --card-foreground: #cdd6f4;
+  --popover: #181825;
+  --popover-foreground: #cdd6f4;
+  --primary: #89b4fa;
+  --primary-foreground: #1e1e2e;
+  --secondary: #313244;
+  --secondary-foreground: #cdd6f4;
+  --muted: #45475a;
+  --muted-foreground: #a6adc8;
+  --accent: #313244;
+  --accent-foreground: #cdd6f4;
+  --destructive: #f38ba8;
+  --border: #45475a;
+  --input: #45475a;
+  --ring: #89b4fa;
+  --sidebar: #181825;
+  --sidebar-foreground: #cdd6f4;
+  --sidebar-primary: #89b4fa;
+  --sidebar-primary-foreground: #1e1e2e;
+  --sidebar-accent: #313244;
+  --sidebar-accent-foreground: #cdd6f4;
+  --sidebar-border: #45475a;
+  --sidebar-ring: #89b4fa;
+  --surface: #181825;
+  --surface-elevated: #313244;
+  --success: #a6e3a1;
+  --activity-bar-bg: #11111b;
+  --activity-bar-fg: #7f849c;
+  --activity-bar-active: #cdd6f4;
+  --activity-bar-accent: #89b4fa;
+
+  --terminal-ansi-black: #45475a;
+  --terminal-ansi-red: #f38ba8;
+  --terminal-ansi-green: #a6e3a1;
+  --terminal-ansi-yellow: #f9e2af;
+  --terminal-ansi-blue: #89b4fa;
+  --terminal-ansi-magenta: #cba6f7;
+  --terminal-ansi-cyan: #89dceb;
+  --terminal-ansi-white: #bac2de;
+}
+
+.dark[data-workbench-theme="tokyo-night"] {
+  --editor-bg: #1a1b26;
+  --editor-fg: #a9b1d6;
+  --editor-gutter-fg: #565f89;
+  --editor-line-hl: #292e42;
+  --editor-selection: rgba(122, 162, 247, 0.35);
+
+  --background: #1a1b26;
+  --foreground: #a9b1d6;
+  --card: #16161e;
+  --card-foreground: #a9b1d6;
+  --popover: #16161e;
+  --popover-foreground: #a9b1d6;
+  --primary: #7aa2f7;
+  --primary-foreground: #1a1b26;
+  --secondary: #292e42;
+  --secondary-foreground: #a9b1d6;
+  --muted: #3b4261;
+  --muted-foreground: #787c99;
+  --accent: #292e42;
+  --accent-foreground: #c0caf5;
+  --destructive: #f7768e;
+  --border: #292e42;
+  --input: #3b4261;
+  --ring: #7aa2f7;
+  --sidebar: #16161e;
+  --sidebar-foreground: #a9b1d6;
+  --sidebar-primary: #7aa2f7;
+  --sidebar-primary-foreground: #1a1b26;
+  --sidebar-accent: #292e42;
+  --sidebar-accent-foreground: #c0caf5;
+  --sidebar-border: #292e42;
+  --sidebar-ring: #7aa2f7;
+  --surface: #16161e;
+  --surface-elevated: #24283b;
+  --success: #9ece6a;
+  --activity-bar-bg: #101014;
+  --activity-bar-fg: #565f89;
+  --activity-bar-active: #c0caf5;
+  --activity-bar-accent: #7aa2f7;
+
+  --terminal-ansi-black: #414868;
+  --terminal-ansi-red: #f7768e;
+  --terminal-ansi-green: #9ece6a;
+  --terminal-ansi-yellow: #e0af68;
+  --terminal-ansi-blue: #7aa2f7;
+  --terminal-ansi-magenta: #bb9af7;
+  --terminal-ansi-cyan: #7dcfff;
+  --terminal-ansi-white: #a9b1d6;
+}
+
+.dark[data-workbench-theme="one-dark-pro"] {
+  --editor-bg: #282c34;
+  --editor-fg: #abb2bf;
+  --editor-gutter-fg: #4b5263;
+  --editor-line-hl: #2c313c;
+  --editor-selection: #3e4451;
+
+  --background: #282c34;
+  --foreground: #abb2bf;
+  --card: #21252b;
+  --card-foreground: #abb2bf;
+  --popover: #21252b;
+  --popover-foreground: #abb2bf;
+  --primary: #61afef;
+  --primary-foreground: #282c34;
+  --secondary: #2c313c;
+  --secondary-foreground: #abb2bf;
+  --muted: #3e4451;
+  --muted-foreground: #7d8799;
+  --accent: #2c313c;
+  --accent-foreground: #e6e6e6;
+  --destructive: #e06c75;
+  --border: #3e4451;
+  --input: #3e4451;
+  --ring: #61afef;
+  --sidebar: #21252b;
+  --sidebar-foreground: #abb2bf;
+  --sidebar-primary: #61afef;
+  --sidebar-primary-foreground: #282c34;
+  --sidebar-accent: #2c313c;
+  --sidebar-accent-foreground: #e6e6e6;
+  --sidebar-border: #3e4451;
+  --sidebar-ring: #61afef;
+  --surface: #21252b;
+  --surface-elevated: #2c313c;
+  --success: #98c379;
+  --activity-bar-bg: #1e222a;
+  --activity-bar-fg: #5c6370;
+  --activity-bar-active: #e6e6e6;
+  --activity-bar-accent: #61afef;
+
+  --terminal-ansi-black: #3e4451;
+  --terminal-ansi-red: #e06c75;
+  --terminal-ansi-green: #98c379;
+  --terminal-ansi-yellow: #e5c07b;
+  --terminal-ansi-blue: #61afef;
+  --terminal-ansi-magenta: #c678dd;
+  --terminal-ansi-cyan: #56b6c2;
+  --terminal-ansi-white: #abb2bf;
+}
+
+/**
+ * Tiny Llama — same palette as [One Dark Pro](https://vscodethemes.com/e/zhuangtongfa.One-dark-pro/one-dark-pro)
+ * (Atom-style): editor #282c34, accent #61afef. Active tabs use `--workbench-tab-active-indicator`.
+ */
+.dark[data-workbench-theme="tiny-llama"] {
+  --editor-bg: #282c34;
+  --editor-fg: #abb2bf;
+  --editor-gutter-fg: #4b5263;
+  --editor-line-hl: #2c313c;
+  --editor-selection: #3e4451;
+
+  --background: #282c34;
+  --foreground: #abb2bf;
+  --card: #21252b;
+  --card-foreground: #abb2bf;
+  --popover: #21252b;
+  --popover-foreground: #abb2bf;
+  --primary: #61afef;
+  --primary-foreground: #282c34;
+  --secondary: #2c313c;
+  --secondary-foreground: #abb2bf;
+  --muted: #3e4451;
+  --muted-foreground: #7d8799;
+  --accent: #2c313c;
+  --accent-foreground: #e6e6e6;
+  --destructive: #e06c75;
+  --border: #3e4451;
+  --input: #3e4451;
+  --ring: #61afef;
+  --sidebar: #21252b;
+  --sidebar-foreground: #abb2bf;
+  --sidebar-primary: #61afef;
+  --sidebar-primary-foreground: #282c34;
+  --sidebar-accent: #2c313c;
+  --sidebar-accent-foreground: #e6e6e6;
+  --sidebar-border: #3e4451;
+  --sidebar-ring: #61afef;
+  --surface: #21252b;
+  --surface-elevated: #2c313c;
+  --success: #98c379;
+  --activity-bar-bg: #1e222a;
+  --activity-bar-fg: #5c6370;
+  --activity-bar-active: #e6e6e6;
+  --activity-bar-accent: #61afef;
+  --workbench-tab-active-indicator: #61afef;
+
+  --terminal-ansi-black: #3e4451;
+  --terminal-ansi-red: #e06c75;
+  --terminal-ansi-green: #98c379;
+  --terminal-ansi-yellow: #e5c07b;
+  --terminal-ansi-blue: #61afef;
+  --terminal-ansi-magenta: #c678dd;
+  --terminal-ansi-cyan: #56b6c2;
+  --terminal-ansi-white: #abb2bf;
+}
+
+.dark[data-workbench-theme="dracula"] {
+  --editor-bg: #282a36;
+  --editor-fg: #f8f8f2;
+  --editor-gutter-fg: #6272a4;
+  --editor-line-hl: #44475a;
+  --editor-selection: #44475a;
+
+  --background: #282a36;
+  --foreground: #f8f8f2;
+  --card: #21222c;
+  --card-foreground: #f8f8f2;
+  --popover: #21222c;
+  --popover-foreground: #f8f8f2;
+  --primary: #bd93f9;
+  --primary-foreground: #282a36;
+  --secondary: #44475a;
+  --secondary-foreground: #f8f8f2;
+  --muted: #44475a;
+  --muted-foreground: #6272a4;
+  --accent: #44475a;
+  --accent-foreground: #f8f8f2;
+  --destructive: #ff5555;
+  --border: #44475a;
+  --input: #44475a;
+  --ring: #bd93f9;
+  --sidebar: #21222c;
+  --sidebar-foreground: #f8f8f2;
+  --sidebar-primary: #bd93f9;
+  --sidebar-primary-foreground: #282a36;
+  --sidebar-accent: #44475a;
+  --sidebar-accent-foreground: #f8f8f2;
+  --sidebar-border: #44475a;
+  --sidebar-ring: #bd93f9;
+  --surface: #21222c;
+  --surface-elevated: #44475a;
+  --success: #50fa7b;
+  --activity-bar-bg: #191a21;
+  --activity-bar-fg: #6272a4;
+  --activity-bar-active: #f8f8f2;
+  --activity-bar-accent: #bd93f9;
+
+  --terminal-ansi-black: #44475a;
+  --terminal-ansi-red: #ff5555;
+  --terminal-ansi-green: #50fa7b;
+  --terminal-ansi-yellow: #f1fa8c;
+  --terminal-ansi-blue: #bd93f9;
+  --terminal-ansi-magenta: #ff79c6;
+  --terminal-ansi-cyan: #8be9fd;
+  --terminal-ansi-white: #f8f8f2;
+}
+
+.dark[data-workbench-theme="github-dark"] {
+  --editor-bg: #0d1117;
+  --editor-fg: #c9d1d9;
+  --editor-gutter-fg: #6e7681;
+  --editor-line-hl: #161b22;
+  --editor-selection: rgba(56, 139, 253, 0.28);
+
+  --background: #0d1117;
+  --foreground: #c9d1d9;
+  --card: #161b22;
+  --card-foreground: #c9d1d9;
+  --popover: #161b22;
+  --popover-foreground: #c9d1d9;
+  --primary: #58a6ff;
+  --primary-foreground: #0d1117;
+  --secondary: #21262d;
+  --secondary-foreground: #c9d1d9;
+  --muted: #21262d;
+  --muted-foreground: #8b949e;
+  --accent: #21262d;
+  --accent-foreground: #f0f6fc;
+  --destructive: #f85149;
+  --border: #30363d;
+  --input: #30363d;
+  --ring: #58a6ff;
+  --sidebar: #010409;
+  --sidebar-foreground: #c9d1d9;
+  --sidebar-primary: #58a6ff;
+  --sidebar-primary-foreground: #0d1117;
+  --sidebar-accent: #21262d;
+  --sidebar-accent-foreground: #f0f6fc;
+  --sidebar-border: #30363d;
+  --sidebar-ring: #58a6ff;
+  --surface: #161b22;
+  --surface-elevated: #21262d;
+  --success: #3fb950;
+  --activity-bar-bg: #010409;
+  --activity-bar-fg: #6e7681;
+  --activity-bar-active: #f0f6fc;
+  --activity-bar-accent: #58a6ff;
+
+  --terminal-ansi-black: #484f58;
+  --terminal-ansi-red: #ff7b72;
+  --terminal-ansi-green: #3fb950;
+  --terminal-ansi-yellow: #d29922;
+  --terminal-ansi-blue: #58a6ff;
+  --terminal-ansi-magenta: #bc8cff;
+  --terminal-ansi-cyan: #39c5cf;
+  --terminal-ansi-white: #b1bac4;
+}

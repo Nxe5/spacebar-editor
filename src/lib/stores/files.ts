@@ -1,4 +1,5 @@
 import { writable, derived } from "svelte/store";
+import { normalizeFilePath } from "../fsPath";
 
 export interface FileEntry {
   name: string;
@@ -35,13 +36,14 @@ function createFilesStore() {
       update((state) => ({ ...state, tree }));
     },
     setWorkspacePath: (path: string) => {
-      update((state) => ({ ...state, workspacePath: path }));
+      update((state) => ({ ...state, workspacePath: normalizeFilePath(path) }));
     },
     toggleExpanded: (path: string) => {
+      const key = normalizeFilePath(path);
       update((state) => {
         const toggleInTree = (entries: FileEntry[]): FileEntry[] => {
           return entries.map((entry) => {
-            if (entry.path === path) {
+            if (normalizeFilePath(entry.path) === key) {
               return { ...entry, expanded: !entry.expanded };
             }
             if (entry.children) {
@@ -54,10 +56,11 @@ function createFilesStore() {
       });
     },
     setChildren: (path: string, children: FileEntry[]) => {
+      const key = normalizeFilePath(path);
       update((state) => {
         const setInTree = (entries: FileEntry[]): FileEntry[] => {
           return entries.map((entry) => {
-            if (entry.path === path) {
+            if (normalizeFilePath(entry.path) === key) {
               return { ...entry, children, expanded: true };
             }
             if (entry.children) {
@@ -70,44 +73,50 @@ function createFilesStore() {
       });
     },
     openFile: (file: OpenFile) => {
+      const canon = normalizeFilePath(file.path);
+      const stored: OpenFile = { ...file, path: canon };
       update((state) => {
-        const exists = state.openFiles.find((f) => f.path === file.path);
+        const exists = state.openFiles.find((f) => normalizeFilePath(f.path) === canon);
         if (exists) {
-          return { ...state, activeFilePath: file.path };
+          return { ...state, activeFilePath: canon };
         }
         return {
           ...state,
-          openFiles: [...state.openFiles, file],
-          activeFilePath: file.path,
+          openFiles: [...state.openFiles, stored],
+          activeFilePath: canon,
         };
       });
     },
     closeFile: (path: string) => {
+      const canon = normalizeFilePath(path);
       update((state) => {
-        const openFiles = state.openFiles.filter((f) => f.path !== path);
+        const openFiles = state.openFiles.filter((f) => normalizeFilePath(f.path) !== canon);
         let activeFilePath = state.activeFilePath;
-        if (activeFilePath === path) {
-          activeFilePath = openFiles.length > 0 ? openFiles[openFiles.length - 1].path : null;
+        if (activeFilePath != null && normalizeFilePath(activeFilePath) === canon) {
+          activeFilePath = openFiles.length > 0 ? normalizeFilePath(openFiles[openFiles.length - 1].path) : null;
         }
         return { ...state, openFiles, activeFilePath };
       });
     },
     setActiveFile: (path: string) => {
-      update((state) => ({ ...state, activeFilePath: path }));
+      const canon = normalizeFilePath(path);
+      update((state) => ({ ...state, activeFilePath: canon }));
     },
     updateFileContent: (path: string, content: string) => {
+      const canon = normalizeFilePath(path);
       update((state) => ({
         ...state,
         openFiles: state.openFiles.map((f) =>
-          f.path === path ? { ...f, content, isDirty: true } : f
+          normalizeFilePath(f.path) === canon ? { ...f, content, isDirty: true } : f
         ),
       }));
     },
     markSaved: (path: string) => {
+      const canon = normalizeFilePath(path);
       update((state) => ({
         ...state,
         openFiles: state.openFiles.map((f) =>
-          f.path === path ? { ...f, isDirty: false } : f
+          normalizeFilePath(f.path) === canon ? { ...f, isDirty: false } : f
         ),
       }));
     },
@@ -116,6 +125,9 @@ function createFilesStore() {
 
 export const files = createFilesStore();
 
-export const activeFile = derived(files, ($files) =>
-  $files.openFiles.find((f) => f.path === $files.activeFilePath) ?? null
-);
+export const activeFile = derived(files, ($files) => {
+  const ap = $files.activeFilePath;
+  if (ap == null) return null;
+  const key = normalizeFilePath(ap);
+  return $files.openFiles.find((f) => normalizeFilePath(f.path) === key) ?? null;
+});

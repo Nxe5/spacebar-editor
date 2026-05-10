@@ -97,19 +97,19 @@ npm run tauri dev
 ```
 tiny-llama/
 ├── src/                    # Svelte frontend
+│   ├── modules/            # Feature modules (workbench, agent, explorer, editor, …)
 │   ├── lib/
-│   │   ├── components/     # UI components
+│   │   ├── components/ui/  # shadcn-svelte primitives
 │   │   ├── stores/         # Svelte stores
 │   │   └── ipc.ts          # Tauri IPC wrappers
+│   ├── styles/globals.css  # Design tokens + Tailwind
 │   ├── App.svelte
 │   └── main.ts
+├── settings.html           # Secondary settings window (Vite MPA)
 ├── src-tauri/              # Rust backend
 │   ├── src/
 │   │   ├── main.rs         # Entry point
-│   │   ├── commands.rs     # IPC handlers
-│   │   ├── fs.rs           # File operations
-│   │   ├── sidecar.rs      # Node sidecar management
-│   │   └── watcher.rs      # FS watcher
+│   │   └── modules/        # filesystem, sidecar, watcher, pty, commands
 │   └── Cargo.toml
 ├── sidecar/                # Node harness sidecar
 │   ├── src/
@@ -120,6 +120,8 @@ tiny-llama/
 │   └── package.json
 └── package.json
 ```
+
+Secrets and keys (what not to commit, where settings are stored) are summarized in [docs/SECRETS.md](docs/SECRETS.md). Optional env hints live in [.env.example](.env.example).
 
 ## Configuration
 
@@ -143,7 +145,7 @@ See [tests/README.md](tests/README.md) for **`npm run test:ollama`** against you
 
 ## Development
 
-`npm run tauri dev` runs Vite on **port 14200** by default (`vite.config.ts` and `build.devUrl` in `src-tauri/tauri.conf.json`) to avoid colliding with another process on **1420**. Override with `VITE_PORT` in `vite.config.ts` only if you also set `devUrl` in `tauri.conf.json` to the same port.
+`npm run tauri dev` runs Vite on **port 14200** by default (`vite.config.ts` and `build.devUrl` in `src-tauri/tauri.conf.json`) to avoid colliding with another process on **1420**. Each **`npm run dev`** starts with **`scripts/free-dev-port.mjs`** (listener SIGKILL via `lsof`, then `kill-port`, brief pause) so a leftover dev server usually releases the port. Override with `VITE_PORT` only if you also set `devUrl` in `tauri.conf.json` to the same port.
 
 ```bash
 # Run frontend only (no Tauri)

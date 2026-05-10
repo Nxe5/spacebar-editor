@@ -35,6 +35,8 @@ export interface ChatState {
   activeSessionId: string | null;
   isStreaming: boolean;
   currentToolCall: ToolCall | null;
+  /** Full history list replaces the message stream while true. */
+  historyPickerOpen: boolean;
 }
 
 const MAX_HISTORY = 80;
@@ -63,6 +65,7 @@ function createChatStore() {
     activeSessionId: first.id,
     isStreaming: false,
     currentToolCall: null,
+    historyPickerOpen: false,
   });
 
   return {
@@ -79,6 +82,7 @@ function createChatStore() {
           activeSessionId: session.id,
           isStreaming: false,
           currentToolCall: null,
+          historyPickerOpen: false,
         };
       });
       return newId;
@@ -91,6 +95,7 @@ function createChatStore() {
           activeSessionId: sessionId,
           isStreaming: false,
           currentToolCall: null,
+          historyPickerOpen: false,
         };
       });
     },
@@ -127,6 +132,7 @@ function createChatStore() {
           activeSessionId,
           isStreaming: switched ? false : s.isStreaming,
           currentToolCall: switched ? null : s.currentToolCall,
+          historyPickerOpen: false,
         };
       });
     },
@@ -144,6 +150,7 @@ function createChatStore() {
           activeSessionId: session.id,
           isStreaming: false,
           currentToolCall: null,
+          historyPickerOpen: false,
         };
       });
     },
@@ -191,7 +198,14 @@ function createChatStore() {
         ),
         isStreaming: false,
         currentToolCall: null,
+        historyPickerOpen: false,
       }));
+    },
+    openHistoryPicker: () => {
+      update((s) => ({ ...s, historyPickerOpen: true }));
+    },
+    closeHistoryPicker: () => {
+      update((s) => ({ ...s, historyPickerOpen: false }));
     },
     /** Ensures there is an active tab (e.g. before first message when all tabs were closed). */
     ensureActiveSession: (): string => {
@@ -226,11 +240,3 @@ export const activeSession = derived(chat, ($c) => {
   if (!$c.activeSessionId) return null;
   return $c.sessions.find((s) => s.id === $c.activeSessionId) ?? null;
 });
-
-/** Five most recently closed chats (for empty-state shortcuts). */
-export const recentClosedChats = derived(chat, ($c) =>
-  [...$c.history]
-    .filter((h) => h.closedAt != null)
-    .sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0))
-    .slice(0, 5)
-);
