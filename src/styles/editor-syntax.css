@@ -89,8 +89,17 @@
   color: var(--syntax-invalid);
 }
 
+/* Git diff line highlights in editor (working tree vs HEAD). */
+.cm-editor .cm-diff-line-add {
+  background-color: color-mix(in srgb, #73c991 22%, transparent);
+}
+.cm-editor .cm-diff-line-change {
+  background-color: color-mix(in srgb, #e2b340 18%, transparent);
+}
+
 /* Default code text when no token class applies. */
 .cm-editor .cm-content,
 .cm-editor .cm-line {
   color: var(--syntax-default);
 }
+

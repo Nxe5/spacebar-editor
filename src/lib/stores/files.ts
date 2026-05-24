@@ -15,6 +15,8 @@ export interface OpenFile {
   content: string;
   isDirty: boolean;
   language: string;
+  /** When set, editor highlights lines changed vs this base (e.g. git HEAD). */
+  diffBase?: string;
 }
 
 function createFilesStore() {
@@ -82,9 +84,7 @@ function createFilesStore() {
             ...state,
             activeFilePath: canon,
             openFiles: state.openFiles.map((f) =>
-              normalizeFilePath(f.path) === canon
-                ? { ...stored, isDirty: file.isDirty ?? stored.isDirty }
-                : f
+              normalizeFilePath(f.path) === canon ? { ...stored } : f
             ),
           };
         }

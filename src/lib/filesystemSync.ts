@@ -5,6 +5,7 @@ import { readFile, getLanguageFromPath, isTauriAvailable } from "./ipc";
 import { normalizeFilePath } from "./fsPath";
 import { normalizeFileEntry, refreshWorkspaceTree } from "./workspace";
 import { resolveWorkspacePath } from "./tools/pathUtils";
+import { bumpGitRefresh } from "./stores/gitRefresh";
 
 function findEntry(entries: FileEntry[], path: string): FileEntry | null {
   const key = normalizeFilePath(path);
@@ -156,6 +157,8 @@ export async function syncUiAfterFilesystemTool(
       if (!p.endsWith("/")) await openFileFromDisk(p);
     }
   }
+
+  bumpGitRefresh();
 }
 
 async function reloadOpenFileIfVisible(path: string): Promise<void> {
@@ -168,6 +171,7 @@ async function reloadOpenFileIfVisible(path: string): Promise<void> {
       ...open,
       content,
       isDirty: false,
+      diffBase: undefined,
     });
   } catch {
     files.closeFile(canon);

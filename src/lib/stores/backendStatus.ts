@@ -70,7 +70,7 @@ export async function pollBackendHealth(input: {
       const tagsJson = (await tagsRes.json()) as { models?: { name: string }[] };
       const names = (tagsJson.models ?? []).map((m) => m.name);
       if (ollamaTagMatches(names, selectedModel)) {
-        return { backend: "ollama", dot: "green", label: "Ollama", detail: `${selectedModel} · ${base}` };
+        return { backend: "ollama", dot: "green", label: "Ollama", detail: selectedModel };
       }
       return {
         backend: "ollama",
@@ -103,7 +103,7 @@ export async function pollBackendHealth(input: {
           backend: "llamacpp",
           dot: "green",
           label: "llama.cpp",
-          detail: `${selectedModel} · ${base}`,
+          detail: selectedModel,
         };
       }
       return {
@@ -125,7 +125,7 @@ export async function pollBackendHealth(input: {
       backend: "anthropic",
       dot: "green",
       label: "Anthropic",
-      detail: `API key set · ${selectedModel}`,
+      detail: selectedModel,
     };
   }
   return {

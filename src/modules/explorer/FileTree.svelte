@@ -20,13 +20,48 @@
     workspaceFolderName,
   } from "$lib/workspace";
   import { normalizeFilePath } from "$lib/fsPath";
+  import { gitStatus } from "$lib/ipc";
+  import { bumpGitRefresh } from "$lib/stores/gitRefresh";
+  import type { GitPathStatus } from "$lib/gitTypes";
+  import { gitRefresh } from "$lib/stores/gitRefresh";
+  import { editorErrorCountsByRel } from "$lib/stores/editorDiagnostics";
+  import { buildGitStatusByRelPath } from "$lib/explorer/treeGitDecorations";
   import FileTreeRow from "./FileTreeRow.svelte";
 
   let loading = $state(true);
   let error = $state<string | null>(null);
   let desktopAvailable = $state(isTauriAvailable());
   let highlightPath = $state<string | null>(null);
+  let selectedPath = $state<string | null>(null);
+  let gitRows = $state<GitPathStatus[]>([]);
   let ctxMenu = $state<{ x: number; y: number; entry: FileEntry } | null>(null);
+
+  const gitByRel = $derived(buildGitStatusByRelPath(gitRows));
+
+  const openFilePaths = $derived(
+    $workbench.tabs
+      .filter((t) => t.kind === "editor")
+      .map((t) => normalizeFilePath(t.path))
+  );
+
+  async function refreshGitStatus() {
+    const ws = get(files).workspacePath;
+    if (!ws || !desktopAvailable) {
+      gitRows = [];
+      return;
+    }
+    try {
+      gitRows = await gitStatus(ws);
+    } catch {
+      gitRows = [];
+    }
+  }
+
+  $effect(() => {
+    void $files.workspacePath;
+    void $gitRefresh;
+    void refreshGitStatus();
+  });
 
   async function reloadWorkspaceTree() {
     const ws = get(files).workspacePath;
@@ -92,6 +127,7 @@
     try {
       await deleteEntry(e.path);
       await reloadWorkspaceTree();
+      bumpGitRefresh();
     } catch (err) {
       console.error(err);
     }
@@ -108,6 +144,7 @@
     try {
       await renameEntry(e.path, dest);
       await reloadWorkspaceTree();
+      bumpGitRefresh();
     } catch (err) {
       console.error(err);
     }
@@ -149,6 +186,7 @@
   }
 
   async function handleActivate(entry: FileEntry) {
+    selectedPath = normalizeFilePath(entry.path);
     if (entry.is_dir) {
       await handleToggle(entry);
       return;
@@ -210,8 +248,13 @@
           <FileTreeRow
             {entry}
             depth={0}
+            workspacePath={$files.workspacePath}
             onActivate={handleActivate}
             highlightPath={highlightPath}
+            {selectedPath}
+            {gitByRel}
+            {openFilePaths}
+            errorCountByRel={$editorErrorCountsByRel}
             onContextMenu={onRowContext}
           />
         {/each}
@@ -252,7 +295,7 @@
     flex-shrink: 0;
     padding: 6px 12px 4px;
     border-bottom: 1px solid color-mix(in srgb, var(--sidebar-border, var(--border)) 55%, transparent);
-    font-size: 11px;
+    font-size: calc(var(--explorer-font-size, 12px) - 1px);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;

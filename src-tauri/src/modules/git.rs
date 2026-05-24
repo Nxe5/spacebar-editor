@@ -164,3 +164,52 @@ pub fn git_log(repo_path: &str, limit: usize) -> Result<Vec<GitLogEntry>, String
     }
     Ok(out)
 }
+
+pub fn git_file_at_head(repo_path: &str, path: &str) -> Result<Option<String>, String> {
+    let repo = open_repo(repo_path)?;
+    let head = match repo.head() {
+        Ok(h) => h,
+        Err(_) => return Ok(None),
+    };
+    let tree = head.peel_to_tree().map_err(|e| e.to_string())?;
+    let entry = match tree.get_path(Path::new(path)) {
+        Ok(e) => e,
+        Err(_) => return Ok(None),
+    };
+    if entry.kind() != Some(git2::ObjectType::Blob) {
+        return Err("Path is not a file at HEAD".into());
+    }
+    let blob = repo.find_blob(entry.id()).map_err(|e| e.to_string())?;
+    Ok(Some(String::from_utf8_lossy(blob.content()).to_string()))
+}
+
+pub fn git_discard(repo_path: &str, path: &str) -> Result<(), String> {
+    let repo = open_repo(repo_path)?;
+    let mut opts = StatusOptions::new();
+    opts.pathspec(path);
+    opts.include_untracked(true);
+    let statuses = repo.statuses(Some(&mut opts)).map_err(|e| e.to_string())?;
+    let is_untracked = statuses
+        .iter()
+        .find(|e| e.path() == Some(path))
+        .map(|e| e.status().is_wt_new())
+        .unwrap_or(false);
+
+    if is_untracked {
+        let full = Path::new(repo_path).join(path);
+        if full.is_dir() {
+            std::fs::remove_dir_all(&full).map_err(|e| e.to_string())?;
+        } else if full.exists() {
+            std::fs::remove_file(&full).map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    }
+
+    let head = repo.head().map_err(|e| e.to_string())?;
+    let tree = head.peel_to_tree().map_err(|e| e.to_string())?;
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.path(path).force();
+    repo.checkout_tree(tree.as_object(), Some(&mut checkout))
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}

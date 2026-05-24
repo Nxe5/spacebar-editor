@@ -5,6 +5,7 @@
     AVAILABLE_MODELS,
     type ModelConfig,
     type ChatBackend,
+    AGENT_LIMIT_BOUNDS,
   } from "$lib/stores/settings";
   import {
     fetchOllamaModelList,
@@ -47,6 +48,11 @@
   import { iconTheme } from "$lib/stores/iconTheme";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
   import { SYNTAX_COLOR_FIELDS, type SyntaxColorMap } from "$lib/editor/syntaxColors";
+  import { explorerAppearance } from "$lib/stores/explorerAppearance";
+  import {
+    EXPLORER_APPEARANCE_FIELDS,
+    type ExplorerAppearanceMap,
+  } from "$lib/explorer/explorerAppearance";
   import { VSCODE_ICONS_ATTRIBUTION } from "$lib/icon-packs/types";
   import { pickIconPackFolder, isTauriAvailable as isTauri } from "$lib/ipc";
 
@@ -68,6 +74,7 @@
     | "appearance-theme"
     | "appearance-icons"
     | "appearance-syntax"
+    | "appearance-explorer"
     | "keybindings";
 
   const backendToSection: Record<ChatBackend, Section> = {
@@ -97,11 +104,15 @@
   let ollamaContextChoice = $state(8192);
   let workbenchTheme = $state<WorkbenchThemeId>("cursor-dark");
   let webFetchAllowedHostsText = $state("");
+  let maxAgentSteps = $state(12);
+  let maxToolCallsPerRun = $state(48);
+  let maxToolsPerTurn = $state(0);
   let iconThemeId = $state<"seti" | "vscode-icons" | "codicons" | "custom">("seti");
   let iconPackCustomPath = $state("");
   let iconRefreshStatus = $state("");
   let iconRefreshing = $state(false);
   let syntaxColors = $state<SyntaxColorMap>(syntaxTheme.get());
+  let explorerColors = $state<ExplorerAppearanceMap>(explorerAppearance.get());
 
   let modelSearchQuery = $state("");
   let modelSearchResults = $state<OllamaLibraryModel[]>([]);
@@ -136,6 +147,7 @@
     { id: "appearance-theme", label: "Theme", group: "Appearance" },
     { id: "appearance-icons", label: "Icons", group: "Appearance" },
     { id: "appearance-syntax", label: "Syntax", group: "Appearance" },
+    { id: "appearance-explorer", label: "Explorer", group: "Appearance" },
     { id: "keybindings", label: "Keybindings" },
   ];
 
@@ -164,14 +176,30 @@
     anthropicExtendedThinking = $settings.anthropicExtendedThinking;
     workbenchTheme = $settings.workbenchTheme;
     webFetchAllowedHostsText = $settings.webFetchAllowedHosts.join("\n");
+    maxAgentSteps = $settings.agentLimits.maxAgentSteps;
+    maxToolCallsPerRun = $settings.agentLimits.maxToolCallsPerRun;
+    maxToolsPerTurn = $settings.agentLimits.maxToolsPerTurn;
     iconThemeId = $iconTheme.themeId;
     iconPackCustomPath = $iconTheme.customPackPath ?? "";
     syntaxColors = { ...syntaxTheme.get() };
+    explorerColors = { ...explorerAppearance.get() };
     llamacppModels = $settings.llamacppModels;
     activeSection = backendToSection[$settings.chatBackend] ?? "providers-ollama";
     void connectOllama();
     void connectLlamacpp();
   });
+
+  function persistAgentLimits() {
+    settings.setAgentLimits({
+      maxAgentSteps,
+      maxToolCallsPerRun,
+      maxToolsPerTurn,
+    });
+    const saved = get(settings).agentLimits;
+    maxAgentSteps = saved.maxAgentSteps;
+    maxToolCallsPerRun = saved.maxToolCallsPerRun;
+    maxToolsPerTurn = saved.maxToolsPerTurn;
+  }
 
   function setAsChatProvider(backend: ChatBackend) {
     chatBackend = backend;
@@ -407,6 +435,7 @@
       iconTheme.setCustomPackPath(iconPackCustomPath);
     }
     syntaxTheme.persist(syntaxColors);
+    explorerAppearance.persist(explorerColors);
 
     if (chatBackend === "ollama") {
       const sid = selectedModel;
@@ -855,6 +884,55 @@
 
         {:else if activeSection === "tools"}
           <div class="stack">
+            <p class="group-label">Agent limits</p>
+            <p class="note">
+              Caps for Plan and Agent modes on a single user message.
+              <strong>Steps</strong> are model ↔ tool round trips;
+              <strong>tool calls</strong> count each read, write, grep, etc. across all steps.
+            </p>
+            <label class="field">
+              <span class="name">Max agent steps</span>
+              <input
+                type="number"
+                class="input"
+                min={AGENT_LIMIT_BOUNDS.maxAgentSteps.min}
+                max={AGENT_LIMIT_BOUNDS.maxAgentSteps.max}
+                bind:value={maxAgentSteps}
+                onchange={persistAgentLimits}
+              />
+              <span class="hint">
+                LLM turns per message ({AGENT_LIMIT_BOUNDS.maxAgentSteps.min}–{AGENT_LIMIT_BOUNDS.maxAgentSteps.max}, default 12).
+              </span>
+            </label>
+            <label class="field">
+              <span class="name">Max tool calls per run</span>
+              <input
+                type="number"
+                class="input"
+                min={AGENT_LIMIT_BOUNDS.maxToolCallsPerRun.min}
+                max={AGENT_LIMIT_BOUNDS.maxToolCallsPerRun.max}
+                bind:value={maxToolCallsPerRun}
+                onchange={persistAgentLimits}
+              />
+              <span class="hint">
+                Total tools executed per message ({AGENT_LIMIT_BOUNDS.maxToolCallsPerRun.min}–{AGENT_LIMIT_BOUNDS.maxToolCallsPerRun.max}, default 48).
+              </span>
+            </label>
+            <label class="field">
+              <span class="name">Max tools per turn</span>
+              <input
+                type="number"
+                class="input"
+                min={AGENT_LIMIT_BOUNDS.maxToolsPerTurn.min}
+                max={AGENT_LIMIT_BOUNDS.maxToolsPerTurn.max}
+                bind:value={maxToolsPerTurn}
+                onchange={persistAgentLimits}
+              />
+              <span class="hint">
+                Tools from one model response (0 = unlimited, max {AGENT_LIMIT_BOUNDS.maxToolsPerTurn.max}).
+              </span>
+            </label>
+
             <p class="group-label">Tool policy</p>
             <p class="note">
               Per-tool rules: <strong>Allow</strong> runs without prompting,
@@ -1082,6 +1160,68 @@
                 </a>.
               </p>
             </details>
+          </div>
+
+        {:else if activeSection === "appearance-explorer"}
+          <div class="stack">
+            <h3 class="provider-page-title">Explorer</h3>
+            <p class="note">
+              File tree selection, label and icon sizes, and git status colors. Changes preview live;
+              click Save to keep them.
+            </p>
+            {#each EXPLORER_APPEARANCE_FIELDS as field}
+              <label class="field syntax-color-field">
+                <span class="name">{field.label}</span>
+                <span class="syntax-color-hint">{field.hint}</span>
+                {#if field.kind === "color"}
+                  <div class="syntax-color-row">
+                    <input
+                      type="color"
+                      class="syntax-color-swatch"
+                      value={explorerColors[field.key] as string}
+                      oninput={(e) => {
+                        const v = (e.currentTarget as HTMLInputElement).value;
+                        explorerColors = { ...explorerColors, [field.key]: v };
+                        explorerAppearance.apply(explorerColors);
+                      }}
+                    />
+                    <input
+                      type="text"
+                      class="input syntax-color-hex"
+                      value={explorerColors[field.key] as string}
+                      spellcheck={false}
+                      oninput={(e) => {
+                        const v = (e.currentTarget as HTMLInputElement).value;
+                        explorerColors = { ...explorerColors, [field.key]: v };
+                        explorerAppearance.apply(explorerColors);
+                      }}
+                    />
+                  </div>
+                {:else}
+                  <input
+                    type="number"
+                    class="input"
+                    min={field.min}
+                    max={field.max}
+                    value={explorerColors[field.key] as number}
+                    oninput={(e) => {
+                      const v = Number((e.currentTarget as HTMLInputElement).value);
+                      explorerColors = { ...explorerColors, [field.key]: v };
+                      explorerAppearance.apply(explorerColors);
+                    }}
+                  />
+                {/if}
+              </label>
+            {/each}
+            <button
+              type="button"
+              class="btn ghost"
+              onclick={() => {
+                explorerColors = explorerAppearance.resetToDefaults();
+              }}
+            >
+              Reset explorer defaults
+            </button>
           </div>
 
         {:else if activeSection === "appearance-syntax"}

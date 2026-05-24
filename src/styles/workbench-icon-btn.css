@@ -1,0 +1,67 @@
+/** Shared icon-only toolbar buttons (composer, activity bar, status bar). */
+
+:root {
+  --workbench-icon-btn-size: 32px;
+  --workbench-icon-btn-icon-size: 18px;
+  --workbench-icon-btn-radius: 6px;
+  --workbench-icon-btn-color: var(--muted-foreground);
+  --workbench-icon-btn-color-hover: var(--foreground);
+  --workbench-icon-btn-color-active: var(--foreground);
+  --workbench-icon-btn-bg-hover: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --workbench-icon-btn-bg-active: color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
+.workbench-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--workbench-icon-btn-size);
+  height: var(--workbench-icon-btn-size);
+  padding: 0;
+  border: none;
+  border-radius: var(--workbench-icon-btn-radius);
+  background: transparent;
+  color: var(--workbench-icon-btn-color);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.workbench-icon-btn:hover:not(:disabled) {
+  color: var(--workbench-icon-btn-color-hover);
+  background: var(--workbench-icon-btn-bg-hover);
+}
+
+.workbench-icon-btn[aria-pressed="true"],
+.workbench-icon-btn.active {
+  color: var(--workbench-icon-btn-color-active);
+  background: var(--workbench-icon-btn-bg-active);
+}
+
+.workbench-icon-btn:focus-visible {
+  outline: 1px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.workbench-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.workbench-icon-btn :global(svg) {
+  width: var(--workbench-icon-btn-icon-size);
+  height: var(--workbench-icon-btn-icon-size);
+  flex-shrink: 0;
+}
+
+/** Status bar panel toggles — icon color only, no fill behind active/hover. */
+.status-toggle.workbench-icon-btn:hover:not(:disabled),
+.status-toggle.workbench-icon-btn[aria-pressed="true"],
+.status-toggle.workbench-icon-btn.active {
+  background: transparent;
+}
+
+.status-toggle.workbench-icon-btn[aria-pressed="true"],
+.status-toggle.workbench-icon-btn.active {
+  color: var(--workbench-icon-btn-color-active);
+}

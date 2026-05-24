@@ -1,16 +1,30 @@
 <script lang="ts">
   import { files } from "$lib/stores/files";
+  import { gitRefresh } from "$lib/stores/gitRefresh";
+  import { workbench, workbenchEditorTabId } from "$lib/stores/workbench";
   import {
     gitStatus,
     gitStage,
     gitUnstage,
+    gitDiscard,
     gitLog,
     gitCurrentBranch,
     isTauriAvailable,
   } from "$lib/ipc";
   import { invokeSafe } from "$lib/invokeSafe";
   import type { GitLogEntry, GitPathStatus } from "$lib/gitTypes";
+  import {
+    openGitDiffFile,
+    openGitFileNormal,
+    gitPathToAbsolute,
+  } from "$lib/git/openChangedFile";
+  import FileIcon from "$lib/components/FileIcon.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
+  import CaretDownIcon from "phosphor-svelte/lib/CaretDownIcon";
+  import CaretRightIcon from "phosphor-svelte/lib/CaretRightIcon";
+
+  const STAGED_OPEN_KEY = "tinyllama.git.stagedOpen";
+  const CHANGES_OPEN_KEY = "tinyllama.git.changesOpen";
 
   let rows = $state<GitPathStatus[]>([]);
   let log = $state<GitLogEntry[]>([]);
@@ -18,8 +32,29 @@
   let err = $state<string | null>(null);
   let commitMsg = $state("");
   let busy = $state(false);
+  let hoverPath = $state<string | null>(null);
+  let stagedOpen = $state(
+    typeof localStorage !== "undefined" ? localStorage.getItem(STAGED_OPEN_KEY) !== "0" : true
+  );
+  let changesOpen = $state(
+    typeof localStorage !== "undefined" ? localStorage.getItem(CHANGES_OPEN_KEY) !== "0" : true
+  );
 
   const root = $derived($files.workspacePath);
+
+  function toggleStaged() {
+    stagedOpen = !stagedOpen;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(STAGED_OPEN_KEY, stagedOpen ? "1" : "0");
+    }
+  }
+
+  function toggleChanges() {
+    changesOpen = !changesOpen;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(CHANGES_OPEN_KEY, changesOpen ? "1" : "0");
+    }
+  }
 
   async function refresh() {
     err = null;
@@ -46,11 +81,34 @@
 
   $effect(() => {
     void root;
+    void $gitRefresh;
     void refresh();
   });
 
   let staged = $derived(rows.filter((r) => r.index !== "-" && r.index !== "??"));
   let unstaged = $derived(rows.filter((r) => r.worktree !== "-"));
+
+  function fileName(path: string): string {
+    return path.split("/").pop() ?? path;
+  }
+
+  function statusLabel(row: GitPathStatus, section: "staged" | "changes"): string {
+    const tag = section === "staged" ? row.index : row.worktree;
+    if (tag === "??") return "U";
+    if (tag.includes("M")) return "M";
+    if (tag.includes("A")) return "A";
+    if (tag.includes("D")) return "D";
+    if (tag.includes("R")) return "R";
+    return tag;
+  }
+
+  function statusClass(label: string): string {
+    if (label === "M") return "status-mod";
+    if (label === "A") return "status-add";
+    if (label === "D") return "status-del";
+    if (label === "U") return "status-untracked";
+    return "status-other";
+  }
 
   async function stage(p: string) {
     const repo = root;
@@ -64,6 +122,43 @@
     if (!repo) return;
     await gitUnstage(repo, p);
     await refresh();
+  }
+
+  async function discard(relPath: string) {
+    const repo = root;
+    if (!repo) return;
+    busy = true;
+    try {
+      const abs = gitPathToAbsolute(repo, relPath);
+      await gitDiscard(repo, relPath);
+      files.closeFile(abs);
+      workbench.closeTab(workbenchEditorTabId(abs));
+      await refresh();
+    } catch (e) {
+      err = String(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function openDiff(relPath: string) {
+    const repo = root;
+    if (!repo) return;
+    try {
+      await openGitDiffFile(repo, relPath);
+    } catch (e) {
+      err = String(e);
+    }
+  }
+
+  async function openNormal(relPath: string) {
+    const repo = root;
+    if (!repo) return;
+    try {
+      await openGitFileNormal(repo, relPath);
+    } catch (e) {
+      err = String(e);
+    }
   }
 
   async function commit() {
@@ -99,33 +194,84 @@
       <Button variant="ghost" size="sm" onclick={() => void refresh()} disabled={busy}>Refresh</Button>
     </div>
 
-    <p class="label">Staged</p>
-    <ul class="list">
-      {#each staged as r (r.path)}
-        <li>
-          <code>{r.index}</code>
-          <span class="p">{r.path}</span>
-          <button type="button" class="link" onclick={() => void unstage(r.path)}>Unstage</button>
-        </li>
-      {:else}
-        <li class="muted">Nothing staged</li>
-      {/each}
-    </ul>
+    <section class="section">
+      <button type="button" class="section-head" onclick={toggleStaged}>
+        {#if stagedOpen}
+          <CaretDownIcon size={14} aria-hidden="true" />
+        {:else}
+          <CaretRightIcon size={14} aria-hidden="true" />
+        {/if}
+        <span>Staged Changes</span>
+        <span class="count">{staged.length}</span>
+      </button>
+      {#if stagedOpen}
+        <ul class="file-list">
+          {#each staged as r (r.path)}
+            {@const label = statusLabel(r, "staged")}
+            <li
+              class="file-row"
+              onmouseenter={() => (hoverPath = r.path)}
+              onmouseleave={() => (hoverPath = null)}
+            >
+              <button type="button" class="file-main" onclick={() => void openDiff(r.path)}>
+                <FileIcon name={fileName(r.path)} size={16} />
+                <span class="file-path">{r.path}</span>
+                <span class="status-badge {statusClass(label)}" title={label}>{label}</span>
+              </button>
+              {#if hoverPath === r.path}
+                <div class="row-actions">
+                  <button type="button" class="action" onclick={() => void openNormal(r.path)}>Open</button>
+                  <button type="button" class="action" onclick={() => void unstage(r.path)}>Unstage</button>
+                </div>
+              {/if}
+            </li>
+          {:else}
+            <li class="empty">Nothing staged</li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
 
-    <p class="label">Changes</p>
-    <ul class="list">
-      {#each unstaged as r (r.path)}
-        <li>
-          <code>{r.worktree}</code>
-          <span class="p">{r.path}</span>
-          {#if r.worktree !== "??"}
-            <button type="button" class="link" onclick={() => void stage(r.path)}>Stage</button>
-          {/if}
-        </li>
-      {:else}
-        <li class="muted">Working tree clean</li>
-      {/each}
-    </ul>
+    <section class="section">
+      <button type="button" class="section-head" onclick={toggleChanges}>
+        {#if changesOpen}
+          <CaretDownIcon size={14} aria-hidden="true" />
+        {:else}
+          <CaretRightIcon size={14} aria-hidden="true" />
+        {/if}
+        <span>Changes</span>
+        <span class="count">{unstaged.length}</span>
+      </button>
+      {#if changesOpen}
+        <ul class="file-list">
+          {#each unstaged as r (r.path)}
+            {@const label = statusLabel(r, "changes")}
+            <li
+              class="file-row"
+              onmouseenter={() => (hoverPath = r.path)}
+              onmouseleave={() => (hoverPath = null)}
+            >
+              <button type="button" class="file-main" onclick={() => void openDiff(r.path)}>
+                <FileIcon name={fileName(r.path)} size={16} />
+                <span class="file-path">{r.path}</span>
+                <span class="status-badge {statusClass(label)}" title={label}>{label}</span>
+              </button>
+              {#if hoverPath === r.path}
+                <div class="row-actions">
+                  <button type="button" class="action" onclick={() => void openNormal(r.path)}>Open</button>
+                  <button type="button" class="action" onclick={() => void discard(r.path)}>Discard</button>
+                  {#if r.worktree !== "??"}
+                    <button type="button" class="action" onclick={() => void stage(r.path)}>Stage</button>
+                  {/if}
+                </div>
+              {/if}
+            </li>
+          {:else}
+            <li class="empty">Working tree clean</li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
 
     <label class="commit">
       <span class="label">Commit message</span>
@@ -147,7 +293,7 @@
 
 <style>
   .git-panel {
-    padding: 10px 12px;
+    padding: 10px 8px;
     font-size: 12px;
     color: var(--sidebar-foreground);
     overflow: auto;
@@ -157,51 +303,128 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    padding: 0 4px;
   }
   .branch {
     font-weight: 600;
     font-family: ui-monospace, monospace;
   }
-  .label {
+  .section {
+    margin-bottom: 8px;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 4px 6px;
+    border: none;
+    background: transparent;
+    color: var(--sidebar-foreground);
     font-size: 11px;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--muted-foreground);
-    margin: 10px 0 4px;
+    cursor: pointer;
+    border-radius: 4px;
   }
-  .list,
+  .section-head:hover {
+    background: color-mix(in srgb, var(--sidebar-accent) 60%, transparent);
+  }
+  .count {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--muted-foreground);
+    font-weight: 500;
+  }
+  .file-list,
   .log {
     list-style: none;
     padding: 0;
     margin: 0;
   }
-  .list li,
-  .log li {
+  .file-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 26px;
+    border-radius: 4px;
+  }
+  .file-row:hover {
+    background: color-mix(in srgb, var(--sidebar-accent) 50%, transparent);
+  }
+  .file-main {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 0;
-    border-bottom: 1px solid color-mix(in srgb, var(--sidebar-border) 50%, transparent);
+    flex: 1;
+    min-width: 0;
+    padding: 4px 6px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
   }
-  .p {
+  .file-path {
     flex: 1;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  code {
+  .status-badge {
+    flex-shrink: 0;
     font-size: 10px;
+    font-weight: 700;
+    font-family: ui-monospace, monospace;
+    padding: 0 4px;
+    border-radius: 3px;
+  }
+  .status-mod {
+    color: #e2b340;
+  }
+  .status-add {
+    color: #73c991;
+  }
+  .status-del {
+    color: #f14c4c;
+  }
+  .status-untracked {
+    color: #73c991;
+  }
+  .status-other {
     color: var(--muted-foreground);
   }
-  .link {
-    background: none;
+  .row-actions {
+    display: flex;
+    gap: 2px;
+    padding-right: 4px;
+    flex-shrink: 0;
+  }
+  .action {
     border: none;
+    background: var(--sidebar-accent);
     color: var(--sidebar-primary);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
     cursor: pointer;
+  }
+  .action:hover {
+    background: color-mix(in srgb, var(--sidebar-primary) 20%, var(--sidebar-accent));
+  }
+  .empty {
+    padding: 4px 8px;
+    color: var(--muted-foreground);
+  }
+  .label {
     font-size: 11px;
-    padding: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+    margin: 10px 4px 4px;
   }
   .muted {
     color: var(--muted-foreground);
@@ -214,7 +437,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    margin: 12px 0;
+    margin: 12px 4px;
   }
   .ta {
     width: 100%;
@@ -225,6 +448,13 @@
     border-radius: 4px;
     color: inherit;
     padding: 6px;
+  }
+  .log li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--sidebar-border) 50%, transparent);
   }
   .subj {
     flex: 1;

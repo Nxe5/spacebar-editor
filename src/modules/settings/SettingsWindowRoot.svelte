@@ -4,9 +4,13 @@
   import { settings } from "$lib/stores/settings";
   import { applyWorkbenchTheme } from "$lib/workbench-theme";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
+  import { explorerAppearance } from "$lib/stores/explorerAppearance";
+  import { toggleMaximizeAppWindow } from "$lib/windowControls";
+  import WindowControls from "../workbench/WindowControls.svelte";
   import SettingsPane from "./SettingsPane.svelte";
 
   syntaxTheme.init();
+  explorerAppearance.init();
 
   function onClose() {
     void getCurrentWindow().close();
@@ -18,4 +22,48 @@
 </script>
 
 <ModeWatcher />
-<SettingsPane open={true} variant="page" {onClose} />
+
+<div class="settings-window flex h-screen flex-col overflow-hidden bg-background text-foreground">
+  <header class="settings-titlebar">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="settings-titlebar__drag"
+      data-tauri-drag-region
+      ondblclick={() => void toggleMaximizeAppWindow()}
+    >
+      <span class="settings-titlebar__title">Settings</span>
+    </div>
+    <WindowControls />
+  </header>
+  <div class="min-h-0 flex-1 overflow-hidden">
+    <SettingsPane open={true} variant="page" {onClose} />
+  </div>
+</div>
+
+<style>
+  .settings-titlebar {
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    height: var(--workbench-shell-header-height);
+    min-height: var(--workbench-shell-header-height);
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    background: color-mix(in srgb, var(--surface, var(--card)) 88%, var(--background) 12%);
+  }
+
+  .settings-titlebar__drag {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    padding: 0 12px;
+    user-select: none;
+  }
+
+  .settings-titlebar__title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--muted-foreground);
+  }
+</style>

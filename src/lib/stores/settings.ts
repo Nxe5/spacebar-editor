@@ -1,6 +1,14 @@
 import { writable } from "svelte/store";
+import {
+  clampAgentLimits,
+  DEFAULT_AGENT_LIMITS,
+  type AgentLimits,
+} from "../agentLimits";
 import { DEFAULT_LLAMACPP_ENDPOINT } from "../llamaCppClient";
 import { normalizeWorkbenchTheme, type WorkbenchThemeId } from "../workbench-theme";
+
+export type { AgentLimits };
+export { DEFAULT_AGENT_LIMITS, AGENT_LIMIT_BOUNDS } from "../agentLimits";
 
 export type ChatBackend = "anthropic" | "ollama" | "llamacpp";
 
@@ -40,6 +48,7 @@ function createSettingsStore() {
     workbenchTheme: WorkbenchThemeId;
     anthropicContextBudget: number | null;
     webFetchAllowedHosts: string[];
+    agentLimits: AgentLimits;
   };
 
   const DEFAULT_WEB_FETCH_HOSTS = [
@@ -67,6 +76,7 @@ function createSettingsStore() {
     workbenchTheme: "cursor-dark",
     anthropicContextBudget: null,
     webFetchAllowedHosts: DEFAULT_WEB_FETCH_HOSTS,
+    agentLimits: { ...DEFAULT_AGENT_LIMITS },
   };
 
   function normalizeLoaded(parsed: Partial<SettingsState>): SettingsState {
@@ -90,6 +100,7 @@ function createSettingsStore() {
           : typeof parsed.anthropicContextBudget === "number"
             ? parsed.anthropicContextBudget
             : defaultState.anthropicContextBudget,
+      agentLimits: clampAgentLimits(parsed.agentLimits),
     };
   }
 
@@ -256,6 +267,12 @@ function createSettingsStore() {
         webFetchAllowedHosts: webFetchAllowedHosts
           .map((h) => h.trim().toLowerCase())
           .filter(Boolean),
+      }));
+    },
+    setAgentLimits: (agentLimits: Partial<AgentLimits>) => {
+      update((state) => ({
+        ...state,
+        agentLimits: clampAgentLimits({ ...state.agentLimits, ...agentLimits }),
       }));
     },
   };

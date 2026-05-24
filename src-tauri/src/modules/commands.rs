@@ -5,8 +5,10 @@ use crate::modules::filesystem::{
 };
 use crate::modules::git::{
     git_commit as git_commit_inner, git_current_branch as git_current_branch_inner,
-    git_diff as git_diff_inner, git_log as git_log_inner, git_stage as git_stage_inner,
-    git_status as git_status_inner, git_unstage as git_unstage_inner, GitLogEntry, GitPathStatus,
+    git_diff as git_diff_inner, git_discard as git_discard_inner,
+    git_file_at_head as git_file_at_head_inner, git_log as git_log_inner,
+    git_stage as git_stage_inner, git_status as git_status_inner,
+    git_unstage as git_unstage_inner, GitLogEntry, GitPathStatus,
 };
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -103,6 +105,16 @@ pub fn git_log(repo_path: String, limit: Option<usize>) -> Result<Vec<GitLogEntr
     git_log_inner(&repo_path, limit.unwrap_or(32))
 }
 
+#[tauri::command]
+pub fn git_file_at_head(repo_path: String, path: String) -> Result<Option<String>, String> {
+    git_file_at_head_inner(&repo_path, &path)
+}
+
+#[tauri::command]
+pub fn git_discard(repo_path: String, path: String) -> Result<(), String> {
+    git_discard_inner(&repo_path, &path)
+}
+
 fn workspace_override_file() -> Option<PathBuf> {
     dirs::config_local_dir().map(|d| d.join("tiny-llama").join("workspace_root.txt"))
 }
@@ -172,6 +184,7 @@ pub fn open_settings_window(app: AppHandle) -> Result<(), String> {
     let _win = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("settings.html".into()))
         .title("Settings — Tiny Llama")
         .inner_size(900.0, 700.0)
+        .decorations(false)
         .build()
         .map_err(|e| e.to_string())?;
 

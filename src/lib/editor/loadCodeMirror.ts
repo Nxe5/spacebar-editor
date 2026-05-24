@@ -26,6 +26,8 @@ import { lintKeymap } from "@codemirror/lint";
 import { foldKeymap } from "@codemirror/language";
 import type { OpenFile } from "$lib/stores/files";
 import { editorSyntaxHighlighting } from "./syntaxTheme";
+import { middleClickScroll } from "./middleClickScroll";
+import { gitDiffHighlightExtension } from "./diffDecorations";
 
 /** Same as codemirror's `basicSetup` but without `defaultHighlightStyle` (we use custom syntax). */
 export const editorBaseSetup: Extension[] = [
@@ -45,6 +47,7 @@ export const editorBaseSetup: Extension[] = [
   crosshairCursor(),
   highlightActiveLine(),
   highlightSelectionMatches(),
+  middleClickScroll(),
   keymap.of([
     ...closeBracketsKeymap,
     ...defaultKeymap,
@@ -78,7 +81,30 @@ export function loadCodeMirror(): Promise<CodeMirrorKit> {
       import("@codemirror/lang-markdown"),
       import("@codemirror/lang-rust"),
       import("@codemirror/lang-python"),
-    ]).then(([jsModule, htmlModule, cssModule, jsonModule, mdModule, rustModule, pythonModule]) => ({
+      import("@codemirror/lang-yaml"),
+      import("@codemirror/lang-go"),
+      import("@codemirror/lang-cpp"),
+      import("@codemirror/lang-java"),
+      import("@codemirror/lang-sql"),
+      import("@codemirror/lang-xml"),
+      import("codemirror-lang-svelte"),
+    ]).then(
+      ([
+        jsModule,
+        htmlModule,
+        cssModule,
+        jsonModule,
+        mdModule,
+        rustModule,
+        pythonModule,
+        yamlModule,
+        goModule,
+        cppModule,
+        javaModule,
+        sqlModule,
+        xmlModule,
+        svelteModule,
+      ]) => ({
       EditorState,
       EditorView,
       scrollPastEnd,
@@ -93,8 +119,18 @@ export function loadCodeMirror(): Promise<CodeMirrorKit> {
         markdown: mdModule.markdown(),
         rust: rustModule.rust(),
         python: pythonModule.python(),
+        yaml: yamlModule.yaml(),
+        go: goModule.go(),
+        cpp: cppModule.cpp(),
+        c: cppModule.cpp(),
+        java: javaModule.java(),
+        sql: sqlModule.sql(),
+        xml: xmlModule.xml(),
+        svelte: svelteModule.svelte(),
+        vue: htmlModule.html(),
       },
-    }));
+    })
+    );
   }
   return loadPromise;
 }
@@ -106,15 +142,23 @@ export function createEditorState(
 ) {
   const langExt = kit.languageExtensions[file.language];
   const lang = langExt != null ? [langExt] : [];
+  const diffMode = file.diffBase !== undefined;
+  const diffExt = diffMode
+    ? [
+        gitDiffHighlightExtension(() => file.diffBase),
+        EditorState.readOnly.of(true),
+      ]
+    : [];
   return kit.EditorState.create({
     doc: file.content,
     extensions: [
       ...kit.editorBaseSetup,
       ...lang,
+      ...diffExt,
       kit.syntaxHighlighting,
       kit.scrollPastEnd(),
       kit.EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
+        if (update.docChanged && !diffMode) {
           onDocChange(file.path, update.state.doc.toString());
         }
       }),

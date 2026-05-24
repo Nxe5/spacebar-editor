@@ -1,5 +1,8 @@
 # Tiny Llama — Comprehensive Architecture Reference
 
+> **Start here:** [OVERVIEW.md](OVERVIEW.md) (accurate product snapshot) and [spec.md](spec.md) (specification + roadmap).  
+> This document is a detailed reference. When it conflicts with code or those two files, **trust the code** and update the docs.
+
 This document describes how **Tiny Llama** works end-to-end: UI layout, state, AI agent loop, tool calling chains, theming, syntax highlighting, Rust backend, and persistence. It is intended for architecture review and onboarding.
 
 ---

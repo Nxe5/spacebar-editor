@@ -146,6 +146,16 @@ export async function gitLog(repoPath: string, limit?: number): Promise<GitLogEn
   return invoke<GitLogEntry[]>("git_log", { repoPath, limit: limit ?? 32 });
 }
 
+export async function gitFileAtHead(repoPath: string, path: string): Promise<string | null> {
+  await ensureTauriApi();
+  return invoke<string | null>("git_file_at_head", { repoPath, path });
+}
+
+export async function gitDiscard(repoPath: string, path: string): Promise<void> {
+  await ensureTauriApi();
+  return invoke<void>("git_discard", { repoPath, path });
+}
+
 export async function renameEntry(from: string, to: string): Promise<void> {
   await ensureTauriApi();
   return invoke<void>("rename_entry", { from, to });

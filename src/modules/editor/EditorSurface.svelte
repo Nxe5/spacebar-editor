@@ -6,6 +6,8 @@
   import { writeFile } from "$lib/ipc";
   import { loadCodeMirror, type CodeMirrorKit } from "$lib/editor/loadCodeMirror";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
+  import { gitDiffHighlightExtension } from "$lib/editor/diffDecorations";
+  import { EditorState } from "@codemirror/state";
 
   interface Props {
     editorTab: WorkbenchTab | null;
@@ -72,15 +74,23 @@
   function createState(cm: CodeMirrorKit, file: OpenFile) {
     const langExt = cm.languageExtensions[file.language];
     const lang = langExt != null ? [langExt] : [];
+    const diffMode = file.diffBase !== undefined;
+    const diffExt = diffMode
+      ? [
+          gitDiffHighlightExtension(() => file.diffBase),
+          EditorState.readOnly.of(true),
+        ]
+      : [];
     return cm.EditorState.create({
       doc: file.content,
       extensions: [
         ...cm.editorBaseSetup,
         ...lang,
+        ...diffExt,
         cm.syntaxHighlighting,
         cm.scrollPastEnd(),
         cm.EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
+          if (update.docChanged && !diffMode) {
             files.updateFileContent(file.path, update.state.doc.toString());
             states.set(file.path, update.state);
           }

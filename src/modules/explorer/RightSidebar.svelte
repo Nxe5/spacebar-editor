@@ -2,11 +2,11 @@
   import FileTree from "./FileTree.svelte";
   import GitPanel from "./GitPanel.svelte";
   import PromptPanel from "./PromptPanel.svelte";
-  import FilesIcon from "phosphor-svelte/lib/FilesIcon";
-  import GitDiffIcon from "phosphor-svelte/lib/GitDiffIcon";
-  import FileMdIcon from "phosphor-svelte/lib/FileMdIcon";
-  import FolderOpenIcon from "phosphor-svelte/lib/FolderOpenIcon";
-  import GearIcon from "phosphor-svelte/lib/GearIcon";
+  import Files from "@lucide/svelte/icons/files";
+  import GitBranch from "@lucide/svelte/icons/git-branch";
+  import ScrollText from "@lucide/svelte/icons/scroll-text";
+  import FolderOpen from "@lucide/svelte/icons/folder-open";
+  import Settings from "@lucide/svelte/icons/settings";
 
   type Tab = "files" | "git" | "prompt";
   let activeTab = $state<Tab>("files");
@@ -69,18 +69,18 @@
       {#each tabs as tab}
         <button
           type="button"
-          class="icon-btn"
+          class="icon-btn workbench-icon-btn"
           class:active={dockedOnly ? activeTab === tab.id : secondaryOpen && activeTab === tab.id}
           aria-pressed={dockedOnly ? activeTab === tab.id : secondaryOpen && activeTab === tab.id}
           onclick={() => onIconClick(tab.id)}
           title={tab.title}
         >
           {#if tab.id === "files"}
-            <FilesIcon class="acc-icon" size={20} aria-hidden="true" />
+            <Files size={18} strokeWidth={1.75} aria-hidden="true" />
           {:else if tab.id === "git"}
-            <GitDiffIcon class="acc-icon" size={20} aria-hidden="true" />
+            <GitBranch size={18} strokeWidth={1.75} aria-hidden="true" />
           {:else if tab.id === "prompt"}
-            <FileMdIcon class="acc-icon" size={20} aria-hidden="true" />
+            <ScrollText size={18} strokeWidth={1.75} aria-hidden="true" />
           {/if}
         </button>
       {/each}
@@ -88,14 +88,14 @@
     <div class="sidebar-icons__footer" role="group" aria-label="Workspace and settings">
       <button
         type="button"
-        class="icon-btn"
+        class="icon-btn workbench-icon-btn"
         title="Open workspace folder (explorer + new terminals)"
         onclick={() => onOpenWorkspace?.()}
       >
-        <FolderOpenIcon class="acc-icon" size={20} aria-hidden="true" />
+        <FolderOpen size={18} strokeWidth={1.75} aria-hidden="true" />
       </button>
-      <button type="button" class="icon-btn" title="Settings" onclick={() => onOpenSettings?.()}>
-        <GearIcon class="acc-icon" size={20} aria-hidden="true" />
+      <button type="button" class="icon-btn workbench-icon-btn" title="Settings" onclick={() => onOpenSettings?.()}>
+        <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
       </button>
     </div>
   </div>
@@ -170,22 +170,17 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 40px;
+    height: 36px;
     padding: 0;
     border: none;
     background: transparent;
-    color: var(--activity-bar-inactive);
     cursor: pointer;
   }
 
-  .icon-btn:hover {
-    color: var(--activity-bar-foreground);
-    background: var(--activity-bar-hover-bg);
-  }
-
-  .icon-btn.active {
-    color: var(--activity-bar-active);
-    border-left: 2px solid var(--activity-bar-active-border);
+  .icon-btn.workbench-icon-btn {
+    width: var(--workbench-icon-btn-size);
+    height: var(--workbench-icon-btn-size);
+    margin-inline: auto;
   }
 
   .content-body {
@@ -196,8 +191,4 @@
     overflow: hidden;
   }
 
-  :global(.acc-icon) {
-    width: 20px;
-    height: 20px;
-  }
 </style>

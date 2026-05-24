@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./workbench-icon-btn.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -21,7 +22,7 @@
   /** Center tab strip, chat toolbar, explorer (etc.) top row — keeps columns visually aligned. */
   --workbench-row-header-height: 26px;
   /** Top shell row (chat + workbench tabs) and bottom status bar. */
-  --workbench-shell-header-height: 30px;
+  --workbench-shell-header-height: 36px;
 
   /* Editor / workbench — Cursor Dark */
   --editor-bg: #181818;
@@ -61,6 +62,16 @@
   --sidebar-accent-foreground: #e4e4e4;
   --sidebar-border: #2a2a2a;
   --sidebar-ring: #88c0d0;
+
+  --explorer-selection-bg: #2a2a2a;
+  --explorer-font-size: 12px;
+  --explorer-icon-size: 15px;
+  --explorer-file-modified: #d4a656;
+  --explorer-file-untracked: #6b9bd1;
+  --explorer-folder-open: #d4a656;
+  --explorer-folder-untracked: #6b9bd1;
+  --explorer-folder-modified: #c9a227;
+  --explorer-folder-error: #e34671;
 
   --surface: #141414;
   --surface-elevated: #262626;
@@ -119,6 +130,16 @@
   --sidebar-accent-foreground: #e4e4e4;
   --sidebar-border: #2a2a2a;
   --sidebar-ring: #88c0d0;
+
+  --explorer-selection-bg: #2a2a2a;
+  --explorer-font-size: 12px;
+  --explorer-icon-size: 15px;
+  --explorer-file-modified: #d4a656;
+  --explorer-file-untracked: #6b9bd1;
+  --explorer-folder-open: #d4a656;
+  --explorer-folder-untracked: #6b9bd1;
+  --explorer-folder-modified: #c9a227;
+  --explorer-folder-error: #e34671;
 
   --surface: #141414;
   --surface-elevated: #262626;
@@ -208,6 +229,53 @@
   .cm-scroller::-webkit-scrollbar-track,
   .xterm-viewport::-webkit-scrollbar-track {
     background: var(--editor-bg);
+  }
+
+  /* Tab strips: native scrollbars hidden; fixed 3px custom thumb via tabStripScroll action. */
+  .tab-strip-scroll-native-hidden {
+    scrollbar-width: none;
+  }
+
+  .tab-strip-scroll-native-hidden::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .tab-strip-scroll-wrap {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .tab-strip-scroll-track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    min-height: 3px;
+    max-height: 3px;
+    pointer-events: none;
+    z-index: 5;
+    overflow: hidden;
+  }
+
+  .tab-strip-scroll-thumb {
+    position: absolute;
+    top: 0;
+    height: 3px;
+    min-height: 3px;
+    max-height: 3px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+  }
+
+  .tab-strip-scroll-wrap:hover .tab-strip-scroll-thumb {
+    background: color-mix(in oklab, var(--muted-foreground) 58%, transparent);
   }
 
   body {

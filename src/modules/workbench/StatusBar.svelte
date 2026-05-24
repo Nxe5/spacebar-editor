@@ -88,6 +88,39 @@
 </script>
 
 <div class="status-bar">
+  <div class="status-bar__actions" role="toolbar" aria-label="Panel toggles">
+    <button
+      type="button"
+      class="status-toggle workbench-icon-btn"
+      class:active={showLeftPanel}
+      aria-pressed={showLeftPanel}
+      title="Toggle chat"
+      onclick={() => onToggleLeft?.()}
+    >
+      <SidebarIcon size={18} aria-hidden="true" />
+    </button>
+    <button
+      type="button"
+      class="status-toggle workbench-icon-btn"
+      class:active={showBottomPanel}
+      aria-pressed={showBottomPanel}
+      title="Toggle bottom panel"
+      onclick={() => onToggleBottom?.()}
+    >
+      <RowsIcon size={18} aria-hidden="true" />
+    </button>
+    <button
+      type="button"
+      class="status-toggle workbench-icon-btn"
+      class:active={showRightPanel}
+      aria-pressed={showRightPanel}
+      title="Toggle explorer"
+      onclick={() => onToggleRight?.()}
+    >
+      <SidebarIcon size={18} mirrored aria-hidden="true" />
+    </button>
+  </div>
+  <span class="status-sep status-sep--actions" aria-hidden="true"></span>
   <div class="status-bar__left" role="status" aria-live="polite">
     {#if gitBranch}
       <span class="git-pill" title="Git branch">
@@ -102,38 +135,6 @@
     <span class="status-dot" class:green={$backendStatus.dot === "green"} class:red={$backendStatus.dot === "red"} class:yellow={$backendStatus.dot === "yellow"} class:idle={$backendStatus.dot === "idle"} title={$backendStatus.detail}></span>
     <span class="status-detail">{$backendStatus.detail}</span>
   </div>
-  <div class="status-bar__actions" role="toolbar" aria-label="Panel toggles">
-    <button
-      type="button"
-      class="status-toggle"
-      class:active={showLeftPanel}
-      aria-pressed={showLeftPanel}
-      title="Toggle chat"
-      onclick={() => onToggleLeft?.()}
-    >
-      <SidebarIcon size={14} />
-    </button>
-    <button
-      type="button"
-      class="status-toggle"
-      class:active={showBottomPanel}
-      aria-pressed={showBottomPanel}
-      title="Toggle bottom panel"
-      onclick={() => onToggleBottom?.()}
-    >
-      <RowsIcon size={14} />
-    </button>
-    <button
-      type="button"
-      class="status-toggle"
-      class:active={showRightPanel}
-      aria-pressed={showRightPanel}
-      title="Toggle explorer"
-      onclick={() => onToggleRight?.()}
-    >
-      <SidebarIcon size={14} mirrored />
-    </button>
-  </div>
 </div>
 
 <style>
@@ -144,7 +145,7 @@
     box-sizing: border-box;
     height: var(--workbench-shell-header-height);
     min-height: var(--workbench-shell-header-height);
-    padding: 0 8px 0 12px;
+    padding: 0 8px 0 4px;
     font-size: 10px;
     line-height: 1.25;
     color: var(--muted-foreground);
@@ -165,49 +166,12 @@
   .status-bar__actions {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 0;
     flex-shrink: 0;
   }
 
-  .status-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--muted-foreground);
-    cursor: pointer;
-  }
-
-  .status-toggle:hover,
-  .status-toggle:active {
-    background: transparent;
-    color: var(--foreground);
-  }
-
-  .status-toggle.active {
-    background: transparent;
-    color: var(--foreground);
-  }
-
-  .status-toggle.active:hover,
-  .status-toggle.active:active {
-    color: var(--foreground);
-  }
-
-  .status-toggle:focus-visible {
-    outline: 1px solid var(--ring);
-    outline-offset: 1px;
-  }
-
-  .status-toggle :global(svg) {
-    width: 12px;
-    height: 12px;
-    flex-shrink: 0;
+  .status-sep--actions {
+    margin: 0 4px 0 2px;
   }
 
   .git-pill {

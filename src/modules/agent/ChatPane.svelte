@@ -36,18 +36,23 @@
     type ToolPolicyState,
   } from "$lib/toolPolicy";
   import { executeTool } from "$lib/tools/toolRunner";
+  import type { AgentLimits } from "$lib/agentLimits";
+  import {
+    chatFooterProfile,
+    formatMonthlyUsageLabel,
+    contextBudgetTitle,
+  } from "$lib/chatFooterProfile";
+  import { providerUsage } from "$lib/stores/providerUsage";
 
-  const MAX_AGENT_STEPS = 12;
-
-  import ArrowUpIcon from "phosphor-svelte/lib/ArrowUpIcon";
-  import CaretDownIcon from "phosphor-svelte/lib/CaretDownIcon";
-  import ClockCounterClockwiseIcon from "phosphor-svelte/lib/ClockCounterClockwiseIcon";
-  import ImageSquareIcon from "phosphor-svelte/lib/ImageSquareIcon";
-  import ChatCircleIcon from "phosphor-svelte/lib/ChatCircleIcon";
-  import MicrophoneIcon from "phosphor-svelte/lib/MicrophoneIcon";
-  import ArrowsClockwiseIcon from "phosphor-svelte/lib/ArrowsClockwiseIcon";
-  import GearIcon from "phosphor-svelte/lib/GearIcon";
-  import StopIcon from "phosphor-svelte/lib/StopIcon";
+  import ArrowUp from "@lucide/svelte/icons/arrow-up";
+  import ChevronDown from "@lucide/svelte/icons/chevron-down";
+  import History from "@lucide/svelte/icons/history";
+  import Paperclip from "@lucide/svelte/icons/paperclip";
+  import MessageCircle from "@lucide/svelte/icons/message-circle";
+  import Mic from "@lucide/svelte/icons/mic";
+  import RefreshCw from "@lucide/svelte/icons/refresh-cw";
+  import Settings from "@lucide/svelte/icons/settings";
+  import Square from "@lucide/svelte/icons/square";
 
   interface Props {
     onOpenSettings?: () => void;
@@ -222,6 +227,25 @@
   let contextPct = $derived(() => {
     const max = maxContextTokens();
     return max > 0 ? Math.min(100, (contextUsed() / max) * 100) : 0;
+  });
+
+  let footerProfile = $derived(() => chatFooterProfile($settings.chatBackend));
+
+  let monthlyUsageLabel = $derived(() => {
+    const profile = footerProfile();
+    if (!profile.showMonthlyUsage) return "";
+    const totals = $providerUsage.providers[profile.usageProviderId] ?? {
+      inputTokens: 0,
+      outputTokens: 0,
+    };
+    return formatMonthlyUsageLabel(totals.inputTokens, totals.outputTokens);
+  });
+
+  let footerAriaLabel = $derived(() => {
+    const profile = footerProfile();
+    if (profile.showMonthlyUsage) return "Chat context and monthly API usage";
+    if (profile.contextHint === "server") return "Chat context (server-defined limit)";
+    return "Estimated context from this chat";
   });
 
   function formatTok(n: number): string {
@@ -507,11 +531,40 @@
     toolCalls: StoredToolCall[],
     policy: ToolPolicyState,
     workspacePath: string,
-    webFetchAllowedHosts: string[]
-  ): Promise<Array<{ id: string; name: string; content: string }>> {
+    webFetchAllowedHosts: string[],
+    limits: AgentLimits,
+    runCounter: { executed: number }
+  ): Promise<{
+    results: Array<{ id: string; name: string; content: string }>;
+    hitRunCap: boolean;
+  }> {
     const results: Array<{ id: string; name: string; content: string }> = [];
+    let hitRunCap = false;
 
-    for (const tc of toolCalls) {
+    const perTurnCap =
+      limits.maxToolsPerTurn > 0 ? limits.maxToolsPerTurn : toolCalls.length;
+    const toRun = toolCalls.slice(0, perTurnCap);
+    const skippedPerTurn = toolCalls.slice(perTurnCap);
+
+    for (const tc of skippedPerTurn) {
+      results.push({
+        id: tc.id,
+        name: tc.name,
+        content: `Error: Not executed — per-turn tool limit (${limits.maxToolsPerTurn}) reached.`,
+      });
+    }
+
+    for (const tc of toRun) {
+      if (runCounter.executed >= limits.maxToolCallsPerRun) {
+        hitRunCap = true;
+        results.push({
+          id: tc.id,
+          name: tc.name,
+          content: `Error: Not executed — maximum tool calls per run (${limits.maxToolCallsPerRun}) reached.`,
+        });
+        continue;
+      }
+
       let args: Record<string, unknown>;
       try {
         args = JSON.parse(tc.arguments);
@@ -556,6 +609,7 @@
         webFetchAllowedHosts,
       });
       chat.setToolCall(null);
+      runCounter.executed++;
 
       await syncUiAfterFilesystemTool(workspacePath, tc.name, args, result.success);
 
@@ -564,9 +618,13 @@
         name: tc.name,
         content: result.success ? result.output : `Error: ${result.output}`,
       });
+
+      if (runCounter.executed >= limits.maxToolCallsPerRun) {
+        hitRunCap = true;
+      }
     }
 
-    return results;
+    return { results, hitRunCap };
   }
 
   async function runAgentLoop() {
@@ -590,9 +648,11 @@
 
     let providerMessages = buildProviderMessages(systemPromptText, history);
     abortController = new AbortController();
+    const agentLimits = st.agentLimits;
+    const toolRunCounter = { executed: 0 };
 
     try {
-      for (let step = 0; step < MAX_AGENT_STEPS; step++) {
+      for (let step = 0; step < agentLimits.maxAgentSteps; step++) {
         streamingContent = "";
 
         const turn = await streamOneTurn({
@@ -613,7 +673,17 @@
 
         if (turn.usage) {
           usageRecordedForStream = true;
-          recordLastReplyMetrics(turn.usage.completion_tokens);
+          const profile = chatFooterProfile(st.chatBackend);
+          if (profile.showStreamMetrics) {
+            recordLastReplyMetrics(turn.usage.completion_tokens);
+          }
+          if (profile.showMonthlyUsage) {
+            providerUsage.record(
+              profile.usageProviderId,
+              turn.usage.prompt_tokens,
+              turn.usage.completion_tokens
+            );
+          }
         }
 
         if (turn.toolCalls.length === 0) {
@@ -634,11 +704,13 @@
           turn.toolCalls
         );
 
-        const toolResults = await executeToolCallsWithApproval(
+        const { results: toolResults, hitRunCap } = await executeToolCallsWithApproval(
           turn.toolCalls,
           policyState,
           workspacePath,
-          st.webFetchAllowedHosts
+          st.webFetchAllowedHosts,
+          agentLimits,
+          toolRunCounter
         );
 
         for (const r of toolResults) {
@@ -652,7 +724,15 @@
 
         providerMessages = appendToolResults(providerMessages, toolResults);
 
-        if (step === MAX_AGENT_STEPS - 1) {
+        if (hitRunCap) {
+          chat.addMessage({
+            role: "assistant",
+            content: `Stopped: maximum tool calls (${agentLimits.maxToolCallsPerRun}) reached for this turn.`,
+          });
+          break;
+        }
+
+        if (step === agentLimits.maxAgentSteps - 1) {
           chat.addMessage({
             role: "assistant",
             content: "Stopped: maximum agent steps reached for this turn.",
@@ -842,9 +922,9 @@
         $chat.historyPickerOpen ? chat.closeHistoryPicker() : chat.openHistoryPicker()}
     >
       {#if $chat.historyPickerOpen}
-        <ChatCircleIcon size={18} />
+        <MessageCircle size={18} strokeWidth={1.75} />
       {:else}
-        <ClockCounterClockwiseIcon size={18} />
+        <History size={18} strokeWidth={1.75} />
       {/if}
     </button>
     {#if $chat.historyPickerOpen}
@@ -1017,7 +1097,7 @@
                   aria-label="More allow options"
                   title="Allow options"
                 >
-                  <CaretDownIcon size={14} aria-hidden="true" />
+                  <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
                 </button>
               </div>
               {#if toolApprovalMenuOpen}
@@ -1058,7 +1138,7 @@
             title="Choose mode"
           >
             <span class="composer-mode-label">{MODE_CONFIG[$currentMode].label}</span>
-            <CaretDownIcon size={14} aria-hidden="true" />
+            <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
           </button>
           {#if modeMenuOpen}
             <div class="mode-popup" role="listbox" aria-label="Choose mode">
@@ -1088,7 +1168,7 @@
             title="Choose model"
           >
             <span class="composer-model-label">{modelTriggerLabel}</span>
-            <CaretDownIcon size={14} aria-hidden="true" />
+            <ChevronDown size={14} strokeWidth={1.75} aria-hidden="true" />
           </button>
           {#if modelMenuOpen}
             <div class="model-popup" role="listbox" aria-label="Choose model">
@@ -1103,7 +1183,7 @@
                       title="Refresh Ollama models"
                       aria-label="Refresh Ollama models"
                     >
-                      <ArrowsClockwiseIcon size={14} aria-hidden="true" />
+                      <RefreshCw size={14} strokeWidth={1.75} aria-hidden="true" />
                     </button>
                     <button
                       type="button"
@@ -1115,7 +1195,7 @@
                       title="Provider settings"
                       aria-label="Provider settings"
                     >
-                      <GearIcon size={14} aria-hidden="true" />
+                      <Settings size={14} strokeWidth={1.75} aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -1200,7 +1280,7 @@
             title="Stop generating"
             aria-label="Stop generating"
           >
-            <StopIcon size={16} aria-hidden="true" />
+            <Square size={18} strokeWidth={1.75} aria-hidden="true" />
           </button>
         {:else}
           <input
@@ -1211,23 +1291,22 @@
           />
           <button
             type="button"
-            class="composer-tool-btn"
+            class="composer-tool-btn workbench-icon-btn"
             onclick={() => attachInputEl?.click()}
             title="Attach file"
             aria-label="Attach file"
           >
-            <ImageSquareIcon size={16} aria-hidden="true" />
+            <Paperclip size={18} strokeWidth={2} aria-hidden="true" />
           </button>
           <button
             type="button"
-            class="composer-tool-btn"
-            class:composer-tool-btn--active={speechListening}
+            class="composer-tool-btn workbench-icon-btn"
             onclick={toggleDictation}
             title={speechListening ? "Stop dictation" : "Speech to text"}
             aria-label={speechListening ? "Stop dictation" : "Speech to text"}
             aria-pressed={speechListening}
           >
-            <MicrophoneIcon size={16} aria-hidden="true" />
+            <Mic size={18} strokeWidth={2} aria-hidden="true" />
           </button>
           {#if inputValue.trim()}
             <button
@@ -1237,7 +1316,7 @@
               title="Send"
               aria-label="Send message"
             >
-              <ArrowUpIcon size={16} aria-hidden="true" />
+              <ArrowUp size={18} strokeWidth={1.75} aria-hidden="true" />
             </button>
           {/if}
         {/if}
@@ -1245,45 +1324,69 @@
     </div>
   </form>
 
-  <div class="context-footer" aria-label="Estimated context from this chat">
-    <div class="context-bar">
-      <div class="context-fill" style="width: {contextPct()}%"></div>
-    </div>
+  <div class="context-footer" aria-label={footerAriaLabel()}>
+    {#if footerProfile().showContextBar}
+      <div class="context-bar">
+        <div class="context-fill" style="width: {contextPct()}%"></div>
+      </div>
+    {/if}
     <div class="context-meta">
-      <span
-        class="context-chat-tok"
-        title="Output speed, token count, and duration for the last completed reply"
-        aria-label="Last reply: tokens per second, output tokens, and completion time"
-      >
-        {lastReplyFooterLabel()}
-      </span>
-      <div class="context-budget-wrap" bind:this={contextBudgetMenuEl}>
-        <button
-          type="button"
-          class="context-numbers"
-          onclick={toggleContextBudgetMenu}
-          aria-expanded={contextBudgetMenuOpen}
-          aria-haspopup="listbox"
-          title="Change context budget for this model"
+      {#if footerProfile().showStreamMetrics}
+        <span
+          class="context-chat-tok"
+          title="Output speed, token count, and duration for the last completed reply"
+          aria-label="Last reply: tokens per second, output tokens, and completion time"
         >
-          <span class="context-numbers-text"
-            >~{formatTok(contextUsed())} / {formatTok(maxContextTokens())} tok</span>
-        </button>
-        {#if contextBudgetMenuOpen}
-          <div class="context-budget-menu" role="listbox" aria-label="Context budget">
-            {#each contextBudgetOptions() as opt (opt)}
-              <button
-                type="button"
-                role="option"
-                class="context-budget-option"
-                class:current={opt === maxContextTokens()}
-                aria-selected={opt === maxContextTokens()}
-                onclick={() => pickContextBudgetOption(opt)}
-              >
-                {formatTok(opt)} tok
-              </button>
-            {/each}
-          </div>
+          {lastReplyFooterLabel()}
+        </span>
+      {:else if footerProfile().showMonthlyUsage}
+        <span
+          class="context-chat-tok"
+          title="Input and output tokens from API responses this calendar month (stored locally)"
+        >
+          {monthlyUsageLabel()}
+        </span>
+      {/if}
+      <div class="context-budget-wrap" bind:this={contextBudgetMenuEl}>
+        {#if footerProfile().contextBudgetEditable}
+          <button
+            type="button"
+            class="context-numbers"
+            onclick={toggleContextBudgetMenu}
+            aria-expanded={contextBudgetMenuOpen}
+            aria-haspopup="listbox"
+            title={contextBudgetTitle(footerProfile(), $settings.chatBackend)}
+          >
+            <span class="context-numbers-text"
+              >~{formatTok(contextUsed())} / {formatTok(maxContextTokens())} tok</span
+            >
+          </button>
+          {#if contextBudgetMenuOpen}
+            <div class="context-budget-menu" role="listbox" aria-label="Context budget">
+              {#each contextBudgetOptions() as opt (opt)}
+                <button
+                  type="button"
+                  role="option"
+                  class="context-budget-option"
+                  class:current={opt === maxContextTokens()}
+                  aria-selected={opt === maxContextTokens()}
+                  onclick={() => pickContextBudgetOption(opt)}
+                >
+                  {formatTok(opt)} tok
+                </button>
+              {/each}
+            </div>
+          {/if}
+        {:else}
+          <span
+            class="context-numbers context-numbers--static"
+            title={contextBudgetTitle(footerProfile(), $settings.chatBackend)}
+          >
+            <span class="context-numbers-text">
+              ~{formatTok(contextUsed())} / {formatTok(maxContextTokens())} tok{#if footerProfile().contextHint}
+                <span class="context-hint"> · {footerProfile().contextHint}</span>{/if}
+            </span>
+          </span>
         {/if}
       </div>
     </div>
@@ -1437,8 +1540,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: var(--workbench-icon-btn-size, 32px);
+    height: var(--workbench-icon-btn-size, 32px);
     padding: 0;
     border: none;
     border-radius: 9999px;
@@ -1459,8 +1562,8 @@
   }
 
   .messages-corner-btn :global(svg) {
-    width: 10px;
-    height: 10px;
+    width: var(--workbench-icon-btn-icon-size, 18px);
+    height: var(--workbench-icon-btn-icon-size, 18px);
   }
 
   .messages-corner-btn:focus-visible {
@@ -1873,23 +1976,16 @@
     overflow: visible;
   }
 
-  .composer-shell :global(svg) {
-    width: 12px;
-    height: 12px;
-    flex-shrink: 0;
-  }
-
   .composer-mode-btn :global(svg),
   .composer-model-btn :global(svg) {
     width: 11px;
     height: 11px;
   }
 
-  .composer-tool-btn :global(svg),
   .composer-stop-btn :global(svg),
   .composer-send-minimal :global(svg) {
-    width: 17px;
-    height: 17px;
+    width: var(--workbench-icon-btn-icon-size, 18px);
+    height: var(--workbench-icon-btn-icon-size, 18px);
   }
 
   .composer-textarea {
@@ -2010,8 +2106,9 @@
   .composer-model-wrap {
     position: relative;
     align-self: center;
-    max-width: min(168px, 52vw);
-    flex-shrink: 0;
+    min-width: 0;
+    max-width: min(7.5rem, 32vw);
+    flex: 0 1 auto;
   }
 
   .composer-model-btn {
@@ -2038,6 +2135,8 @@
   }
 
   .composer-model-label {
+    flex: 1 1 auto;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2060,36 +2159,12 @@
     border: 0;
   }
 
-  .composer-tool-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: #a8a8a8;
-    cursor: pointer;
-  }
-
-  .composer-tool-btn:hover {
-    color: #e8e8e8;
-    background: rgba(255, 255, 255, 0.06);
-  }
-
-  .composer-tool-btn--active {
-    color: #0e639c;
-    background: rgba(14, 99, 156, 0.2);
-  }
-
   .composer-stop-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
+    width: var(--workbench-icon-btn-size, 32px);
+    height: var(--workbench-icon-btn-size, 32px);
     padding: 0;
     border: none;
     border-radius: 6px;
@@ -2307,6 +2382,15 @@
 
   .context-numbers-text {
     min-width: 0;
+  }
+
+  .context-numbers--static {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .context-hint {
+    color: #858585;
   }
 
   .context-numbers:hover {

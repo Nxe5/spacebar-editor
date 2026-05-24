@@ -1,5 +1,6 @@
 <script lang="ts">
   import { chat } from "$lib/stores/chat";
+  import { tabStripScroll } from "$lib/actions/scrollOverflow";
   import ShellTabBubble from "../workbench/ShellTabBubble.svelte";
   import ChatCircleIcon from "phosphor-svelte/lib/ChatCircleIcon";
   import PlusIcon from "phosphor-svelte/lib/PlusIcon";
@@ -19,22 +20,24 @@
 </script>
 
 <div class="chat-tab-bar-root">
-  <div class="tabs-scroll" bind:this={tabScroll} role="tablist" aria-label="Chat sessions">
-    {#each $chat.sessions as session (session.id)}
-      <div class="hdr-tab-slot" data-session={session.id}>
-        <ShellTabBubble
-          title={session.title}
-          active={session.id === $chat.activeSessionId}
-          allowMiddleClose
-          onActivate={() => chat.setActiveSession(session.id)}
-          onClose={() => chat.closeSession(session.id)}
-        >
-          {#snippet icon()}
-            <ChatCircleIcon size={14} />
-          {/snippet}
-        </ShellTabBubble>
-      </div>
-    {/each}
+  <div class="tab-strip-scroll-wrap">
+    <div class="tabs-scroll" bind:this={tabScroll} use:tabStripScroll role="tablist" aria-label="Chat sessions">
+      {#each $chat.sessions as session (session.id)}
+        <div class="hdr-tab-slot" data-session={session.id}>
+          <ShellTabBubble
+            title={session.title}
+            active={session.id === $chat.activeSessionId}
+            allowMiddleClose
+            onActivate={() => chat.setActiveSession(session.id)}
+            onClose={() => chat.closeSession(session.id)}
+          >
+            {#snippet icon()}
+              <ChatCircleIcon size={14} />
+            {/snippet}
+          </ShellTabBubble>
+        </div>
+      {/each}
+    </div>
   </div>
   <button type="button" class="hdr-tab-aux-btn" onclick={newChat} title="New chat" aria-label="New chat">
     <PlusIcon size={14} />
@@ -61,10 +64,10 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    height: 100%;
     overflow-x: auto;
     overflow-y: hidden;
     min-width: 0;
-    scrollbar-width: thin;
   }
 
   .hdr-tab-slot {

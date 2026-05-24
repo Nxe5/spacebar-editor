@@ -1,14 +1,40 @@
 # Tiny Llama — Application Specification
 
-This document describes the **Tiny Llama** desktop application: purpose, architecture, runtime behavior, persistence, IPC, and extension points. It is intended for contributors and for keeping product and engineering decisions in one place.
+This document is the **engineering specification** for Tiny Llama: product intent, current behavior, persistence, IPC, and roadmap. For a shorter snapshot see [OVERVIEW.md](OVERVIEW.md). For a deep architectural walkthrough see [ARCHITECTURE.md](ARCHITECTURE.md) (verify against code when they disagree).
+
+**Last aligned with codebase:** 2026 — Tauri 2, no Node sidecar, direct provider `fetch` from the webview.
 
 ---
 
 ## 1. Product overview
 
-**Tiny Llama** is a **minimal Cursor-like IDE** for desktop: a single window combining **AI chat**, **file explorer**, **multi-tab editor** (CodeMirror 6), **integrated terminal** (xterm + PTY), optional **preview** and **bottom dock**, and **settings**. The app targets developers who want a small, hackable shell around a coding agent (Pi-style harness) with optional **Anthropic**, **Ollama**, or **llama.cpp** backends.
+### 1.1 Purpose
 
-**Non-goals (today):** full LSP, Git UI beyond a stub panel, multi-root workspaces, cloud sync, mobile.
+Tiny Llama is a **minimal Cursor-like IDE** for **desktop** use:
+
+- Multi-tab **CodeMirror 6** editor with syntax highlighting and git diff view
+- **File explorer** with icon themes (Seti, VS Code icons, codicons, custom packs)
+- **Git** panel for status, staging, commit, and change review
+- **Terminal** (xterm.js + native PTY)
+- **AI chat** with streaming and **agentic tool use** (Plan / Agent modes)
+- Swappable **LLM backends**: Anthropic (cloud), Ollama and llama.cpp (local)
+
+### 1.2 Positioning
+
+- **Local-first / BYOM:** Run models on your machine or bring your own API keys; no Tiny Llama cloud.
+- **Trust through git:** Agent file changes appear in the Git **Changes** list; review with diff highlighting and **Discard** (not a pre-write chat modal).
+- **Hackable:** Small Svelte + Rust codebase; tools and prompts are project-local under `.tinyllama/`.
+
+### 1.3 Non-goals (current)
+
+| Non-goal | Notes |
+|----------|--------|
+| Browser deployment as primary product | Tauri desktop only for real use |
+| Node sidecar / Pi harness | **Removed**; do not document `sidecar/` or harness IPC |
+| Full LSP | Editor is syntax-highlighted text; no completions/diagnostics |
+| Multi-root workspaces | Single folder per window |
+| Cloud sync / accounts | All state is local |
+| Cmd+K inline edit | Chat + tools only for edits |
 
 ---
 
@@ -16,38 +42,46 @@ This document describes the **Tiny Llama** desktop application: purpose, archite
 
 | Layer | Technology |
 |--------|------------|
-| Desktop shell | **Tauri 2** (Rust), WebKit-based webview |
-| UI | **Svelte 5** (runes: `$state`, `$props`, `$effect`, `$derived` where used) |
-| Styling | **Tailwind CSS 4** (`@tailwindcss/vite`), shared **CSS variables** for workbench/editor/terminal |
-| Editor | **CodeMirror 6** (`codemirror`, language packages for JS/TS, HTML, CSS, JSON, MD, Rust, Python) |
-| Terminal | **xterm.js** + `@xterm/addon-fit`; PTY via Tauri commands |
-| Agent runtime | **Node sidecar** (`sidecar/`, compiled to `sidecar/dist/index.js`) — JSON-RPC over stdin/stdout; events emitted as JSON lines to stdout, forwarded by Rust as Tauri events |
-| Bundler | **Vite 6** — multi-page app: `index.html` (main), `settings.html` (settings window) |
-| Types / checks | TypeScript, `svelte-check`, Vitest |
+| Desktop shell | **Tauri 2**, `@tauri-apps/api`, `tauri-plugin-shell` |
+| UI | **Svelte 5** (runes: `$state`, `$props`, `$effect`, `$derived`) |
+| Styling | **Tailwind CSS 4**, CSS variables (`globals.css`, `workbench-themes.css`, `editor-syntax.css`) |
+| Editor | **CodeMirror 6** + language packs (see §10) |
+| Terminal | **xterm.js**, `@xterm/addon-fit` |
+| Rust | serde, **git2**, portable-pty, **notify** (watcher module present, not wired to UI), rfd, walkdir, **reqwest** (`web_fetch`) |
+| AI | **Direct HTTP/SSE** from webview: [`anthropic.ts`](src/lib/providers/anthropic.ts), [`openaiCompat.ts`](src/lib/providers/openaiCompat.ts) via [`streamTurn.ts`](src/lib/agent/streamTurn.ts) |
+| Token estimate | `gpt-tokenizer` (cl100k) for context meter pre-send |
+| Tests | **Vitest** (`tests/unit/`), optional Ollama integration |
 
-**Dev server:** default port **14200** (`vite.config.ts`, `tauri.conf.json` `build.devUrl`) to avoid collisions with common ports. `scripts/free-dev-port.mjs` runs before `npm run dev` to free the port when possible.
+**Dev:** Vite 6 MPA — `index.html` (main), `settings.html` (settings window). Default dev port **14200** (`vite.config.ts`, `tauri.conf.json`).
 
 ---
 
 ## 3. High-level architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Webview (Svelte) — WorkbenchShell                               │
-│  ├─ ChatPane          ├─ CenterWorkbench (tabs + EditorSurface) │
-│  │   harness IPC       │   Terminal / Preview overlays            │
-│  └─ …                 └─ RightSidebar (Explorer / Search / SCM)    │
-├─────────────────────────────────────────────────────────────────┤
-│  Tauri (Rust)                                                     │
-│  ├─ invoke: FS, workspace, harness control, PTY, settings window │
-│  └─ events: harness:event, pty:data, pty:exit                      │
-├─────────────────────────────────────────────────────────────────┤
-│  Sidecar (Node) — Pi-style harness, model routing, tools          │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Svelte Frontend (src/)                                                   │
+│  WorkbenchShell ──┬── ChatPane (agent loop, streaming, tool approval)   │
+│                   ├── CenterWorkbench (editor / terminal / preview)      │
+│                   └── RightSidebar (explorer, search, git)                │
+│  Stores: chat, files, workbench, settings, toolPolicy, mode, iconTheme    │
+│  lib/agent/     conversation.ts, streamTurn.ts                            │
+│  lib/providers/ anthropic.ts, openaiCompat.ts  ──► fetch() to LLM APIs   │
+│  lib/tools/     toolDefinitions.ts, toolRunner.ts ──► ipc.ts              │
+└───────────────────────────────┬──────────────────────────────────────────┘
+                                │ Tauri invoke + events (pty:data, pty:exit)
+┌───────────────────────────────▼──────────────────────────────────────────┐
+│  Rust Backend (src-tauri/src/modules/)                                    │
+│  filesystem.rs   read/write/list/grep/find/tree/web_fetch                 │
+│  git.rs          status, diff, stage, commit, log, discard, file@HEAD     │
+│  pty.rs          create/write/resize/close                                  │
+│  commands.rs     Tauri command handlers                                     │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **UI** never talks to the network for Anthropic/Ollama directly for the full agent loop in all paths; the **sidecar** performs provider calls and tool execution as configured by the harness.
-- **Filesystem** reads/writes go through **Tauri** (`read_file`, `write_file`, `list_dir`) so the webview stays sandboxed relative to OS APIs.
+**Security boundary (today):** Tool path sandboxing is enforced in **TypeScript** ([`pathUtils.ts`](src/lib/tools/pathUtils.ts)). Rust `read_file` / `write_file` accept any path the OS allows — **planned:** canonicalize against workspace root in Rust.
+
+**Secrets (today):** API keys in **`localStorage`** (`tinyllama.settings.v3`). **Planned:** OS keychain via Stronghold; LLM HTTP in Rust so keys never touch the webview.
 
 ---
 
@@ -55,351 +89,358 @@ This document describes the **Tiny Llama** desktop application: purpose, archite
 
 | Entry | File | Role |
 |--------|------|------|
-| Main shell | `index.html` → `src/main.ts` | Imports global styles, mounts `App.svelte` → `WorkbenchShell` |
-| Settings popout | `settings.html` → `src/settings-main.ts` | Separate webview window (`SettingsWindowRoot`); same CSS tokens |
-| Tauri binary | `src-tauri/src/main.rs` | Registers plugins, state (`SharedSidecar`, `PtyManager`), **invoke_handler** |
+| Main | `index.html` → `src/main.ts` → `App.svelte` → `WorkbenchShell` | Primary IDE |
+| Settings | `settings.html` → `src/settings-main.ts` → `SettingsWindowRoot` | Secondary window |
+| Tauri | `src-tauri/src/main.rs` | `invoke_handler`, PTY manager |
 
-**Tauri windows**
-
-- **`main`** — primary workbench (`WorkbenchShell`).
-- **`settings`** — created on demand via `open_settings_window` (`commands.rs` + `WebviewWindowBuilder`).
-
-**Capabilities** (`src-tauri/capabilities/default.json`): `core:default`, `shell:default` for windows `main` and `settings`.
+**Windows:** `main` (workbench), `settings` (on demand via `open_settings_window`).
 
 ---
 
-## 5. Workbench layout (UI)
+## 5. Workbench layout
 
-Implemented in **`WorkbenchShell.svelte`**:
+Implemented in [`WorkbenchShell.svelte`](src/modules/workbench/WorkbenchShell.svelte):
 
-- **Title bar** — workspace label, actions: Terminal, Preview, close-all, toggle chat / bottom / explorer, pick folder, settings (modal + external window).
-- **Left** — **Chat** (`ChatPane`) in a fixed-width aside; optional resize divider (visual only in current code).
-- **Center** — **`CenterWorkbench`**: horizontal **tab strip** (editor / terminal / preview tabs) + content area.
-  - **Editor** — `EditorSurface` (CodeMirror); hidden when active tab is not `editor` (CSS `hidden`).
-  - **Terminal / Preview** — full-bleed overlays when those tab kinds are active.
-- **Right** — **`RightSidebar`**: secondary pane (Explorer, Search, Source Control stub) + **activity bar** (icon strip). Explorer defaults to **open** (`secondaryOpen`).
+- **Title bar** — workspace label, terminal/preview/chat/explorer toggles, folder picker, settings
+- **Left** — [`ChatPane`](src/modules/agent/ChatPane.svelte) + [`ChatTabBar`](src/modules/agent/ChatTabBar.svelte)
+- **Center** — [`CenterWorkbench`](src/modules/workbench/CenterWorkbench.svelte): tab strip + [`EditorSurface`](src/modules/editor/EditorSurface.svelte) / terminal / preview
+- **Right** — [`RightSidebar`](src/modules/explorer/RightSidebar.svelte): Explorer, Search, **Git**
+- **Bottom** — optional [`BottomDock`](src/modules/workbench/BottomDock.svelte) (terminal, stubs)
+- **Footer** — [`StatusBar`](src/modules/workbench/StatusBar.svelte)
 
-**Bottom dock** — toggled from header; hosts **`BottomDock`** (Terminal stub, Debug Console stub, Serial stub) with its own tab strip.
-
-**Status bar** — `StatusBar.svelte` at the foot of the shell.
-
-**Keyboard shortcuts** — `src/modules/shortcuts/` (`defaults.ts`, `registry.ts`, `dispatcher.ts`): e.g. Mod+B chat, Mod+Shift+E explorer, Mod+J bottom, Mod+, settings, Mod+Shift+` new terminal, Mod+W close tab (when wired to dispatcher from `WorkbenchShell`).
+**Shortcuts:** [`src/modules/shortcuts/`](src/modules/shortcuts/) — Mod+B chat, Mod+Shift+E explorer, Mod+J bottom dock, Mod+, settings, Mod+W close tab, Alt+Shift+T terminal, etc.
 
 ---
 
-## 6. Frontend modules (`src/modules/`)
+## 6. State management
 
-| Module | Responsibility |
-|--------|----------------|
-| `workbench/` | Shell layout, center tabs, bottom dock, status bar |
-| `agent/` | `ChatPane` — sessions, model picker, harness lifecycle, streaming UI, context meter, tool approval UI |
-| `explorer/` | `RightSidebar`, `FileTree`, `FileTreeRow`, `SearchPanel`, `SourceControl` (stubs where noted) |
-| `editor/` | `EditorSurface` — async CM load, per-path `EditorState` cache, save (Ctrl/Cmd+S) |
-| `terminal/` | `TerminalPane` — xterm, PTY IPC, theme sync |
-| `preview/` | `PreviewPane` — embedded preview (URL-driven) |
-| `settings/` | `SettingsPane` (modal), `SettingsWindowRoot` (dedicated window) |
-| `shortcuts/` | Global shortcut dispatch |
-
-**Design system:** `src/lib/components/ui/` — bits-ui / shadcn-style primitives (button, dialog, tabs, select, etc.).
-
----
-
-## 7. State management (Svelte stores)
-
-All stores are **classic `writable` / `derived`** unless noted; persistence uses **`localStorage`** keys below.
-
-### 7.1 `settings` (`src/lib/stores/settings.ts`)
-
-**Key:** `tinyllama.settings.v1`
+### 6.1 `settings` — `tinyllama.settings.v3`
 
 | Field | Meaning |
 |--------|---------|
-| `apiKeys.anthropic`, `apiKeys.openai` | API keys (OpenAI reserved for future routing) |
+| `apiKeys.anthropic`, `apiKeys.openai` | API keys (OpenAI reserved for future providers) |
 | `chatBackend` | `"anthropic"` \| `"ollama"` \| `"llamacpp"` |
-| `harnessKind` | `"pi-latest"` \| `"pi-minimal"` (see `HARNESS_OPTIONS`) |
-| `lastBundledPiSdkVersion` | Sidecar-reported Pi SDK version string |
-| `ollamaEndpoint`, `llamacppEndpoint`, `llamacppApiKey` | Local / OpenAI-compatible endpoints |
-| `selectedModel` | Model id string (Anthropic id from `AVAILABLE_MODELS`, or installed Ollama tag, or llama.cpp row id) |
-| `lastOllamaModelId` | Last chosen Ollama tag when present in `ollamaModels` |
-| `ollamaModels`, `llamacppModels` | `ModelConfig[]` — id, name, provider, `contextWindow`, optional `contextLimitMax` (Ollama) |
-| `anthropicExtendedThinking` | Claude extended thinking toggle (sidecar enforces model support) |
-| `workbenchTheme` | Theme id (see §12) |
-| `anthropicContextBudget` | `null` = full model window; else cap for context meter / requests |
+| `ollamaEndpoint`, `llamacppEndpoint`, `llamacppApiKey` | Local server URLs / optional llama.cpp key |
+| `selectedModel`, `ollamaModels`, `llamacppModels` | Active model + discovered lists |
+| `anthropicExtendedThinking` | Claude extended thinking stream |
+| `anthropicContextBudget` | Optional cap (`null` = full model window) |
+| `workbenchTheme` | Theme id ([`workbench-theme.ts`](src/lib/workbench-theme.ts)) |
+| `webFetchAllowedHosts` | Hostname allowlist for `web_fetch` |
+| `agentLimits` | `maxAgentSteps`, `maxToolCallsPerRun`, `maxToolsPerTurn` ([`agentLimits.ts`](src/lib/agentLimits.ts)) |
 
-`AVAILABLE_MODELS` lists **Anthropic** and **OpenAI** catalog entries for UI; only Anthropic path is fully wired through the sidecar today for cloud Claude.
-
-### 7.2 `files` (`src/lib/stores/files.ts`)
+### 6.2 `files`
 
 | Field | Meaning |
 |--------|---------|
-| `tree` | `FileEntry[]` explorer roots (from `list_dir` + `normalizeFileEntry`) |
-| `openFiles` | Open buffers (`path`, `name`, `content`, `isDirty`, `language`) |
-| `activeFilePath` | Canonical path string (`normalizeFilePath`) |
-| `workspacePath` | Current workspace root |
+| `tree` | Explorer `FileEntry[]` |
+| `openFiles` | Buffers: `path`, `content`, `isDirty`, `language`, optional `diffBase` |
+| `activeFilePath` | Canonical path |
+| `workspacePath` | Project root |
 
-**Path rule:** all stored paths use **`normalizeFilePath`** (`src/lib/fsPath.ts`: trim, `\` → `/`) so explorer, tabs, and `activeFile` derived store stay consistent across OS APIs.
+Paths normalized via [`normalizeFilePath`](src/lib/fsPath.ts).
 
-### 7.3 `workbench` (`src/lib/stores/workbench.ts`)
+### 6.3 `workbench` — `tinyllama.workbench.v1`
 
-**Key:** `tinyllama.workbench.v1`
+Editor / terminal / preview tabs; editor tab ids `editor:<path>`. Persisted **globally** in localStorage (terminal/preview not in per-project state).
 
-| Field | Meaning |
-|--------|---------|
-| `tabs` | `WorkbenchTab[]` — `kind`: `editor` \| `terminal` \| `preview` |
-| `activeTabId` | Current tab id (editor tabs use `editor:<normalizedPath>`) |
+### 6.4 `chat`
 
-**Important API:** `ensureEditorTab`, `setActiveTab`, `closeTab`, `hydrateEditorTabs`, `syncFromOpenFiles`, `closeAllTabs`, terminal/preview helpers.
+Multi-session chat, streaming flag, tool call UI state, session history list.
 
-Persisted editor tabs are **normalized** on load so ids match `editorTabId(path)`.
+### 6.5 `toolPolicy` — `tinyllama.toolPolicy.v2`
 
-### 7.4 `chat` (`src/lib/stores/chat.ts`)
+Global rules + merge with [`.tinyllama/tools.json`](.tinyllama/tools.json) via `effectiveToolPolicy`. Settings UI edits global policy; project file on disk.
 
-Sessions (multi-tab chat), `history` of closed sessions (`MAX_HISTORY`), `isStreaming`, `currentToolCall`, title heuristics from first assistant reply.
+### 6.6 `providerUsage` — `tinyllama.providerUsage.v1`
 
-### 7.5 `toolPolicy` (`src/lib/stores/toolPolicy.ts`)
+Monthly input/output token totals per provider id (from API `usage` on responses). Used in Anthropic chat footer.
 
-`mode`: `allow_all` vs whitelist-driven confirm path; used on Anthropic-style tool flows (see harness / UI).
+### 6.7 Project state — `.tinyllama/state.json`
 
-**Global store** (`tinyllama.toolPolicy.v2` in `localStorage`) plus optional **project layer** from `.tinyllama/tools.json` under the open workspace (merged via `effectiveToolPolicy` derived store). Settings UI edits global policy only; project file is edited on disk or future project settings UI.
+[`projectState.ts`](src/lib/projectState.ts) autosaves per workspace:
 
----
+- Chat `sessions`, `history`, `activeSessionId`
+- Editor tab list + `activeTabId` (paths scoped to workspace)
 
-## 8. Projects and workspaces
-
-### 8.1 Product model (intent)
-
-In Tiny Llama, **each folder the user opens is a project** (synonym: **workspace**). A project is the unit of:
-
-- **Explorer root** — one expandable tree rooted at that folder.
-- **Tool and agent context** — relative paths, `run_shell` cwd, git commands, and the `--- Workspace ---` block in the system prompt all refer to this root.
-- **Chat history** — conversations belong to the project they were started in (not shared across unrelated folders).
-- **Editor state** — open file tabs and active tab selection restore when returning to that project.
-- **Project-specific settings** — overrides that differ per repo (tool rules, custom tools, system prompt, and eventually model/backend defaults where it makes sense).
-
-**Global (app-wide) settings** remain for things that are truly machine-level: API keys, default provider endpoints, workbench theme, icon theme, keybindings, window layout preferences that are not tied to a repo.
-
-**Non-goals for v1 of project scoping:** multi-root workspaces (multiple folders in one project), cloud sync, separate windows per project (single main window switches project by changing folder).
-
-### 8.2 What is scoped today vs planned
-
-| Concern | Today | Storage | Planned (per project) |
-|--------|--------|---------|------------------------|
-| Explorer tree | Yes | In-memory `files.tree` + `workspacePath` | Same |
-| System prompt file | Yes | On disk: `<project>/.tinyllama/prompt.md` | Same |
-| Tool rules / custom tools | Partial | On disk: `<project>/.tinyllama/tools.json` merged at runtime | Same + optional UI |
-| Agent tool cwd / path sandbox | Yes | In-memory `files.workspacePath` per message | Same |
-| Chat sessions & message history | **No** | In-memory only (`chat` store); **lost on app quit**; **not keyed by project** | Persist per project id |
-| Workbench tabs (editor / terminal / preview) | **No** | `localStorage` `tinyllama.workbench.v1` — **one global strip** for all folders | Persist per project id |
-| Provider API keys, endpoints, model pick | **No** | `localStorage` `tinyllama.settings.v3` — global | Optional per-project overrides |
-| Tool policy defaults (allow/ask/deny) | **No** | Global `localStorage` + project merge for rules only | Project defaults in `.tinyllama/` |
-| Workbench theme, pane widths, shortcuts | **No** | Global `localStorage` | Likely stay global |
-
-**Implication today:** switching the open folder in one session changes tools, explorer, and loaded prompt, but **does not swap chat history or saved editor tabs** to match that folder. Opening a different folder after restart still restores the **same global tab list** from `localStorage`, which may point at paths outside the newly opened project until the user closes them.
-
-### 8.3 How chat uses the project folder (current behavior)
-
-Chat does **not** load a per-project history file yet. It **does** bind each turn to whatever `files.workspacePath` is at send time.
-
-**1. Workspace becomes active**
-
-- User picks a folder (`pick_workspace_folder` → `applyWorkspaceFolder`) or app starts with `get_workspace_path` (see §8.4).
-- `files.workspacePath` is set to the normalized absolute path.
-- Explorer loads via `list_dir` under a single root row (`buildWorkspaceTree` in `src/lib/workspace.ts`).
-- `systemPrompt.load(workspacePath)` reads `<project>/.tinyllama/prompt.md` if present (Tauri `read_system_prompt`).
-- `reloadProjectTools(workspacePath)` loads `<project>/.tinyllama/tools.json` into the project layer of tool policy.
-
-**2. Chat UI lifecycle (`ChatPane.svelte`)**
-
-- On mount: if Tauri and `workspacePath` already set → load system prompt + project tools (same as above).
-- `$effect` on `$files.workspacePath`: when the path changes → `reloadProjectTools` again (prompt reload is tied to `applyWorkspaceFolder` / Prompt panel, not every path change in this effect).
-
-**3. Each user message (`runAgentLoop`)**
-
-- `workspacePath = get(files).workspacePath ?? "/"` — tools refuse with a clear error if no real folder is open (`/` fallback).
-- `buildSystemPrompt()` = mode base prompt (`MODE_CONFIG`) + `buildWorkspaceContextBlock(workspacePath)` + optional custom text from `systemPrompt` store (from `.tinyllama/prompt.md`).
-- Tool calls use `executeTool(..., workspacePath, ...)` so paths resolve under the project root (`src/lib/tools/pathUtils.ts`).
-
-**4. What is not tied to the folder**
-
-- Chat **sessions** (tabs in the chat strip) live in the `chat` store only; switching projects does not save/load a separate session list.
-- **Closed chat history** is likewise in-memory until the app exits.
-
-So: the model always “starts” a turn with the **current** workspace path and prompt overlay; it does **not** yet “resume” a project-specific chat transcript from disk when you open that folder again.
-
-### 8.4 Workspace resolution (path on disk)
-
-**Rust** (`commands.rs`):
-
-1. If `workspace_root.txt` exists under OS config dir (`tiny-llama/`) and contains a valid directory path → **override** (last folder picked via UI is also written here by `pick_workspace_folder`).
-2. Else **`std::env::current_dir()`** (process CWD, typically repo dir when launched via `tauri dev` from the project).
-
-**Frontend** (`applyWorkspaceFolder` in `src/lib/workspace.ts`): sets `workspacePath`, rebuilds explorer tree with a **single root entry** for the folder name, calls `systemPrompt.load`, and is the right place to hook future per-project store hydration (chat + tabs).
-
-**Explorer filter** (`filesystem.rs`): skips dotfiles, `node_modules`, `target`, `dist`.
-
-**On-disk project metadata (conventions)**
-
-| Path | Purpose |
-|------|---------|
-| `<project>/.tinyllama/prompt.md` | Custom instructions appended to the mode system prompt |
-| `<project>/.tinyllama/tools.json` | `toolRules`, `customTools` merged over global tool policy |
-
-Future project persistence will likely extend `.tinyllama/` (e.g. `chat.json`, `workbench.json`) or a single `project.json` index—**not implemented yet**; see §8.2.
+Hydrated on folder open; saved on switch and debounced on changes.
 
 ---
 
-## 9. Tauri IPC (commands and events)
+## 7. Workspace and projects
 
-### 9.1 Commands (`invoke`)
+**Project = one opened folder.**
+
+| Concern | Behavior |
+|---------|----------|
+| Explorer | Tree rooted at `workspacePath` |
+| System prompt | `.tinyllama/prompt.md` + mode base + workspace context block |
+| Tool cwd / paths | `executeTool(..., workspacePath)` |
+| Chat history | **Persisted** in `.tinyllama/state.json` per project |
+| Editor tabs | **Persisted** per project in `state.json` |
+| Global settings | API keys, theme, agent limits — machine-wide |
+
+**Workspace resolution:** `pick_workspace_folder` writes override to OS config dir; else `current_dir` at launch ([`commands.rs`](src-tauri/src/modules/commands.rs)).
+
+**Explorer ignore:** dotfiles, `node_modules`, `target`, `dist` (Rust list_dir).
+
+---
+
+## 8. AI agent system
+
+### 8.1 Flow
+
+1. User sends message → appended to session.
+2. `buildProviderMessages()` + `buildSystemPrompt()` (mode + workspace + custom prompt).
+3. `runAgentLoop()` in ChatPane:
+   - For each **step** (up to `settings.agentLimits.maxAgentSteps`):
+     - `streamOneTurn()` → text + optional tool calls
+     - If no tools → done
+     - `executeToolCallsWithApproval()` → policy gates → `executeTool()` → IPC
+     - Append tool results; continue
+   - Stop if **max tool calls per run** exceeded
+4. `filesystemSync` + `bumpGitRefresh()` after mutating tools.
+
+### 8.2 Providers
+
+| Backend | Client | Streaming |
+|---------|--------|-----------|
+| `anthropic` | [`anthropic.ts`](src/lib/providers/anthropic.ts) | SSE |
+| `ollama`, `llamacpp` | [`openaiCompat.ts`](src/lib/providers/openaiCompat.ts) | SSE |
+
+### 8.3 Chat footer profiles
+
+Defined in [`chatFooterProfile.ts`](src/lib/chatFooterProfile.ts):
+
+| Backend | Stream metrics | Context budget UI | Monthly usage |
+|---------|----------------|-------------------|---------------|
+| Ollama | Yes | Editable menu | No |
+| llama.cpp | Yes | Read-only (`· server`) | No |
+| Anthropic | No | Read-only estimate | Yes (`providerUsage` store) |
+
+### 8.4 Tool approval
+
+When policy is `ask`, UI above composer blocks until Allow / Deny (with “allow always” option for session). Sequential execution within a turn (parallel read-only tools **planned**).
+
+---
+
+## 9. Tool system
+
+### 9.1 Built-in tools (16)
+
+See [`toolDefinitions.ts`](src/lib/tools/toolDefinitions.ts) and [`toolRunner.ts`](src/lib/tools/toolRunner.ts).
+
+**Default policy highlights:**
+
+- `write_file`, `create_file`, `read_file`, most read tools: **allow**
+- `move_file`, `delete_file`, `run_shell`, `run_tests`, `run_script`, `web_fetch`: **ask**
+
+### 9.2 Custom tools
+
+Defined in Settings or `.tinyllama/tools.json`. Require a handler in `TOOL_HANDLERS` to execute; otherwise runtime returns `Unknown tool`.
+
+### 9.3 `web_fetch`
+
+Rust [`web_fetch`](src-tauri/src/modules/filesystem.rs) with hostname allowlist from settings.
+
+---
+
+## 10. Editor
+
+### 10.1 Languages
+
+[`getLanguageFromPath`](src/lib/ipc.ts) maps extensions to language ids.
+
+**Loaded grammars** in [`loadCodeMirror.ts`](src/lib/editor/loadCodeMirror.ts): javascript, typescript, html, css, json, markdown, rust, python, yaml, go, cpp, c, java, sql, xml, svelte; vue → html.
+
+**Not loaded:** toml, shell, etc. → plain text until packs added.
+
+### 10.2 Syntax colors
+
+Custom highlight via [`syntaxTheme.ts`](src/lib/editor/syntaxTheme.ts) + `--syntax-*` CSS variables (Settings → Syntax). Not auto-synced to every workbench preset.
+
+### 10.3 Git diff mode
+
+[`openGitDiffFile`](src/lib/git/openChangedFile.ts) sets `diffBase` from `git_file_at_head`; [`diffDecorations.ts`](src/lib/editor/diffDecorations.ts) highlights added/changed lines; editor read-only in diff mode.
+
+---
+
+## 11. Git integration
+
+### 11.1 UI — [`GitPanel.svelte`](src/modules/explorer/GitPanel.svelte)
+
+- Branch + refresh
+- Collapsible **Staged** / **Changes** (persisted collapse in localStorage)
+- File rows: icon, path, status badge
+- Click → diff view; hover → Open, Discard, Stage/Unstage
+- Commit message + recent log
+
+### 11.2 Rust — [`git.rs`](src-tauri/src/modules/git.rs)
+
+| Function | Command |
+|----------|---------|
+| status, branch, diff, stage, unstage, commit, log | existing |
+| `git_discard` | Restore tracked file from HEAD; delete untracked |
+| `git_file_at_head` | Content at HEAD for diff base |
+
+### 11.3 Agent tools
+
+`get_git_status`, `get_git_log`, `get_git_diff` — formatted for model context.
+
+---
+
+## 12. Tauri IPC
+
+### 12.1 Commands (current)
 
 | Command | Purpose |
 |---------|---------|
-| `list_dir` | Directory listing → `Vec<FileEntry>` (JSON) |
-| `read_file` | UTF-8 file read |
-| `write_file` | UTF-8 file write |
-| `get_workspace_path` | Resolved workspace root string |
-| `pick_workspace_folder` | Native picker; persists override file |
-| `start_harness` | Spawns Node sidecar if not running |
-| `send_to_harness` | JSON-RPC line to sidecar stdin; returns numeric request id |
-| `stop_harness` | Stops sidecar |
-| `open_settings_window` | Shows/focuses `settings` webview |
-| `pty_create` | New PTY session id (optional `cwd`) |
-| `pty_write` | Write bytes to PTY |
-| `pty_resize` | Cols/rows |
-| `pty_close` | Tear down session |
+| `list_dir`, `read_file`, `write_file`, `rename_entry`, `delete_entry`, `path_exists` | Filesystem |
+| `find_files`, `list_dir_tree`, `grep_workspace`, `run_shell`, `web_fetch` | Search / shell / HTTP |
+| `get_workspace_path`, `pick_workspace_folder` | Workspace |
+| `git_*` | Git (includes `git_discard`, `git_file_at_head`) |
+| `pty_*` | Terminal |
+| `read_system_prompt`, `write_system_prompt` | `.tinyllama/prompt.md` |
+| `read_project_state`, `write_project_state` | `.tinyllama/state.json` |
+| `open_settings_window` | Settings webview |
+| `icon_pack_*`, `pick_icon_pack_folder` | Icons |
 
-### 9.2 Events (`listen`)
+**Removed / do not use:** `start_harness`, `send_to_harness`, `stop_harness`, `harness:event`.
 
-| Event | Payload shape (conceptually) |
-|--------|-------------------------------|
-| `harness:event` | `{ id, event, data }` — mirrors sidecar RPC events |
-| `pty:data` | `{ id, data }` |
-| `pty:exit` | `{ id, code }` |
+### 12.2 Events
 
-**Frontend wrapper:** `src/lib/ipc.ts` — lazy-loads `@tauri-apps/api`, `isTauriAvailable()` for browser-only `npm run dev` (degraded UX: no FS, no harness, no PTY).
+| Event | Purpose |
+|--------|---------|
+| `pty:data`, `pty:exit` | Terminal I/O |
+| `fs:changed` | Defined in watcher module; **not wired** to frontend |
 
----
+### 12.3 Frontend wrapper
 
-## 10. Sidecar (Node harness)
-
-**Location:** `sidecar/` — build output **`sidecar/dist/index.js`** (path resolved in Rust `get_sidecar_path`: CWD-relative, then parent).
-
-**Protocol:** newline-delimited **JSON** per line.
-
-- **Inbound (Rust → Node):** `{ id, method, params }`.
-- **Outbound (Node → Rust):** same shape as `HarnessEvent` / `RpcEvent`; Rust emits `harness:event`.
-
-**Responsibilities:** harness factory (`harnessFactory.ts`), Pi adapters (`adapters/`), model providers (`models/`), tool policy / approvals, streaming chat loop. **Config** pushed on `start` with API keys, backend, model list, harness kind, etc. (see `ChatPane` / IPC `sendToHarness`).
-
-**Concurrency:** sidecar serializes non-chat operations (`enqueueNonChat`); chat uses abort controller per request.
+[`ipc.ts`](src/lib/ipc.ts) — lazy Tauri API; `isTauriAvailable()` for degraded Vite-only dev.
 
 ---
 
-## 11. Chat and editor integration
+## 13. Theming
 
-### 11.1 Chat (`ChatPane.svelte`)
-
-- Starts harness on demand (`startHarness`, `listenHarnessEvents`).
-- Sends chat via `sendToHarness` with message + history; renders deltas (content, thinking, tool cards) using stream reducers (`harnessStreamDisplay.ts`).
-- **Ollama:** fetches tags, merges recommended models, context options (`ollamaClient.ts`); chat readiness tied to catalog + selected installed model.
-- **Context meter:** estimates tokens (`chatContext.ts`, `gpt-tokenizer`); footer shows usage vs cap; **clickable budget** for Ollama / llama.cpp / Anthropic caps (`anthropicContextBudget`).
-- **Tool approval:** banner when harness requests confirmation; `approve_tool` / deny over IPC.
-
-### 11.2 Editor (`EditorSurface.svelte`)
-
-- Lazy-imports CodeMirror; **`cmReady`** gates effects.
-- **`$effect`** wires `activeTab`, `activeFile`, `editorPaths`: requires `activeTab.kind === "editor"` **and** non-null **`activeFile`** (must match normalized paths in `files` store).
-- Per-file `EditorState` in a `Map` by path; **prune** when path leaves `editorPaths`.
-- After `setState` / create: **`tick()` + `requestMeasure()`** for layout.
-
-### 11.3 Center tabs
-
-Tab strip uses **`--workbench-tab-active-indicator`** (see §12); active tab has bottom accent (`::after`).
+- **Workbench:** `data-workbench-theme` on `<html>`; presets in `workbench-themes.css`
+- **Editor chrome:** `--editor-*` variables
+- **Syntax:** `--syntax-*` via syntax theme store
+- **Terminal:** `--terminal-ansi-*` from theme
+- **Icons:** Seti font, VS Code SVG pack, codicons, custom manifest
 
 ---
 
-## 12. Theming
+## 14. Security and secrets
 
-- **Default tokens:** `src/styles/globals.css` (`:root` / `.dark`) — editor, shadcn-compatible semantic colors, activity bar, terminal ANSI, **`--workbench-tab-active-indicator`** (defaults to `var(--primary)`).
-- **Presets:** `src/styles/workbench-themes.css` — selector `.dark[data-workbench-theme="<id>"]` for Catppuccin, Tokyo Night, One Dark Pro, **Tiny Llama** (One Dark Pro–style palette), Dracula, GitHub Dark.
-- **Registry:** `src/lib/workbench-theme.ts` — `WORKBENCH_THEME_OPTIONS`, `applyWorkbenchTheme()` sets `data-workbench-theme` on `<html>` (cleared for `vscode-dark`).
+See [docs/SECRETS.md](docs/SECRETS.md).
 
-Settings and shell call `applyWorkbenchTheme` when `workbenchTheme` changes.
-
----
-
-## 13. Terminal
-
-- **Workbench terminal tab** — PTY in center area (`pty_create` with workspace cwd).
-- **Bottom dock terminal** — separate PTY when dock is open (`BottomDock.svelte`).
-- **Theme:** terminal colors follow CSS variables set by workbench theme; `TerminalPane` reacts to theme id.
+| Topic | Current | Planned |
+|--------|---------|---------|
+| API keys | `localStorage` v3 | OS keychain (Stronghold) |
+| LLM HTTP | Webview `fetch` | Rust proxy + events |
+| CSP | `null` in `tauri.conf.json` | Restrictive CSP for release |
+| Path sandbox | TS tools only | Rust FS commands |
+| Chat XSS | Plain text messages (no markdown HTML) | DOMPurify if markdown added |
 
 ---
 
-## 14. Preview
+## 15. Testing
 
-`PreviewPane` loads a URL (default dev server hint `http://127.0.0.1:5173`); opened as a **preview** workbench tab from header.
+```bash
+npm test                    # unit tests
+npm run test:ollama         # optional live Ollama
+```
 
----
-
-## 15. Security and secrets
-
-- **No secrets in repo** — see `docs/SECRETS.md`.
-- **Settings keys** live in **localStorage** (`tinyllama.settings.v1`); not OS keychain.
-- **CSP** in `tauri.conf.json` is currently **`null`** (relaxed); tighten for production if loading remote content.
-- **Filesystem** — only paths reachable via normal OS permissions for the running user; no sandboxed virtual FS.
+Representative suites: `toolRunner`, `toolPolicy`, `pathUtils`, `filesystemSync`, `agentLimits`, `chatFooterProfile`, `providerUsage`, `diffDecorations`, providers (mocked fetch).
 
 ---
 
-## 16. Testing
-
-| Command | Scope |
-|---------|--------|
-| `npm test` | Vitest unit tests (`tests/unit/`) |
-| `npm run test:ollama` | Optional integration against live Ollama (`RUN_OLLAMA_TESTS=1`) |
-
-Representative units: `chatContext`, `harnessStreamDisplay`, `toolPolicy`, Ollama stream mapping.
-
----
-
-## 17. Build and release
+## 16. Build
 
 ```bash
 npm install
-cd sidecar && npm install && npm run build && cd ..
-npm run tauri dev    # dev
-npm run tauri build  # release bundle
+npm run tauri dev      # development
+npm run tauri build    # release bundle
 ```
 
-**Sidecar must be built** before Tauri can start the harness (`get_sidecar_path` error if missing).
-
-**Identifier:** `dev.tinyllama.app` in `tauri.conf.json` (note macOS `.app` suffix warning in Tauri logs).
+No sidecar build step.
 
 ---
 
-## 18. Extension points (documented in README)
+## 17. Roadmap
 
-- New harness adapters: `sidecar/src/adapters/`, register in `harnessFactory` / `index.ts`.
-- New workbench themes: add CSS block + option in `workbench-theme.ts`.
-- New languages in editor: extend `EditorSurface` lazy imports + `getLanguageFromPath` / `languageExtensions` map.
+Phased priorities from production review and recent implementation work.
+
+### Phase A — Dogfooding (in progress / recent)
+
+| Item | Status |
+|------|--------|
+| Configurable agent limits (steps, tool calls) | Done |
+| Provider-specific chat footer | Done |
+| Monthly API usage tracking (Anthropic) | Done |
+| Git panel redesign + discard + diff view | Done |
+| Expanded syntax grammars + custom syntax colors | Done |
+| Per-project `state.json` (chat + editor tabs) | Done |
+| Parallel read-only tools | Planned |
+| Context overflow warnings + API usage in meter | Planned |
+| Filter custom tools without handlers | Planned |
+
+### Phase B — Trust and reliability (pre–private beta)
+
+| Item | Notes |
+|------|--------|
+| Rust workspace path enforcement | All path-taking FS IPC |
+| Agent error recovery | Retry, cancel cleanup, Continue after max steps |
+| Workspace lock | Prevent two windows corrupting `state.json` |
+| File watcher → UI | Wire `watcher.rs` to `filesystemSync` |
+| Agent turn undo | Snapshot or git-based batch discard |
+
+### Phase C — Security (before external users)
+
+| Item | Notes |
+|------|--------|
+| Stronghold / keychain | Keys never in JS |
+| LLM calls in Rust | `reqwest` + stream events |
+| Production CSP | `tauri.conf.json` |
+
+### Phase D — v1.0 parity (selective)
+
+| Item | Notes |
+|------|--------|
+| LSP | Spawn language servers from Rust |
+| Cmd+K inline edit | CodeMirror decorations |
+| DeepSeek, Mistral, Perplexity | OpenAI-compat + provider registry |
+| Custom tool shell executor | Optional `.tinyllama` command templates |
+| Context compaction | Summarize / sliding window |
+| Full provider billing APIs | Beyond local monthly estimates |
+
+### Explicitly deferred
+
+- Multi-root workspaces
+- Cloud sync
+- Mobile / web deployment as product
+- Matching Cursor feature-for-feature
 
 ---
 
-## 19. Known gaps and roadmap (informal)
-
-From `README.md` / stubs: Git depth, LSP, rich file search, inline tool diffs, serial backend, debug console wiring, optional OpenAI-first chat path in UI.
-
----
-
-## 20. Glossary
+## 18. Glossary
 
 | Term | Meaning |
 |------|---------|
-| Harness | Pi-style coding agent loop in the sidecar |
-| Sidecar | Node `index.js` subprocess controlled by Tauri |
-| Workbench | Overall IDE chrome: chat + center + right + status |
-| Workspace / Project | Root folder the user opened; explorer root, tool cwd, and (when implemented) scoped chat + tabs |
+| Workspace / project | Root folder opened by the user |
+| Agent step | One `streamOneTurn` + execution of returned tool calls |
+| Tool call run | All steps for a single user message until stop or limit |
+| Diff mode | Editor showing working tree with highlights vs `diffBase` (HEAD) |
+| Provider usage | Local monthly token tallies from API responses |
 
 ---
 
-*This spec reflects the repository as of the document author’s pass over the tree; when behavior and code diverge, treat the code as authoritative and update this file.*
+## 19. Document maintenance
+
+When changing behavior, update in order:
+
+1. Code
+2. [OVERVIEW.md](OVERVIEW.md) (snapshot)
+3. This file (spec)
+4. [ARCHITECTURE.md](ARCHITECTURE.md) (detailed reference, as needed)
+
+**Authoritative source:** the repository at `HEAD`, not legacy README or sidecar docs.

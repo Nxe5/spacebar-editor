@@ -10,6 +10,7 @@
   import CenterWorkbench from "./CenterWorkbench.svelte";
   import WorkbenchTabBar from "./WorkbenchTabBar.svelte";
   import StatusBar from "./StatusBar.svelte";
+  import WindowControls from "./WindowControls.svelte";
   import SettingsPane from "../settings/SettingsPane.svelte";
   import BottomDock from "./BottomDock.svelte";
   import { workbench } from "$lib/stores/workbench";
@@ -28,6 +29,8 @@
   import { initProjectStateAutosave, persistCurrentProjectState } from "$lib/projectState";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
   import { dispatchWorkbenchShortcut } from "../shortcuts/dispatcher";
+  import { explorerAppearance } from "$lib/stores/explorerAppearance";
+  import { toggleMaximizeAppWindow } from "$lib/windowControls";
 
   const PANE_WIDTH_KEY = "tinyllama.paneWidths.v1";
   const LEFT_MIN = 200;
@@ -176,6 +179,7 @@
     clampPanesToWindow();
 
     syntaxTheme.init();
+    explorerAppearance.init();
     initProjectStateAutosave();
     const onBeforeUnload = () => {
       void persistCurrentProjectState();
@@ -277,19 +281,24 @@
 
 <div class="flex h-screen flex-col overflow-hidden bg-background text-foreground">
   <header
-    class="workbench-header flex shrink-0 items-stretch border-b pl-0.5 pr-1.5 text-[10px] leading-tight"
-    style="-webkit-app-region: drag; height: var(--workbench-shell-header-height); min-height: var(--workbench-shell-header-height);"
+    class="workbench-header flex shrink-0 items-stretch border-b pl-0.5 pr-0 text-[10px] leading-tight"
+    style="height: var(--workbench-shell-header-height); min-height: var(--workbench-shell-header-height);"
   >
-    <div
-      class="flex min-h-0 min-w-0 flex-1 items-stretch gap-0"
-      style="-webkit-app-region: no-drag;"
-    >
+    <div class="flex min-h-0 min-w-0 flex-1 items-stretch gap-0">
       <div class="flex min-h-0 min-w-0 max-w-[min(28rem,48vw)] shrink overflow-hidden">
         <ChatTabBar />
       </div>
       <div class="workbench-header-divider my-1 w-px shrink-0 self-stretch" aria-hidden="true"></div>
-      <div class="min-h-0 min-w-0 flex-1">
+      <div class="workbench-header-track">
         <WorkbenchTabBar />
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="workbench-window-drag-pad"
+          data-tauri-drag-region
+          aria-hidden="true"
+          ondblclick={() => void toggleMaximizeAppWindow()}
+        ></div>
+        <WindowControls />
       </div>
     </div>
   </header>
@@ -393,6 +402,23 @@
 
   .workbench-header-divider {
     background: color-mix(in srgb, var(--border) 55%, transparent);
+  }
+
+  .workbench-header-track {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    align-items: stretch;
+    --workbench-window-drag-pad: 96px;
+  }
+
+  .workbench-window-drag-pad {
+    flex: 0 0 var(--workbench-window-drag-pad);
+    width: var(--workbench-window-drag-pad);
+    min-width: var(--workbench-window-drag-pad);
+    height: 100%;
+    user-select: none;
   }
 
   /**
