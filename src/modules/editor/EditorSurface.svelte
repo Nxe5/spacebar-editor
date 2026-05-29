@@ -1,12 +1,16 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
+  import { Compartment } from "@codemirror/state";
+  import { EditorView } from "@codemirror/view";
   import type { OpenFile } from "$lib/stores/files";
   import type { WorkbenchTab } from "$lib/stores/workbench";
   import { files } from "$lib/stores/files";
+  import { settings } from "$lib/stores/settings";
+  import { syntaxTheme } from "$lib/stores/syntaxTheme";
   import { writeFile } from "$lib/ipc";
   import { loadCodeMirror, type CodeMirrorKit } from "$lib/editor/loadCodeMirror";
-  import { syntaxTheme } from "$lib/stores/syntaxTheme";
   import { gitDiffHighlightExtension } from "$lib/editor/diffDecorations";
+  import { formatWithPrettier } from "$lib/editor/formatDocument";
   import { EditorState } from "@codemirror/state";
 
   interface Props {
@@ -18,16 +22,26 @@
   let props: Props = $props();
 
   let editorContainer: HTMLDivElement | undefined = $state();
-  let editorView: import("@codemirror/view").EditorView | null = null;
-  const states = new Map<string, import("@codemirror/state").EditorState>();
+  let editorView: EditorView | null = null;
+  const states = new Map<string, EditorState>();
+  /** Tracks wrap mode used when each path's EditorState was built. */
+  const stateWrapByPath = new Map<string, boolean>();
+  const wrapCompartment = new Compartment();
   let kit: CodeMirrorKit | null = $state(null);
   let resizeObserver: ResizeObserver | null = null;
 
   function pruneStates(paths: string[]) {
     const allowed = new Set(paths);
     for (const key of [...states.keys()]) {
-      if (!allowed.has(key)) states.delete(key);
+      if (!allowed.has(key)) {
+        states.delete(key);
+        stateWrapByPath.delete(key);
+      }
     }
+  }
+
+  function wrapExtension(enabled: boolean) {
+    return wrapCompartment.of(enabled ? EditorView.lineWrapping : []);
   }
 
   function editorTheme(cm: CodeMirrorKit) {
@@ -49,6 +63,10 @@
           fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
           fontSize: "14px",
         },
+        "&.cm-lineWrapping .cm-line": {
+          whiteSpace: "break-spaces",
+          wordBreak: "break-word",
+        },
         ".cm-gutters": {
           backgroundColor: "var(--editor-bg, #181818)",
           color: "var(--editor-gutter-fg, #a0a0a0)",
@@ -64,14 +82,14 @@
           backgroundColor: "var(--editor-selection, #404040) !important",
         },
         "&.cm-focused .cm-cursor": {
-          borderLeftColor: "var(--editor-fg, #e4e4e4)",
+          borderLeftColor: "var(--editor-cursor, var(--editor-fg, #e4e4e4))",
         },
       },
       { dark: true }
     );
   }
 
-  function createState(cm: CodeMirrorKit, file: OpenFile) {
+  function createState(cm: CodeMirrorKit, file: OpenFile, wordWrap: boolean) {
     const langExt = cm.languageExtensions[file.language];
     const lang = langExt != null ? [langExt] : [];
     const diffMode = file.diffBase !== undefined;
@@ -89,6 +107,7 @@
         ...diffExt,
         cm.syntaxHighlighting,
         cm.scrollPastEnd(),
+        wrapExtension(wordWrap),
         cm.EditorView.updateListener.of((update) => {
           if (update.docChanged && !diffMode) {
             files.updateFileContent(file.path, update.state.doc.toString());
@@ -100,12 +119,23 @@
     });
   }
 
+  function reconfigureWrap(enabled: boolean) {
+    if (!editorView) return;
+    editorView.dispatch({
+      effects: wrapCompartment.reconfigure(enabled ? EditorView.lineWrapping : []),
+    });
+  }
+
   /** Re-highlight when syntax colors change in Settings (CSS vars update on :root). */
   $effect(() => {
-  void $syntaxTheme;
+    void $syntaxTheme;
     if (editorView) {
       editorView.requestMeasure();
     }
+  });
+
+  $effect(() => {
+    reconfigureWrap($settings.editor.wordWrap);
   });
 
   $effect(() => {
@@ -119,6 +149,7 @@
     if (activeTab?.kind !== "editor" || !activeFile) return;
 
     const path = activeFile.path;
+    const wordWrap = $settings.editor.wordWrap;
 
     if (editorView) {
       const tagged = (editorView as unknown as { __tinyPath?: string }).__tinyPath;
@@ -128,9 +159,11 @@
     }
 
     let nextState = states.get(path);
-    if (!nextState || nextState.doc.toString() !== activeFile.content) {
-      nextState = createState(kit, activeFile);
+    const wrapStale = stateWrapByPath.get(path) !== wordWrap;
+    if (!nextState || nextState.doc.toString() !== activeFile.content || wrapStale) {
+      nextState = createState(kit, activeFile, wordWrap);
       states.set(path, nextState);
+      stateWrapByPath.set(path, wordWrap);
     }
 
     if (!editorView) {
@@ -142,6 +175,7 @@
       editorView.setState(nextState);
     }
     (editorView as unknown as { __tinyPath?: string }).__tinyPath = path;
+    reconfigureWrap(wordWrap);
 
     void tick().then(() => {
       editorView?.requestMeasure();
@@ -157,21 +191,39 @@
     editorView.requestMeasure();
   }
 
-  /** Re-layout when switching back from terminal/preview (parent was hidden). */
   $effect(() => {
     if (props.editorTab?.kind === "editor" && editorView) {
       void tick().then(() => relayoutEditor());
     }
   });
 
+  async function formatActiveBuffer(): Promise<boolean> {
+    const activeFile = props.editorFile;
+    if (!editorView || !activeFile || activeFile.diffBase !== undefined) return false;
+    const content = editorView.state.doc.toString();
+    const formatted = await formatWithPrettier(content, activeFile.path);
+    if (formatted === null || formatted === content) return formatted !== null;
+    editorView.dispatch({
+      changes: { from: 0, to: editorView.state.doc.length, insert: formatted },
+    });
+    files.updateFileContent(activeFile.path, formatted);
+    states.set(activeFile.path, editorView.state);
+    window.dispatchEvent(new CustomEvent("tinyllama:format-document-done"));
+    return true;
+  }
+
   async function saveActive() {
     const activeTab = props.editorTab;
     const activeFile = props.editorFile;
     if (activeTab?.kind !== "editor" || !activeFile || !editorView) return;
     try {
+      if ($settings.editor.formatOnSave && activeFile.diffBase === undefined) {
+        await formatActiveBuffer();
+      }
       const content = editorView.state.doc.toString();
       await writeFile(activeFile.path, content);
       files.markSaved(activeFile.path);
+      window.dispatchEvent(new CustomEvent("tinyllama:editor-saved"));
     } catch (e) {
       console.error(e);
     }
@@ -182,6 +234,14 @@
       e.preventDefault();
       void saveActive();
     }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "F") {
+      e.preventDefault();
+      void formatActiveBuffer();
+    }
+  }
+
+  function onFormatDocumentEvent() {
+    void formatActiveBuffer();
   }
 
   onMount(() => {
@@ -192,6 +252,8 @@
     resizeObserver = new ResizeObserver(() => {
       relayoutEditor();
     });
+
+    window.addEventListener("tinyllama:format-document", onFormatDocumentEvent);
   });
 
   $effect(() => {
@@ -201,6 +263,7 @@
   });
 
   onDestroy(() => {
+    window.removeEventListener("tinyllama:format-document", onFormatDocumentEvent);
     resizeObserver?.disconnect();
     resizeObserver = null;
     editorView?.destroy();

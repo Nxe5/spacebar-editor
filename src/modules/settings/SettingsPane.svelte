@@ -56,7 +56,9 @@
   } from "$lib/workbench-theme";
   import { iconTheme } from "$lib/stores/iconTheme";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
+  import { editorChrome } from "$lib/stores/editorChrome";
   import { SYNTAX_COLOR_FIELDS, type SyntaxColorMap } from "$lib/editor/syntaxColors";
+  import { EDITOR_CHROME_FIELDS, type EditorChromeMap } from "$lib/editor/editorChrome";
   import { explorerAppearance } from "$lib/stores/explorerAppearance";
   import { chatAppearance } from "$lib/stores/chatAppearance";
   import {
@@ -93,6 +95,7 @@
     | "providers-anthropic"
     | "tools"
     | "appearance-theme"
+    | "appearance-editor"
     | "appearance-icons"
     | "appearance-syntax"
     | "appearance-explorer"
@@ -163,6 +166,9 @@
   let iconRefreshStatus = $state("");
   let iconRefreshing = $state(false);
   let syntaxColors = $state<SyntaxColorMap>(syntaxTheme.get());
+  let editorColors = $state<EditorChromeMap>(editorChrome.get());
+  let editorWordWrap = $state(false);
+  let editorFormatOnSave = $state(false);
   let explorerColors = $state<ExplorerAppearanceMap>(explorerAppearance.get());
   let chatColors = $state<ChatAppearanceMap>(chatAppearance.get());
 
@@ -198,6 +204,7 @@
     { id: "providers-anthropic", label: "Anthropic", group: "Providers" },
     { id: "tools", label: "Tools" },
     { id: "appearance-theme", label: "Theme", group: "Appearance" },
+    { id: "appearance-editor", label: "Editor", group: "Appearance" },
     { id: "appearance-icons", label: "Icons", group: "Appearance" },
     { id: "appearance-syntax", label: "Syntax", group: "Appearance" },
     { id: "appearance-explorer", label: "Explorer", group: "Appearance" },
@@ -236,6 +243,9 @@
     iconThemeId = $iconTheme.themeId;
     iconPackCustomPath = $iconTheme.customPackPath ?? "";
     syntaxColors = { ...syntaxTheme.get() };
+    editorColors = { ...editorChrome.get() };
+    editorWordWrap = $settings.editor.wordWrap;
+    editorFormatOnSave = $settings.editor.formatOnSave;
     explorerColors = { ...explorerAppearance.get() };
     chatColors = { ...chatAppearance.get() };
     llamacppModels = $settings.llamacppModels;
@@ -532,6 +542,11 @@
       iconTheme.setCustomPackPath(iconPackCustomPath);
     }
     syntaxTheme.persist(syntaxColors);
+    editorChrome.persist(editorColors);
+    settings.setEditorSettings({
+      wordWrap: editorWordWrap,
+      formatOnSave: editorFormatOnSave,
+    });
     explorerAppearance.persist(explorerColors);
     chatAppearance.persist(chatColors);
 
@@ -1263,13 +1278,113 @@
               <select
                 class="input"
                 bind:value={workbenchTheme}
-                onchange={() => applyWorkbenchTheme(workbenchTheme)}
+                onchange={() => {
+                  applyWorkbenchTheme(workbenchTheme);
+                  editorColors = editorChrome.syncFromActiveTheme();
+                }}
               >
                 {#each WORKBENCH_THEME_OPTIONS as opt}
                   <option value={opt.id}>{opt.label}</option>
                 {/each}
               </select>
             </label>
+          </div>
+
+        {:else if activeSection === "appearance-editor"}
+          <div class="stack">
+            <h3 class="provider-page-title">Editor</h3>
+            <p class="note">
+              Code editor behavior and chrome colors. Changing the workbench theme updates editor
+              color pickers below to match that theme (save to keep). Syntax token colors are under
+              <button type="button" class="linkish" onclick={() => (activeSection = "appearance-syntax")}>
+                Syntax
+              </button>.
+            </p>
+            <label class="field checkbox-field">
+              <input
+                type="checkbox"
+                bind:checked={editorWordWrap}
+                onchange={() => settings.setEditorSettings({ wordWrap: editorWordWrap })}
+              />
+              <span class="name">Wrap lines</span>
+            </label>
+            <label class="field checkbox-field">
+              <input
+                type="checkbox"
+                bind:checked={editorFormatOnSave}
+                onchange={() =>
+                  settings.setEditorSettings({ formatOnSave: editorFormatOnSave })}
+              />
+              <span class="name">Format on save (Prettier)</span>
+            </label>
+            <p class="note muted">
+              Manual format: <kbd class="inline-code">Shift</kbd>+<kbd class="inline-code">Alt</kbd>+<kbd class="inline-code">F</kbd>
+              or the Prettier icon in the status bar.
+            </p>
+            <h4 class="settings-subheading">Editor colors</h4>
+            {#each EDITOR_CHROME_FIELDS as field}
+              <label class="field syntax-color-field">
+                <span class="name">{field.label}</span>
+                <span class="syntax-color-hint">{field.hint}</span>
+                <div class="syntax-color-row">
+                  <input
+                    type="color"
+                    class="syntax-color-swatch"
+                    value={editorColors[field.key]}
+                    oninput={(e) => {
+                      const v = (e.currentTarget as HTMLInputElement).value;
+                      editorColors = { ...editorColors, [field.key]: v };
+                      editorChrome.apply(editorColors);
+                    }}
+                  />
+                  <input
+                    type="text"
+                    class="input syntax-color-hex"
+                    value={editorColors[field.key]}
+                    spellcheck={false}
+                    oninput={(e) => {
+                      const v = (e.currentTarget as HTMLInputElement).value;
+                      editorColors = { ...editorColors, [field.key]: v };
+                      editorChrome.apply(editorColors);
+                    }}
+                  />
+                </div>
+              </label>
+            {/each}
+            <div
+              class="editor-chrome-preview"
+              style={`background:${editorColors.bg};color:${editorColors.fg};`}
+              aria-hidden="true"
+            >
+              <span style={`color:${editorColors.gutterFg}`}>1</span>
+              <span> function hello() {'{'}</span>
+              <span
+                class="editor-chrome-preview__selection"
+                style={`background:${editorColors.selection}`}
+              >
+                return "world";
+              </span>
+              <span> {'}'}</span>
+            </div>
+            <button
+              type="button"
+              class="btn ghost"
+              onclick={() => {
+                applyWorkbenchTheme(workbenchTheme);
+                editorColors = editorChrome.syncFromActiveTheme();
+              }}
+            >
+              Sync editor colors from theme
+            </button>
+            <button
+              type="button"
+              class="btn ghost"
+              onclick={() => {
+                editorColors = editorChrome.resetToDefaults();
+              }}
+            >
+              Reset editor color defaults
+            </button>
           </div>
 
         {:else if activeSection === "appearance-icons"}
@@ -1504,7 +1619,38 @@
               Colors in the code editor for every language. Default palette: Tokyo Night.
               Changes preview live; click Save to keep them.
             </p>
-            {#each SYNTAX_COLOR_FIELDS as field}
+            <h4 class="settings-subheading">Code tokens</h4>
+            {#each SYNTAX_COLOR_FIELDS.filter((f) => f.group !== "markdown") as field}
+              <label class="field syntax-color-field">
+                <span class="name">{field.label}</span>
+                <span class="syntax-color-hint">{field.hint}</span>
+                <div class="syntax-color-row">
+                  <input
+                    type="color"
+                    class="syntax-color-swatch"
+                    value={syntaxColors[field.key]}
+                    oninput={(e) => {
+                      const v = (e.currentTarget as HTMLInputElement).value;
+                      syntaxColors = { ...syntaxColors, [field.key]: v };
+                      syntaxTheme.apply(syntaxColors);
+                    }}
+                  />
+                  <input
+                    type="text"
+                    class="input syntax-color-hex"
+                    value={syntaxColors[field.key]}
+                    spellcheck={false}
+                    oninput={(e) => {
+                      const v = (e.currentTarget as HTMLInputElement).value;
+                      syntaxColors = { ...syntaxColors, [field.key]: v };
+                      syntaxTheme.apply(syntaxColors);
+                    }}
+                  />
+                </div>
+              </label>
+            {/each}
+            <h4 class="settings-subheading">Markdown tokens</h4>
+            {#each SYNTAX_COLOR_FIELDS.filter((f) => f.group === "markdown") as field}
               <label class="field syntax-color-field">
                 <span class="name">{field.label}</span>
                 <span class="syntax-color-hint">{field.hint}</span>
@@ -1534,11 +1680,17 @@
               </label>
             {/each}
             <div class="syntax-preview" aria-hidden="true">
+              <p class="syntax-preview-label">TypeScript</p>
               <span class="syntax-preview-line"><span style="color: {syntaxColors.comment}">// comment</span></span>
-              <span class="syntax-preview-line"><span style="color: {syntaxColors.keyword}">const</span> <span style="color: {syntaxColors.variable}">count</span> <span style="color: {syntaxColors.operator}">=</span> <span style="color: {syntaxColors.number}">42</span><span style="color: {syntaxColors.operator}">;</span></span>
-              <span class="syntax-preview-line"><span style="color: {syntaxColors.keyword}">class</span> <span style="color: {syntaxColors.type}">MyClass</span> <span style="color: {syntaxColors.operator}">{`{`}</span></span>
-              <span class="syntax-preview-line">  <span style="color: {syntaxColors.function}">render</span><span style="color: {syntaxColors.operator}">()</span> <span style="color: {syntaxColors.operator}">{`{`}</span> <span style="color: {syntaxColors.keyword}">return</span> <span style="color: {syntaxColors.string}">"hello"</span><span style="color: {syntaxColors.operator}">;</span> <span style="color: {syntaxColors.operator}">{`}`}</span></span>
-              <span class="syntax-preview-line"><span style="color: {syntaxColors.operator}">{`}`}</span></span>
+              <span class="syntax-preview-line"><span style="color: {syntaxColors.keyword}">const</span> <span style="color: {syntaxColors.variable}">count</span> <span style="color: {syntaxColors.operator}">=</span> <span style="color: {syntaxColors.number}">42</span><span style="color: {syntaxColors.punctuation}">;</span></span>
+              <span class="syntax-preview-line"><span style="color: {syntaxColors.keyword}">class</span> <span style="color: {syntaxColors.type}">MyClass</span> <span style="color: {syntaxColors.punctuation}">{`{`}</span></span>
+              <span class="syntax-preview-line">  <span style="color: {syntaxColors.function}">render</span><span style="color: {syntaxColors.punctuation}">()</span> <span style="color: {syntaxColors.punctuation}">{`{`}</span> <span style="color: {syntaxColors.keyword}">return</span> <span style="color: {syntaxColors.string}">"hello"</span><span style="color: {syntaxColors.punctuation}">;</span> <span style="color: {syntaxColors.punctuation}">{`}`}</span></span>
+              <span class="syntax-preview-line"><span style="color: {syntaxColors.punctuation}">{`}`}</span></span>
+              <p class="syntax-preview-label">Markdown</p>
+              <span class="syntax-preview-line"><span style="color: {syntaxColors.heading}; font-weight:700"># Title</span></span>
+              <span class="syntax-preview-line"><span style="color: {syntaxColors.link}">[link](https://example.com)</span></span>
+              <span class="syntax-preview-line"><span style="color: {syntaxColors.emphasis}">*emphasis*</span> <span style="color: {syntaxColors.strong}; font-weight:700">**strong**</span></span>
+              <span class="syntax-preview-line"><span style="color: {syntaxColors.meta}">```ts</span></span>
             </div>
             <button
               type="button"
@@ -2673,5 +2825,61 @@
   .syntax-preview-line {
     display: block;
     white-space: pre;
+  }
+
+  .syntax-preview-label {
+    margin: 8px 0 2px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-foreground);
+  }
+
+  .syntax-preview-label:first-child {
+    margin-top: 0;
+  }
+
+  .settings-subheading {
+    margin: 16px 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .linkish {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--primary);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .editor-chrome-preview {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 12px;
+    line-height: 1.5;
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  }
+
+  .editor-chrome-preview__selection {
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+
+  .checkbox-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-direction: row;
+  }
+
+  .checkbox-field .name {
+    margin: 0;
   }
 </style>

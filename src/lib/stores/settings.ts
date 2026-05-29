@@ -20,6 +20,23 @@ export { DEFAULT_AGENT_LIMITS, AGENT_LIMIT_BOUNDS } from "../agentLimits";
 
 export type ChatBackend = "anthropic" | "ollama" | "llamacpp";
 
+export type EditorSettings = {
+  wordWrap: boolean;
+  formatOnSave: boolean;
+};
+
+export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
+  wordWrap: false,
+  formatOnSave: false,
+};
+
+function normalizeEditorSettings(parsed: Partial<EditorSettings> | undefined): EditorSettings {
+  return {
+    wordWrap: parsed?.wordWrap === true,
+    formatOnSave: parsed?.formatOnSave === true,
+  };
+}
+
 export interface ModelConfig {
   id: string;
   name: string;
@@ -59,6 +76,7 @@ function createSettingsStore() {
     agentLimits: AgentLimits;
     ollamaServerTemplate: OllamaServerTemplate;
     llamacppServerTemplate: LlamacppServerTemplate;
+    editor: EditorSettings;
   };
 
   const DEFAULT_WEB_FETCH_HOSTS = [
@@ -89,6 +107,7 @@ function createSettingsStore() {
     agentLimits: { ...DEFAULT_AGENT_LIMITS },
     ollamaServerTemplate: { ...DEFAULT_OLLAMA_SERVER_TEMPLATE },
     llamacppServerTemplate: { ...DEFAULT_LLAMACPP_SERVER_TEMPLATE },
+    editor: { ...DEFAULT_EDITOR_SETTINGS },
   };
 
   function normalizeLoaded(parsed: Partial<SettingsState>): SettingsState {
@@ -115,6 +134,7 @@ function createSettingsStore() {
       agentLimits: normalizeAgentLimits(parsed.agentLimits),
       ollamaServerTemplate: normalizeOllamaServerTemplate(parsed.ollamaServerTemplate),
       llamacppServerTemplate: normalizeLlamacppServerTemplate(parsed.llamacppServerTemplate),
+      editor: normalizeEditorSettings(parsed.editor),
     };
   }
 
@@ -305,6 +325,12 @@ function createSettingsStore() {
           ...state.llamacppServerTemplate,
           ...template,
         }),
+      }));
+    },
+    setEditorSettings: (editor: Partial<EditorSettings>) => {
+      update((state) => ({
+        ...state,
+        editor: normalizeEditorSettings({ ...state.editor, ...editor }),
       }));
     },
   };

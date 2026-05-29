@@ -4,6 +4,7 @@
   import { settings } from "$lib/stores/settings";
   import { applyWorkbenchTheme } from "$lib/workbench-theme";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
+  import { editorChrome } from "$lib/stores/editorChrome";
   import { explorerAppearance } from "$lib/stores/explorerAppearance";
   import { chatAppearance } from "$lib/stores/chatAppearance";
   import { toggleMaximizeAppWindow } from "$lib/windowControls";
@@ -11,6 +12,7 @@
   import SettingsPane from "./SettingsPane.svelte";
 
   syntaxTheme.init();
+  editorChrome.init();
   explorerAppearance.init();
   chatAppearance.init();
 

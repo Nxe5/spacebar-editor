@@ -22,11 +22,11 @@
   --syntax-attribute: #73daca;
   --syntax-regexp: #9ece6a;
   --syntax-meta: #565f89;
-  --syntax-heading: #c0caf5;
-  --syntax-link: #bb9af7;
+  --syntax-heading: #7aa2f7;
+  --syntax-link: #73daca;
   --syntax-invalid: #f7768e;
-  --syntax-strong: #bb9af7;
-  --syntax-emphasis: #2ac3de;
+  --syntax-strong: #c0caf5;
+  --syntax-emphasis: #bb9af7;
 }
 
 /* Class-based token colors (see `lib/editor/syntaxTheme.ts`). */

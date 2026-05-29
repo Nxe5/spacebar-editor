@@ -1,13 +1,22 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { get } from "svelte/store";
   import { settings } from "$lib/stores/settings";
   import { files } from "$lib/stores/files";
+  import { activeEditorFile, activeWorkbenchTab } from "$lib/stores/workbench";
   import { backendStatus, pollBackendHealth } from "$lib/stores/backendStatus";
   import { gitCurrentBranch, gitStatus, isTauriAvailable } from "$lib/ipc";
+  import {
+    isPrettierSupportedPath,
+    isContentPrettierFormatted,
+  } from "$lib/editor/formatDocument";
+  import PrettierIcon from "$lib/components/PrettierIcon.svelte";
+  import WordWrapIcon from "$lib/components/WordWrapIcon.svelte";
   import SidebarIcon from "phosphor-svelte/lib/SidebarIcon";
   import RowsIcon from "phosphor-svelte/lib/RowsIcon";
 
   const POLL_MS = 10_000;
+  const PRETTIER_CHECK_MS = 500;
 
   let {
     showLeftPanel = true,
@@ -24,9 +33,21 @@
     onToggleRight?: () => void;
     onToggleBottom?: () => void;
   } = $props();
+
   let timer: ReturnType<typeof setInterval> | null = null;
   let gitBranch = $state<string | null>(null);
   let gitCounts = $state<{ dirty: number } | null>(null);
+  let prettierState = $state<"idle" | "checking" | "formatted" | "unformatted">("idle");
+  let prettierTimer: ReturnType<typeof setTimeout> | null = null;
+
+  let editorTabActive = $derived($activeWorkbenchTab?.kind === "editor");
+  let showPrettier = $derived(
+    editorTabActive &&
+      $activeEditorFile != null &&
+      $activeEditorFile.diffBase === undefined &&
+      isPrettierSupportedPath($activeEditorFile.path)
+  );
+  let wordWrapOn = $derived($settings.editor.wordWrap);
 
   async function refreshGit() {
     if (!isTauriAvailable()) {
@@ -63,13 +84,43 @@
     backendStatus.set(line);
   }
 
+  async function refreshPrettierStatus() {
+    const file = $activeEditorFile;
+    if (!showPrettier || !file) {
+      prettierState = "idle";
+      return;
+    }
+    prettierState = "checking";
+    const result = await isContentPrettierFormatted(file.content, file.path);
+    prettierState = result === "formatted" ? "formatted" : "unformatted";
+  }
+
+  function schedulePrettierCheck() {
+    if (prettierTimer) clearTimeout(prettierTimer);
+    prettierTimer = setTimeout(() => void refreshPrettierStatus(), PRETTIER_CHECK_MS);
+  }
+
+  function formatDocument() {
+    window.dispatchEvent(new CustomEvent("tinyllama:format-document"));
+  }
+
+  function toggleWordWrap() {
+    const current = get(settings).editor.wordWrap;
+    settings.setEditorSettings({ wordWrap: !current });
+  }
+
   onMount(() => {
     void tick();
     timer = setInterval(() => void tick(), POLL_MS);
+    window.addEventListener("tinyllama:editor-saved", schedulePrettierCheck);
+    window.addEventListener("tinyllama:format-document-done", schedulePrettierCheck);
   });
 
   onDestroy(() => {
     if (timer) clearInterval(timer);
+    if (prettierTimer) clearTimeout(prettierTimer);
+    window.removeEventListener("tinyllama:editor-saved", schedulePrettierCheck);
+    window.removeEventListener("tinyllama:format-document-done", schedulePrettierCheck);
   });
 
   $effect(() => {
@@ -84,6 +135,14 @@
     ];
     void tick();
     void refreshGit();
+  });
+
+  $effect(() => {
+    void showPrettier;
+    const file = $activeEditorFile;
+    void file?.path;
+    void file?.content;
+    schedulePrettierCheck();
   });
 </script>
 
@@ -132,8 +191,47 @@
       <span class="status-sep" aria-hidden="true"></span>
     {/if}
     <span class="status-label">{$backendStatus.label}</span>
-    <span class="status-dot" class:green={$backendStatus.dot === "green"} class:red={$backendStatus.dot === "red"} class:yellow={$backendStatus.dot === "yellow"} class:idle={$backendStatus.dot === "idle"} title={$backendStatus.detail}></span>
+    <span
+      class="status-dot"
+      class:green={$backendStatus.dot === "green"}
+      class:red={$backendStatus.dot === "red"}
+      class:yellow={$backendStatus.dot === "yellow"}
+      class:idle={$backendStatus.dot === "idle"}
+      title={$backendStatus.detail}
+    ></span>
     <span class="status-detail">{$backendStatus.detail}</span>
+  </div>
+  <div class="status-bar__right" role="toolbar" aria-label="Editor">
+    {#if editorTabActive}
+      <button
+        type="button"
+        class="status-editor-btn"
+        aria-pressed={wordWrapOn}
+        title={wordWrapOn ? "Disable line wrap" : "Enable line wrap"}
+        aria-label="Toggle line wrap"
+        onclick={() => toggleWordWrap()}
+      >
+        <WordWrapIcon size={15} dimmed={!wordWrapOn} />
+      </button>
+    {/if}
+    {#if showPrettier}
+      <button
+        type="button"
+        class="status-editor-btn"
+        title={prettierState === "formatted"
+          ? "Formatted with Prettier (click to re-format)"
+          : prettierState === "checking"
+            ? "Checking Prettier…"
+            : "Not Prettier-formatted (click to format)"}
+        aria-label="Format with Prettier"
+        onclick={formatDocument}
+      >
+        <PrettierIcon
+          size={15}
+          dimmed={prettierState !== "formatted"}
+        />
+      </button>
+    {/if}
   </div>
 </div>
 
@@ -161,6 +259,16 @@
     gap: 8px;
     min-width: 0;
     flex: 1;
+  }
+
+  .status-bar__right {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    margin-left: auto;
+    position: relative;
+    z-index: 2;
   }
 
   .status-bar__actions {
@@ -235,5 +343,30 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
+  }
+
+  .status-editor-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  .status-editor-btn:hover,
+  .status-editor-btn:focus-visible,
+  .status-editor-btn[aria-pressed="true"] {
+    background: transparent;
+  }
+
+  .status-editor-btn:focus-visible {
+    outline: 1px solid var(--ring);
+    outline-offset: 1px;
   }
 </style>

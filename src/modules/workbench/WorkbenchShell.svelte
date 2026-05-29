@@ -28,6 +28,7 @@
   import { applyWorkspaceFolder } from "$lib/workspace";
   import { initProjectStateAutosave, persistCurrentProjectState } from "$lib/projectState";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
+  import { editorChrome } from "$lib/stores/editorChrome";
   import { dispatchWorkbenchShortcut } from "../shortcuts/dispatcher";
   import { explorerAppearance } from "$lib/stores/explorerAppearance";
   import { chatAppearance } from "$lib/stores/chatAppearance";
@@ -180,6 +181,7 @@
     clampPanesToWindow();
 
     syntaxTheme.init();
+    editorChrome.init();
     explorerAppearance.init();
     chatAppearance.init();
     initProjectStateAutosave();
