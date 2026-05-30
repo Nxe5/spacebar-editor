@@ -1,7 +1,7 @@
 <script lang="ts">
   import FileTree from "./FileTree.svelte";
+  import SearchPanel from "./SearchPanel.svelte";
   import GitPanel from "./GitPanel.svelte";
-  import PromptPanel from "./PromptPanel.svelte";
   import type { ExplorerPanelTab } from "$lib/explorerPanel";
 
   let { activeTab = $bindable("files" satisfies ExplorerPanelTab) } = $props<{
@@ -15,10 +15,10 @@
       <div class="content-body">
         {#if activeTab === "files"}
           <FileTree />
+        {:else if activeTab === "search"}
+          <SearchPanel />
         {:else if activeTab === "git"}
           <GitPanel />
-        {:else if activeTab === "prompt"}
-          <PromptPanel />
         {/if}
       </div>
     </div>
@@ -73,8 +73,8 @@
   }
 
   .explorer-panel :global(.file-tree),
-  .explorer-panel :global(.git-panel),
-  .explorer-panel :global(.prompt-panel) {
+  .explorer-panel :global(.search-panel),
+  .explorer-panel :global(.git-panel) {
     border-radius: inherit;
     background: var(--explorer-panel-bg);
   }

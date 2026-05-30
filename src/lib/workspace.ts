@@ -1,6 +1,6 @@
 import { get } from "svelte/store";
 import { files, type FileEntry } from "./stores/files";
-import { listDir } from "./ipc";
+import { listDir, watchWorkspace, isTauriAvailable } from "./ipc";
 import { normalizeFilePath } from "./fsPath";
 
 /** IPC may return snake_case or camelCase; keep a single shape for the UI. */
@@ -52,6 +52,13 @@ export function buildWorkspaceTree(
 export async function applyWorkspaceFolder(path: string): Promise<void> {
   const { switchProjectWorkspace } = await import("./projectState");
   await switchProjectWorkspace(path);
+  if (isTauriAvailable()) {
+    try {
+      await watchWorkspace(normalizeFilePath(path.trim()));
+    } catch (e) {
+      console.error("Failed to start workspace watcher:", e);
+    }
+  }
 }
 
 /** Refresh children under the workspace root (keeps root expanded state). */

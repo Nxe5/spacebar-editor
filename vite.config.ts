@@ -6,6 +6,8 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { sveltePhosphorOptimize } from "phosphor-svelte/vite";
 
 const devPort = Number(process.env.VITE_PORT ?? process.env.PORT ?? 14200);
+/** Set by `tauri dev` on iOS/Android; desktop leaves this unset. */
+const tauriDevHost = process.env.TAURI_DEV_HOST;
 
 /** `@tailwindcss/vite` uses `enforce: "pre"`; Svelte must run in the same phase first. */
 function preSvelte(): Plugin[] {
@@ -37,6 +39,20 @@ export default defineConfig(({ mode }) => {
   server: {
     port: devPort,
     strictPort: true,
+    /** Match Tauri devUrl; use TAURI_DEV_HOST when testing on a physical mobile device. */
+    host: tauriDevHost || "127.0.0.1",
+    hmr: tauriDevHost
+      ? {
+          protocol: "ws",
+          host: tauriDevHost,
+          port: devPort,
+        }
+      : {
+          protocol: "ws",
+          host: "127.0.0.1",
+          port: devPort,
+          clientPort: devPort,
+        },
     watch: {
       ignored: ["**/src-tauri/**"],
     },

@@ -386,6 +386,8 @@ When compaction triggers (auto or manual), show a non-message divider in the act
 
 UI-only element derived from `compactedAt` — not stored as a chat message. Makes the boundary visible so users are not confused by apparent history loss.
 
+> ✅ **Implemented (divider only):** the synthetic summary message produced by `buildCompactedMessages()` now carries a `compactionBoundary: true` flag (`src/lib/stores/chat.ts` `Message`, threaded through `ChatLikeMessage` in `src/lib/agent/activity.ts`). `ChatPane.svelte` renders a `.compaction-divider` (`───── Context compacted — session summary preserved ─────`) in place of the synthetic user bubble. The rest of §15 (context-budget meter colors, per-model context auto-detection) remains spec-only.
+
 ---
 
 ## 8. Ollama / llama.cpp Specifics
@@ -520,4 +522,58 @@ No changes to project-level state. Compaction is session-scoped.
 
 ---
 
-*Spec created: 2026-05-29 · Target: Phase B — pre-private beta*
+## 15. Enhancement Addenda (from `extension.md` §7)
+
+> **Status:** ❌ Not started — hardening on top of the core compaction spec above.
+> These extend §7 (UI) and §4 (token budget); they do not change the compaction strategy.
+
+### 15.1 Visual Compaction Divider (extends §7.3)
+
+§7.3 specifies an inline notice derived from `compactedAt`. This addendum makes it **anchored and informative**:
+
+- Render a horizontal divider in the transcript **at the message index where compaction occurred**, not just a floating notice:
+
+  ```
+  ─────────── Context compacted · 847 turns summarized ───────────
+  ```
+
+- Style: muted, non-intrusive.
+- **Clicking** the divider reveals the retained compaction summary (tooltip or expandable) so users can verify what was kept.
+
+**State change:** add `compactionMessageIndex?: number` to the session (alongside `compactedAt` / `compactionCount` from §9) so the divider anchors to the correct position even as new messages append.
+
+**Files:** `src/lib/stores/chat.ts` (store index), `src/modules/agent/ChatPane.svelte` (divider in message list renderer).
+
+### 15.2 Context Budget Visualization (extends §7.1)
+
+The footer meter (§7.1) gains richer feedback in the **status bar**:
+
+- Show `used / total` token count on hover, e.g. `12,847 / 32,768`.
+- Color gradient green → amber → red as usage climbs.
+- At **80%**: amber with tooltip *"Context nearly full — compaction recommended."*
+- At **95%**: red with an auto-prompt to compact (does not auto-run unless `autoCompact` is on).
+
+**Files:** `src/modules/workbench/StatusBar.svelte`, `src/lib/contextBudget.ts`.
+
+### 15.3 Per-Model Context Window Auto-Detection (resolves §4.1 / §8.3 deferral)
+
+§8.3 deferred context-window discovery. This addendum specifies it as an opt-in resolver so a user who pulls a 128k model is not budgeted at 8k:
+
+- On model selection, query the active server for the model's context length when available:
+  - **Ollama:** `GET /api/show` → `context_length`.
+  - **llama.cpp:** `/props` (or `/health`) server metadata.
+- Store as **`detectedContextWindow`** on the model entry.
+- `contextBudget.ts` resolution order becomes: `detectedContextWindow ?? settings contextWindow ?? 8192`.
+- Feeds [27-local-model-ux.md](27-local-model-ux.md) `ModelCapabilities.contextWindow`.
+
+**Files:** `src/lib/ollamaClient.ts`, `src/lib/llamaCppClient.ts`, `src/lib/contextBudget.ts`, model entry in `src/lib/stores/settings.ts`.
+
+### 15.4 Addendum Acceptance Criteria
+
+1. After compaction, a labeled divider appears at the compaction point and reveals the summary on click.
+2. The status-bar meter shows `used / total` on hover and shifts color at 80% / 95%.
+3. Selecting an Ollama model with a known context length budgets against that length, not the 8k fallback.
+
+---
+
+*Spec created: 2026-05-29 · Addenda added: 2026-05-30 (`extension.md` §7) · Target: Phase B — pre-private beta*

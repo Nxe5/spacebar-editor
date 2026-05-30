@@ -37,9 +37,32 @@ export async function listDir(path: string): Promise<FileEntry[]> {
   return invoke<FileEntry[]>("list_dir", { path });
 }
 
+export interface ReadFileResult {
+  content: string;
+  start_line: number;
+  end_line: number;
+  total_lines: number;
+  truncated: boolean;
+  hard_capped: boolean;
+}
+
 export async function readFile(path: string): Promise<string> {
   await ensureTauriApi();
-  return invoke<string>("read_file", { path });
+  const result = await invoke<ReadFileResult>("read_file", { path });
+  return result.content;
+}
+
+export async function readFileRanged(
+  path: string,
+  startLine?: number,
+  maxLines?: number
+): Promise<ReadFileResult> {
+  await ensureTauriApi();
+  return invoke<ReadFileResult>("read_file", {
+    path,
+    startLine: startLine ?? null,
+    maxLines: maxLines ?? null,
+  });
 }
 
 export async function writeFile(path: string, contents: string): Promise<void> {
@@ -117,6 +140,18 @@ export async function listenPtyExit(
 export async function openSettingsWindow(): Promise<void> {
   await ensureTauriApi();
   await invoke<void>("open_settings_window");
+}
+
+/** Start (or replace) the recursive FS watcher for the given workspace. */
+export async function watchWorkspace(workspacePath: string): Promise<void> {
+  await ensureTauriApi();
+  await invoke<void>("watch_workspace", { workspacePath });
+}
+
+/** Subscribe to debounced `fs:changed` events from the workspace watcher. */
+export async function listenFsChanged(callback: () => void): Promise<UnlistenFn> {
+  await ensureTauriApi();
+  return listen("fs:changed", () => callback());
 }
 
 export async function gitCurrentBranch(repoPath: string): Promise<string | null> {

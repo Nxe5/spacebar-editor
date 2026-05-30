@@ -20,8 +20,8 @@
 
   const EXPLORER_TAB_ICONS: Record<ExplorerPanelTab, AppIconName> = {
     files: "page-search",
+    search: "search",
     git: "git",
-    prompt: "paste-clipboard",
   };
 
   const POLL_MS = 10_000;

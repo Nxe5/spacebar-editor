@@ -14,6 +14,14 @@ export const TOOL_DEFINITIONS: Record<string, Tool> = {
             type: "string",
             description: "The absolute or workspace-relative path to the file to read",
           },
+          start_line: {
+            type: "integer",
+            description: "1-indexed first line to read (default 1)",
+          },
+          max_lines: {
+            type: "integer",
+            description: "Maximum lines to return (default from agent settings)",
+          },
         },
         required: ["path"],
       },
@@ -25,7 +33,7 @@ export const TOOL_DEFINITIONS: Record<string, Tool> = {
     function: {
       name: "write_file",
       description:
-        "Write content to a file at the specified path. Creates the file if it doesn't exist, overwrites if it does.",
+        "Write content to a file at the specified path. Creates the file if it doesn't exist, overwrites if it does. Preferred for multi-line text, markdown, or documents — use real line breaks in content, not \\n escape sequences.",
       parameters: {
         type: "object",
         properties: {
@@ -48,7 +56,7 @@ export const TOOL_DEFINITIONS: Record<string, Tool> = {
     function: {
       name: "create_file",
       description:
-        "Create a new file with the given content. Fails if the file already exists. Use write_file to overwrite an existing file.",
+        "Create a new file with the given content. Fails if the file already exists. Use write_file to overwrite an existing file. Preferred for new multi-line documents (markdown, guides, lists).",
       parameters: {
         type: "object",
         properties: {
@@ -310,7 +318,7 @@ export const TOOL_DEFINITIONS: Record<string, Tool> = {
     function: {
       name: "run_shell",
       description:
-        "Execute a shell command in the workspace directory. Returns stdout, stderr, and exit code. Use with caution.",
+        "Execute a shell command in the workspace directory. Returns stdout, stderr, and exit code. Use for git, builds, and short commands — not for writing multi-line files (use write_file or create_file instead). Avoid echo with \\n; it prints escapes literally.",
       parameters: {
         type: "object",
         properties: {

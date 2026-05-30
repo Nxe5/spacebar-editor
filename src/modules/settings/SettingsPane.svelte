@@ -9,6 +9,7 @@
     compactionThresholdPercent,
     compactionThresholdFromPercent,
     AUTOCOMPLETE_BOUNDS,
+    READ_FILE_CAP_BOUNDS,
   } from "$lib/stores/settings";
   import {
     fetchAnthropicModelCatalog,
@@ -47,8 +48,12 @@
   } from "$lib/toolPolicy";
   import { EMPTY_PARAMETERS_JSON } from "$lib/toolSchema";
   import { files } from "$lib/stores/files";
-  import SystemPromptsManager from "$lib/components/SystemPromptsManager.svelte";
   import { isTauriAvailable, runShell } from "$lib/ipc";
+  import AgentContextSection, {
+    type AgentContextSubview,
+  } from "./AgentContextSection.svelte";
+  import ModelListWithSettings from "./ModelListWithSettings.svelte";
+  import ProviderModelDefaultsPanel from "./ProviderModelDefaultsPanel.svelte";
   import {
     probeOllama,
     probeLlamacpp,
@@ -108,6 +113,9 @@
 
   type Section =
     | "general"
+    | "agent-context"
+    | "agent-context-prompts"
+    | "agent-context-skills"
     | "providers-ollama"
     | "providers-llamacpp"
     | "providers-anthropic"
@@ -129,6 +137,7 @@
   };
 
   let activeSection = $state<Section>("providers-ollama");
+  let agentContextSubview = $state<AgentContextSubview>("overview");
 
   type ProviderSubview = "ollama-server" | "llamacpp-server";
   let providerSubview = $state<ProviderSubview | null>(null);
@@ -144,6 +153,16 @@
   function selectSettingsSection(id: Section) {
     providerSubview = null;
     activeSection = id;
+    if (id === "agent-context") agentContextSubview = "overview";
+    if (id === "agent-context-prompts") agentContextSubview = "prompts";
+    if (id === "agent-context-skills") agentContextSubview = "skills";
+  }
+
+  function onAgentContextNavigate(view: AgentContextSubview) {
+    agentContextSubview = view;
+    if (view === "overview") activeSection = "agent-context";
+    if (view === "prompts") activeSection = "agent-context-prompts";
+    if (view === "skills") activeSection = "agent-context-skills";
   }
 
   let anthropicKey = $state("");
@@ -205,6 +224,10 @@
   let maxAgentSteps = $state(0);
   let maxToolCallsPerRun = $state(0);
   let maxToolsPerTurn = $state(0);
+  let includeWorkspaceInChat = $state(false);
+  let readFileCapMode = $state<"lines" | "percent">("lines");
+  let readFileCapMaxLines = $state(500);
+  let readFileCapMaxPercent = $state(5);
   let iconThemeId = $state<"seti" | "vscode-icons" | "codicons" | "custom">("seti");
   let iconPackCustomPath = $state("");
   let iconRefreshStatus = $state("");
@@ -259,6 +282,9 @@
     experimental?: boolean;
   }[] = [
     { id: "general", label: "General" },
+    { id: "agent-context", label: "Agent Context", group: "Agent Context" },
+    { id: "agent-context-prompts", label: "System prompts", group: "Agent Context" },
+    { id: "agent-context-skills", label: "Skills", group: "Agent Context" },
     { id: "providers-ollama", label: "Ollama", group: "Providers" },
     { id: "providers-llamacpp", label: "llama.cpp", group: "Providers" },
     { id: "providers-anthropic", label: "Anthropic", group: "Providers" },
@@ -334,6 +360,10 @@
     maxAgentSteps = $settings.agentLimits.maxAgentSteps;
     maxToolCallsPerRun = $settings.agentLimits.maxToolCallsPerRun;
     maxToolsPerTurn = $settings.agentLimits.maxToolsPerTurn;
+    includeWorkspaceInChat = $settings.includeWorkspaceInChat;
+    readFileCapMode = $settings.readFileCap.mode;
+    readFileCapMaxLines = $settings.readFileCap.maxLines;
+    readFileCapMaxPercent = $settings.readFileCap.maxPercent;
     iconThemeId = $iconTheme.themeId;
     iconPackCustomPath = $iconTheme.customPackPath ?? "";
     syntaxColors = { ...syntaxTheme.get() };
@@ -359,6 +389,18 @@
     void connectOllama();
     void connectLlamacpp();
   });
+
+  function persistReadFileCap() {
+    settings.setReadFileCap({
+      mode: readFileCapMode,
+      maxLines: readFileCapMaxLines,
+      maxPercent: readFileCapMaxPercent,
+    });
+    const cap = get(settings).readFileCap;
+    readFileCapMode = cap.mode;
+    readFileCapMaxLines = cap.maxLines;
+    readFileCapMaxPercent = cap.maxPercent;
+  }
 
   function persistAgentLimits() {
     settings.setAgentLimits({
@@ -837,49 +879,6 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-{#snippet modelPickerGrid(models: ModelConfig[], onToggle: (modelId: string, show: boolean) => void)}
-  <div class="model-picker-cards">
-    {#each models as model (model.id)}
-      <label class="model-picker-card" class:model-picker-card--hidden={model.showInPicker === false}>
-        <input
-          type="checkbox"
-          class="checkbox"
-          checked={model.showInPicker !== false}
-          aria-label="Show {model.name} in chat model menu"
-          onchange={(e) => onToggle(model.id, (e.currentTarget as HTMLInputElement).checked)}
-        />
-        <span class="model-picker-card-body">
-          <span class="model-picker-card-name" title={model.name}>{model.name}</span>
-          {#if model.contextWindow}
-            <span class="model-list-meta">{fmtCtx(model.contextWindow)} ctx</span>
-          {/if}
-        </span>
-      </label>
-    {/each}
-  </div>
-{/snippet}
-
-{#snippet llamacppModelGrid(models: ModelConfig[], loadedModelId: string | null)}
-  <div class="model-picker-cards">
-    {#each models as model (model.id)}
-      <div
-        class="model-picker-card model-picker-card--readonly"
-        class:model-picker-card--loaded={loadedModelId != null && model.id === loadedModelId}
-      >
-        <span class="model-picker-card-body">
-          <span class="model-picker-card-name" title={model.name}>{model.name}</span>
-          {#if model.contextWindow}
-            <span class="model-list-meta">{fmtCtx(model.contextWindow)} ctx</span>
-          {/if}
-          {#if loadedModelId != null && model.id === loadedModelId}
-            <span class="model-list-meta model-list-meta--loaded">Loaded on server</span>
-          {/if}
-        </span>
-      </div>
-    {/each}
-  </div>
-{/snippet}
-
 {#snippet settingsShell()}
       <header class="modal-header">
         <h2 id="settings-title" class="title">Settings</h2>
@@ -971,6 +970,22 @@
             </p>
 
             <p class="group-label">Chat</p>
+            <label class="field checkbox-field">
+              <input
+                type="checkbox"
+                checked={includeWorkspaceInChat}
+                onchange={(e) => {
+                  includeWorkspaceInChat = (e.currentTarget as HTMLInputElement).checked;
+                  settings.setIncludeWorkspaceInChat(includeWorkspaceInChat);
+                }}
+              />
+              <span class="name">Include workspace context in chat mode</span>
+            </label>
+            <p class="note muted">
+              Plan and Agent modes always include workspace context. Chat mode omits it unless this
+              is enabled.
+            </p>
+            <p class="group-label">Chat appearance</p>
             <label class="field">
               <span class="name">While waiting for the model</span>
               <span class="syntax-color-hint">Before tools or reasoning appear</span>
@@ -991,13 +1006,6 @@
                 {/each}
               </select>
             </label>
-
-            <p class="group-label">System prompts</p>
-            <p class="note muted">
-              Per-project files in <code class="inline-code">.tinyllama/prompts/</code>. Enable prompts
-              to append them to the active chat mode. Edit files in the main editor.
-            </p>
-            <SystemPromptsManager variant="settings" />
 
             <p class="group-label">Explorer</p>
             {#each EXPLORER_SIZE_FIELDS as field}
@@ -1132,6 +1140,12 @@
               </p>
             </details>
           </div>
+
+        {:else if activeSection === "agent-context" || activeSection === "agent-context-prompts" || activeSection === "agent-context-skills"}
+          <AgentContextSection
+            subview={agentContextSubview}
+            onNavigate={onAgentContextNavigate}
+          />
 
         {:else if activeSection === "providers-ollama"}
           <div class="stack ollama-settings provider-page-shell">
@@ -1282,8 +1296,9 @@
 
             <p class="group-label">Installed models</p>
             <p class="note muted">Choose which models appear in the chat model menu.</p>
+            <ProviderModelDefaultsPanel backend="ollama" />
             {#if ollamaModels.length > 0}
-              {@render modelPickerGrid(ollamaModels, toggleOllamaPicker)}
+              <ModelListWithSettings backend="ollama" onTogglePicker={toggleOllamaPicker} />
             {:else}
               <p class="note muted">No models installed yet.</p>
             {/if}
@@ -1482,11 +1497,11 @@
 
             <p class="group-label">Server models</p>
             <p class="note muted">
-              Models reported by the running server. Only the loaded GGUF is usable for chat; visibility
-              in the chat menu is not configurable.
+              Models reported by the running server. Only the loaded GGUF is usable for chat.
             </p>
+            <ProviderModelDefaultsPanel backend="llamacpp" />
             {#if llamacppModels.length > 0}
-              {@render llamacppModelGrid(llamacppModels, llamacppLoadedModelId)}
+              <ModelListWithSettings backend="llamacpp" readonly loadedModelId={llamacppLoadedModelId} />
             {:else}
               <p class="note muted">
                 {#if llamacppStatus.dot === "red"}
@@ -1596,7 +1611,8 @@
             {#if anthropicModels.length > 0}
               <p class="group-label">Models in chat picker</p>
               <p class="note muted">Fetched from your API key. Toggle which appear in the chat menu.</p>
-              {@render modelPickerGrid(anthropicModels, toggleAnthropicPicker)}
+              <ProviderModelDefaultsPanel backend="anthropic" />
+              <ModelListWithSettings backend="anthropic" onTogglePicker={toggleAnthropicPicker} />
 
               <label class="field">
                 <span class="name">Chat model</span>
@@ -1669,7 +1685,8 @@
             {#if deepseekModels.length > 0}
               <p class="group-label">Models in chat picker</p>
               <p class="note muted">Fetched from your API key. Toggle which appear in the chat menu.</p>
-              {@render modelPickerGrid(deepseekModels, toggleDeepseekPicker)}
+              <ProviderModelDefaultsPanel backend="deepseek" />
+              <ModelListWithSettings backend="deepseek" onTogglePicker={toggleDeepseekPicker} />
 
               <label class="field">
                 <span class="name">Chat model</span>
@@ -1738,6 +1755,49 @@
                 Tools from one model response (0 = unlimited, max {AGENT_LIMIT_BOUNDS.maxToolsPerTurn.max}).
               </span>
             </label>
+
+            <p class="group-label">read_file cap</p>
+            <p class="note muted">
+              Limits how many lines the agent can read per <code class="inline-code">read_file</code> call
+              unless the model requests a smaller range.
+            </p>
+            <label class="field">
+              <span class="name">Cap mode</span>
+              <select
+                class="input"
+                bind:value={readFileCapMode}
+                onchange={persistReadFileCap}
+              >
+                <option value="lines">Fixed line count</option>
+                <option value="percent">Percent of context window</option>
+              </select>
+            </label>
+            {#if readFileCapMode === "lines"}
+              <label class="field">
+                <span class="name">Max lines</span>
+                <input
+                  type="number"
+                  class="input"
+                  min={READ_FILE_CAP_BOUNDS.maxLines.min}
+                  max={READ_FILE_CAP_BOUNDS.maxLines.max}
+                  bind:value={readFileCapMaxLines}
+                  onchange={persistReadFileCap}
+                />
+              </label>
+            {:else}
+              <label class="field">
+                <span class="name">Max percent of context</span>
+                <input
+                  type="number"
+                  class="input"
+                  min={READ_FILE_CAP_BOUNDS.maxPercent.min}
+                  max={READ_FILE_CAP_BOUNDS.maxPercent.max}
+                  bind:value={readFileCapMaxPercent}
+                  onchange={persistReadFileCap}
+                />
+                <span class="hint">Converted to lines at ~20 tokens/line (min 50 lines).</span>
+              </label>
+            {/if}
 
             <p class="group-label">Tool policy</p>
             <p class="note">

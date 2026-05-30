@@ -1,5 +1,8 @@
+import { unescapeLiteralEscapes } from "../textEscapes";
 import { resolveWorkspacePath } from "../tools/pathUtils";
 import { normalizeFilePath } from "../fsPath";
+
+export { unescapeLiteralEscapes } from "../textEscapes";
 
 const FILE_TOOLS = new Set([
   "read_file",
@@ -131,7 +134,60 @@ export function toolFileLine(
   }
 }
 
-export function formatToolInput(_toolName: string, input: Record<string, unknown>): string {
+/** Primary text body for UI preview (stdout or read_file content). */
+export function toolOutputDisplayBody(toolName: string, content: string): string {
+  const formatted = formatToolOutput(content);
+  if (toolName === "read_file") return formatted;
+  const stdoutOnly = formatted.match(/^stdout:\n([\s\S]*?)(?:\n\nstderr:|\n\nexit code:|$)/);
+  if (stdoutOnly?.[1]?.trim()) return stdoutOnly[1];
+  if (!formatted.startsWith("Successfully ") && !formatted.startsWith("Error:")) {
+    return formatted;
+  }
+  return formatted;
+}
+
+export function shouldRenderToolOutputAsMarkdown(toolName: string, content: string): boolean {
+  if (toolResultIsError(content)) return false;
+  const body = toolOutputDisplayBody(toolName, content).trim();
+  if (body.startsWith("#") && body.length >= 40) return true;
+  if (body.length < 80) return false;
+  if (/^[-*]\s/m.test(body) && body.includes("\n\n")) return true;
+  if ((body.match(/\n\n/g) ?? []).length >= 2 && /[.!?]/.test(body)) return true;
+  return false;
+}
+
+export function formatToolOutput(content: string): string {
+  if (!content.trim()) return content;
+  const stdoutMatch = content.match(/^stdout:\n([\s\S]*?)(?:\n\nstderr:\n([\s\S]*?))?(?:\n\nexit code: (.*))?$/);
+  if (stdoutMatch) {
+    const parts = [
+      `stdout:\n${unescapeLiteralEscapes(stdoutMatch[1] ?? "")}`,
+    ];
+    if (stdoutMatch[2] != null) parts.push(`stderr:\n${stdoutMatch[2]}`);
+    if (stdoutMatch[3] != null) parts.push(`exit code: ${stdoutMatch[3]}`);
+    return parts.join("\n\n");
+  }
+  return unescapeLiteralEscapes(content);
+}
+
+export function formatToolInput(toolName: string, input: Record<string, unknown>): string {
+  if (toolName === "run_shell" && typeof input.command === "string") {
+    return input.command;
+  }
+  if (toolName === "run_script" && typeof input.script === "string") {
+    return input.script;
+  }
+  if (
+    (toolName === "write_file" || toolName === "create_file") &&
+    typeof input.path === "string"
+  ) {
+    let content = typeof input.content === "string" ? input.content : "";
+    if (content.length > 4000) {
+      content = `${content.slice(0, 4000)}\n… (${content.length.toLocaleString()} chars total)`;
+    }
+    return `path: ${input.path}\n\n${content}`;
+  }
+
   const copy = { ...input };
   if (typeof copy.content === "string" && copy.content.length > 4000) {
     copy.content = `${copy.content.slice(0, 4000)}\n… (${copy.content.length.toLocaleString()} chars total)`;

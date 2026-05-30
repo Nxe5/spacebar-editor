@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  modelDeliveredSubstantiveReply,
   shouldRunSynthesis,
-  toolResultsAreSelfExplanatory,
 } from "../../src/lib/agent/synthesis";
 
 describe("shouldRunSynthesis", () => {
@@ -16,30 +16,23 @@ describe("shouldRunSynthesis", () => {
   it("skips when no tools ran", () => {
     expect(shouldRunSynthesis(false, 0)).toBe(false);
   });
+
+  it("runs after write_file when no substantive model reply", () => {
+    expect(shouldRunSynthesis(false, 1)).toBe(true);
+  });
 });
 
-describe("toolResultsAreSelfExplanatory", () => {
-  it("returns true for successful file mutations only", () => {
+describe("modelDeliveredSubstantiveReply", () => {
+  it("rejects short or plan-only text", () => {
+    expect(modelDeliveredSubstantiveReply("I will use write_file now.")).toBe(false);
+    expect(modelDeliveredSubstantiveReply("ok")).toBe(false);
+  });
+
+  it("accepts a real closing summary", () => {
     expect(
-      toolResultsAreSelfExplanatory([
-        { name: "write_file", success: true },
-        { name: "create_file", success: true },
-      ])
+      modelDeliveredSubstantiveReply(
+        "I created llm_excellence.txt in the project root with a long overview of LLM capabilities."
+      )
     ).toBe(true);
-  });
-
-  it("returns false when read tools need a summary", () => {
-    expect(
-      toolResultsAreSelfExplanatory([
-        { name: "read_file", success: true },
-        { name: "write_file", success: true },
-      ])
-    ).toBe(false);
-  });
-
-  it("returns false when a mutation failed", () => {
-    expect(toolResultsAreSelfExplanatory([{ name: "write_file", success: false }])).toBe(
-      false
-    );
   });
 });

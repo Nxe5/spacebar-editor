@@ -166,3 +166,30 @@ export function isPromptFilePath(path: string, workspacePath: string | null): bo
 export function defaultPromptTemplate(label: string): string {
   return `# ${label}\n\nCustom instructions appended to the ${label.toLowerCase()} mode system prompt.\n`;
 }
+
+export const BUILTIN_PROMPT_IDS: ChatMode[] = ["chat", "plan", "agent"];
+
+export function isBuiltinPromptEntry(entry: SystemPromptEntry): boolean {
+  return BUILTIN_PROMPT_IDS.includes(entry.id as ChatMode);
+}
+
+/** Default on-disk content when resetting a built-in mode prompt or creating files. */
+export function defaultPromptContentForEntry(entry: SystemPromptEntry): string {
+  switch (entry.id) {
+    case "chat":
+      return `# Chat\n\nOptional instructions for chat mode (no tools). Keep answers concise unless the user asks for detail.\n`;
+    case "plan":
+      return `# Plan\n\nOptional instructions for plan mode (read-only tools). Prefer analysis, tradeoffs, and step-by-step plans before any implementation.\n`;
+    case "agent":
+      return `# Agent\n\nOptional instructions for agent mode (full tools). Prefer small, verifiable edits and explain what you changed.\n`;
+    default:
+      return defaultPromptTemplate(entry.label);
+  }
+}
+
+export function builtinEntryForMode(
+  entries: SystemPromptEntry[],
+  mode: ChatMode
+): SystemPromptEntry | undefined {
+  return entries.find((e) => e.id === mode);
+}

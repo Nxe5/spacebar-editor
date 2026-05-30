@@ -43,4 +43,36 @@ describe("textToolCalls", () => {
     expect(calls[0].name).toBe("run_shell");
     expect(JSON.parse(calls[0].arguments)).toEqual({ command: "git add joke.txt" });
   });
+
+  it("recovers tool_name field alias", () => {
+    const text = `\`\`\`json
+{"tool_name": "run_shell", "arguments": {"command": "echo hi"}}
+\`\`\``;
+    const { calls } = recoverToolCallsFromText(text, ALLOWED);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].name).toBe("run_shell");
+  });
+
+  it("detects fake tool_use with tool_name in prose", () => {
+    const text = `{"tool_name": "run_shell", "arguments": {}}`;
+    expect(textLooksLikeFakeToolUse(text)).toBe(true);
+  });
+
+  it("recovers multi-line bare JSON with tool_name and nested arguments", () => {
+    const text = `I will execute the commands now.
+
+{
+  "tool_name": "run_shell",
+  "arguments": {
+    "command": "echo hello > hellojoke.txt"
+  }
+}
+`;
+    const { calls } = recoverToolCallsFromText(text, ALLOWED);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].name).toBe("run_shell");
+    expect(JSON.parse(calls[0].arguments)).toEqual({
+      command: "echo hello > hellojoke.txt",
+    });
+  });
 });

@@ -16,7 +16,7 @@
 
   $effect(() => {
     const raw = initialUrl.trim();
-    urlInput = raw || "http://127.0.0.1:5173";
+    urlInput = raw || "http://127.0.0.1:14200";
     loadedUrl = raw && isLocalPreviewUrl(raw) ? raw : "";
   });
 
@@ -42,12 +42,15 @@
     <Input
       class="max-w-xl flex-1 font-mono text-xs"
       bind:value={urlInput}
-      placeholder="http://127.0.0.1:5173"
+      placeholder="http://127.0.0.1:14200"
       onkeydown={(e) => e.key === "Enter" && navigate()}
     />
     <Button variant="secondary" size="sm" onclick={navigate}>Go</Button>
     <Button variant="outline" size="sm" onclick={() => (urlInput = "http://127.0.0.1:3000")}>
       :3000
+    </Button>
+    <Button variant="outline" size="sm" onclick={() => (urlInput = "http://127.0.0.1:14200")}>
+      :14200
     </Button>
     <Button variant="outline" size="sm" onclick={() => (urlInput = "http://127.0.0.1:5173")}>
       :5173
@@ -67,7 +70,9 @@
       title="Preview"
       class="preview-pane__frame min-h-0 flex-1 w-full rounded-md border border-transparent bg-background"
       src={loadedUrl}
-      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      sandbox="allow-scripts allow-same-origin allow-forms"
+      referrerpolicy="no-referrer"
+      allow=""
     ></iframe>
   {:else}
     <div

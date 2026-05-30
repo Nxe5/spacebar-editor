@@ -8,6 +8,9 @@
   } from "$lib/agent/activity";
   import {
     formatToolInput,
+    formatToolOutput,
+    shouldRenderToolOutputAsMarkdown,
+    toolOutputDisplayBody,
     toolCompactLabel,
     toolFileLine,
     toolResultIsError,
@@ -217,7 +220,13 @@
               {/if}
               {#if tool.content}
                 <p class="activity-detail-key">output:</p>
-                <pre class="activity-detail-block">{tool.content}</pre>
+                {#if shouldRenderToolOutputAsMarkdown(tool.name, tool.content)}
+                  <div class="activity-detail-markdown">
+                    <ChatMarkdown content={toolOutputDisplayBody(tool.name, tool.content)} />
+                  </div>
+                {:else}
+                  <pre class="activity-detail-block">{formatToolOutput(tool.content)}</pre>
+                {/if}
               {/if}
             </div>
           {/each}
@@ -440,6 +449,21 @@
 
   .activity-detail-link:hover {
     color: var(--foreground);
+  }
+
+  .activity-detail-markdown {
+    margin: 0 0 6px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--muted) 40%, transparent);
+    max-height: 320px;
+    overflow: auto;
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .activity-detail-markdown :global(.chat-markdown) {
+    font-size: inherit;
   }
 
   .activity-detail-block {

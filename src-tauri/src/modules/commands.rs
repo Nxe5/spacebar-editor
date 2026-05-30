@@ -1,8 +1,9 @@
 use crate::modules::filesystem::{
     delete_path, find_files as find_files_inner, list_dir_tree as list_dir_tree_inner,
-    list_directory, path_exists as path_exists_inner, read_file_contents, rename_path,
-    web_fetch as web_fetch_inner, write_file_contents, FileEntry,
+    list_directory, path_exists as path_exists_inner, read_file_ranged,
+    rename_path, web_fetch as web_fetch_inner, write_file_contents, FileEntry, ReadFileResult,
 };
+use crate::modules::watcher::WatcherState;
 use crate::modules::git::{
     git_commit as git_commit_inner, git_current_branch as git_current_branch_inner,
     git_create_checkpoint as git_create_checkpoint_inner,
@@ -26,8 +27,12 @@ pub fn list_dir(path: &str) -> Result<Vec<FileEntry>, String> {
 }
 
 #[tauri::command]
-pub fn read_file(path: &str) -> Result<String, String> {
-    read_file_contents(path)
+pub fn read_file(
+    path: &str,
+    start_line: Option<u32>,
+    max_lines: Option<u32>,
+) -> Result<ReadFileResult, String> {
+    read_file_ranged(path, start_line, max_lines)
 }
 
 #[tauri::command]
@@ -189,6 +194,17 @@ pub fn pick_workspace_folder() -> Result<Option<String>, String> {
         return Ok(Some(s));
     }
     Ok(None)
+}
+
+/// Start (or replace) the recursive filesystem watcher for the given workspace.
+/// Emits a debounced `fs:changed` event when relevant files change on disk.
+#[tauri::command]
+pub fn watch_workspace(
+    app: AppHandle,
+    state: tauri::State<'_, WatcherState>,
+    workspace_path: String,
+) -> Result<(), String> {
+    state.watch(app, &workspace_path)
 }
 
 #[tauri::command]

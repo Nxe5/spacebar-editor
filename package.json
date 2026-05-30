@@ -6,14 +6,15 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/free-dev-port.mjs && vite",
-    "dev:desktop": "tauri dev",
+    "dev:desktop": "node scripts/tauri-dev.mjs dev",
     "build": "pnpm run test && vite build",
     "build:skip-tests": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
+    "tauri": "node scripts/tauri-dev.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ollama": "RUN_OLLAMA_TESTS=1 vitest run tests/integration/ollama.test.ts",
+    "test:ollama-tools": "RUN_OLLAMA_TESTS=1 vitest run tests/integration/ollamaToolCalling.test.ts",
     "test:deepseek": "RUN_DEEPSEEK_TESTS=1 vitest run tests/integration/deepseek.test.ts",
     "test:coverage": "vitest run --coverage",
     "sync-icons": "node scripts/sync-vscode-icons.mjs"

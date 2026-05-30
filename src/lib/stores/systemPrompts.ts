@@ -8,11 +8,13 @@ import {
   isPromptFilePath,
   promptFilePath,
 } from "../systemPrompts/config";
+import { defaultPromptContentForEntry } from "../systemPrompts/config";
 import {
   createPromptFile,
   deletePromptFile,
   initializePromptFiles,
   readPromptsWorkspace,
+  savePromptFileContent,
   savePromptsConfig,
 } from "../systemPrompts/workspace";
 import type { SystemPromptEntry, SystemPromptsState } from "../systemPrompts/types";
@@ -136,14 +138,23 @@ function createSystemPromptsStore() {
       update((s) => ({ ...s, entries: config.prompts }));
     },
 
-    async addPrompt(workspacePath: string, displayName: string): Promise<SystemPromptEntry | null> {
+    async addPrompt(
+      workspacePath: string,
+      displayName: string,
+      initialContent?: string
+    ): Promise<SystemPromptEntry | null> {
       const state = get({ subscribe });
       if (!state.initialized) {
         throw new Error("Create prompt files first.");
       }
       const name = displayName.trim();
       if (!name) return null;
-      const { entry, content } = await createPromptFile(workspacePath, state.entries, name);
+      const { entry, content } = await createPromptFile(
+        workspacePath,
+        state.entries,
+        name,
+        initialContent
+      );
       const next = [...state.entries, entry];
       const config = await savePromptsConfig(workspacePath, next);
       update((s) => ({
@@ -168,6 +179,31 @@ function createSystemPromptsStore() {
         const { [entry.filename]: _removed, ...rest } = s.contents;
         return { ...s, entries: config.prompts, contents: rest };
       });
+    },
+
+    async saveContent(workspacePath: string, id: string, content: string): Promise<void> {
+      const state = get({ subscribe });
+      if (!state.initialized) {
+        throw new Error("Create prompt files first.");
+      }
+      const entry = state.entries.find((e) => e.id === id);
+      if (!entry) return;
+      await savePromptFileContent(workspacePath, entry, content);
+      update((s) => ({
+        ...s,
+        contents: { ...s.contents, [entry.filename]: content },
+      }));
+    },
+
+    async resetToDefault(workspacePath: string, id: string): Promise<void> {
+      const state = get({ subscribe });
+      if (!state.initialized) {
+        throw new Error("Create prompt files first.");
+      }
+      const entry = state.entries.find((e) => e.id === id);
+      if (!entry) return;
+      const content = defaultPromptContentForEntry(entry);
+      await this.saveContent(workspacePath, id, content);
     },
 
     async reload(): Promise<void> {

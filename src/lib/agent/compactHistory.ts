@@ -96,6 +96,7 @@ export function buildCompactedMessages(
     role: "user",
     content: `[Session context — compacted to free space]\n\n${summary.trim()}`,
     timestamp: now,
+    compactionBoundary: true,
   };
   const assistantMsg: Message = {
     id: crypto.randomUUID(),

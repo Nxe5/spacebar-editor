@@ -29,6 +29,31 @@
   const wrapCompartment = new Compartment();
   let kit: CodeMirrorKit | null = $state(null);
   let resizeObserver: ResizeObserver | null = null;
+  /** 1-indexed line to scroll to once the matching path becomes active. */
+  const pendingGotoByPath = new Map<string, number>();
+
+  function applyGoto(path: string) {
+    const line = pendingGotoByPath.get(path);
+    if (line == null || !editorView) return;
+    pendingGotoByPath.delete(path);
+    const doc = editorView.state.doc;
+    const clamped = Math.min(Math.max(line, 1), doc.lines);
+    const pos = doc.line(clamped).from;
+    editorView.dispatch({
+      selection: { anchor: pos },
+      effects: EditorView.scrollIntoView(pos, { y: "center" }),
+    });
+    editorView.focus();
+  }
+
+  function onGotoLineEvent(e: Event) {
+    const detail = (e as CustomEvent<{ path: string; line: number }>).detail;
+    if (!detail?.path || typeof detail.line !== "number") return;
+    const path = detail.path;
+    pendingGotoByPath.set(path, detail.line);
+    const tagged = (editorView as unknown as { __tinyPath?: string })?.__tinyPath;
+    if (tagged === path) void tick().then(() => applyGoto(path));
+  }
 
   function pruneStates(paths: string[]) {
     const allowed = new Set(paths);
@@ -179,6 +204,7 @@
 
     void tick().then(() => {
       editorView?.requestMeasure();
+      applyGoto(path);
     });
   });
 
@@ -254,6 +280,7 @@
     });
 
     window.addEventListener("tinyllama:format-document", onFormatDocumentEvent);
+    window.addEventListener("tinyllama:goto-line", onGotoLineEvent);
   });
 
   $effect(() => {
@@ -264,6 +291,7 @@
 
   onDestroy(() => {
     window.removeEventListener("tinyllama:format-document", onFormatDocumentEvent);
+    window.removeEventListener("tinyllama:goto-line", onGotoLineEvent);
     resizeObserver?.disconnect();
     resizeObserver = null;
     editorView?.destroy();

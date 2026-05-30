@@ -34,8 +34,26 @@ import {
   seedDeepseekModels,
 } from "../cloudModelCatalog";
 import { modelsVisibleInPicker } from "../modelPicker";
+import {
+  DEFAULT_PROVIDER_MODEL_DEFAULTS,
+  normalizeModelConfig,
+  normalizeProviderModelDefaults,
+  type ProviderModelDefaults,
+  type ProviderModelDefaultsMap,
+  type PromptVerbosity,
+  type ToolCallFormat,
+} from "../modelSettings";
+import {
+  DEFAULT_READ_FILE_CAP,
+  normalizeReadFileCap,
+  type ReadFileCapSettings,
+} from "../readFileCap";
 
 export type { AgentLimits };
+export type { ReadFileCapSettings, ProviderModelDefaults, ProviderModelDefaultsMap };
+export type { ToolCallFormat, PromptVerbosity };
+export { DEFAULT_PROVIDER_MODEL_DEFAULTS } from "../modelSettings";
+export { DEFAULT_READ_FILE_CAP, READ_FILE_CAP_BOUNDS } from "../readFileCap";
 export type { AgentCompactionSettings };
 export type { AutocompleteSettings };
 export type { ModelRoleOverrides };
@@ -84,6 +102,9 @@ export interface ModelConfig {
   contextLimitMax?: number;
   /** When false, hidden from the chat model picker (default: shown). */
   showInPicker?: boolean;
+  toolCallFormat?: ToolCallFormat;
+  parallelToolCalls?: boolean;
+  promptVerbosity?: PromptVerbosity;
 }
 
 /** @deprecated Use `anthropicModels` / `deepseekModels` from settings; kept for tests and fallbacks. */
@@ -92,10 +113,11 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   ...DEEPSEEK_MODEL_FALLBACKS,
 ];
 
-const SETTINGS_STORAGE_KEY = "tinyllama.settings.v3";
+const SETTINGS_STORAGE_KEY = "tinyllama.settings.v4";
+const LEGACY_SETTINGS_KEYS = ["tinyllama.settings.v3", "tinyllama.settings.v2", "tinyllama.settings.v1"];
 
 export type SettingsState = {
-  schemaVersion: 3;
+  schemaVersion: 4;
   apiKeys: {
     anthropic: string;
     deepseek: string;
@@ -125,6 +147,10 @@ export type SettingsState = {
   ollamaServerTemplate: OllamaServerTemplate;
   llamacppServerTemplate: LlamacppServerTemplate;
   editor: EditorSettings;
+  /** Include workspace path block in chat mode system prompt (default off). */
+  includeWorkspaceInChat: boolean;
+  readFileCap: ReadFileCapSettings;
+  providerModelDefaults: ProviderModelDefaultsMap;
 };
 
 function createSettingsStore() {
@@ -136,7 +162,7 @@ function createSettingsStore() {
   ];
 
   const defaultState: SettingsState = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     apiKeys: {
       anthropic: "",
       deepseek: "",
@@ -166,9 +192,29 @@ function createSettingsStore() {
     ollamaServerTemplate: { ...DEFAULT_OLLAMA_SERVER_TEMPLATE },
     llamacppServerTemplate: { ...DEFAULT_LLAMACPP_SERVER_TEMPLATE },
     editor: { ...DEFAULT_EDITOR_SETTINGS },
+    includeWorkspaceInChat: false,
+    readFileCap: { ...DEFAULT_READ_FILE_CAP },
+    providerModelDefaults: structuredClone(DEFAULT_PROVIDER_MODEL_DEFAULTS),
   };
 
-  function normalizeLoaded(parsed: Partial<SettingsState>): SettingsState {
+  function normalizeModelList(
+    list: ModelConfig[] | undefined,
+    provider: ModelConfig["provider"],
+    defaults: ProviderModelDefaults
+  ): ModelConfig[] {
+    return (list ?? []).map((m) =>
+      normalizeModelConfig({ ...m, provider: m.provider ?? provider }, provider, defaults)
+    );
+  }
+
+  function migrateV3ToV4(parsed: Partial<SettingsState>): SettingsState {
+    return normalizeLoaded(parsed);
+  }
+
+  function normalizeLoadedInner(
+    parsed: Partial<SettingsState>,
+    providerDefaults: ProviderModelDefaultsMap
+  ): SettingsState {
     const api = mergeApiKeysFromEnv({
       ...defaultState.apiKeys,
       ...(parsed.apiKeys ?? {}),
@@ -177,7 +223,7 @@ function createSettingsStore() {
     return {
       ...defaultState,
       ...parsed,
-      schemaVersion: 3,
+      schemaVersion: 4,
       apiKeys: api,
       ollamaEndpoint: parsed.ollamaEndpoint ?? defaultState.ollamaEndpoint,
       ollamaApiKey: parsed.ollamaApiKey ?? defaultState.ollamaApiKey,
@@ -185,13 +231,18 @@ function createSettingsStore() {
       llamacppApiKey: parsed.llamacppApiKey ?? defaultState.llamacppApiKey,
       lastOllamaModelId: parsed.lastOllamaModelId ?? defaultState.lastOllamaModelId,
       selectedModel: parsed.selectedModel ?? defaultState.selectedModel,
-      ollamaModels: (parsed.ollamaModels ?? defaultState.ollamaModels).map((m) => ({
-        ...m,
-        showInPicker: m.showInPicker !== false,
-      })),
-      llamacppModels: parsed.llamacppModels ?? defaultState.llamacppModels,
-      anthropicModels: seedAnthropicModels(parsed.anthropicModels),
-      deepseekModels: seedDeepseekModels(parsed.deepseekModels),
+      ollamaModels: normalizeModelList(parsed.ollamaModels, "ollama", providerDefaults.ollama),
+      llamacppModels: normalizeModelList(
+        parsed.llamacppModels,
+        "llamacpp",
+        providerDefaults.llamacpp
+      ),
+      anthropicModels: seedAnthropicModels(
+        normalizeModelList(parsed.anthropicModels, "anthropic", providerDefaults.anthropic)
+      ),
+      deepseekModels: seedDeepseekModels(
+        normalizeModelList(parsed.deepseekModels, "deepseek", providerDefaults.deepseek)
+      ),
       anthropicCatalogFetched: parsed.anthropicCatalogFetched === true,
       deepseekCatalogFetched: parsed.deepseekCatalogFetched === true,
       workbenchTheme: normalizeWorkbenchTheme(parsed.workbenchTheme),
@@ -208,7 +259,15 @@ function createSettingsStore() {
       ollamaServerTemplate: normalizeOllamaServerTemplate(parsed.ollamaServerTemplate),
       llamacppServerTemplate: normalizeLlamacppServerTemplate(parsed.llamacppServerTemplate),
       editor: normalizeEditorSettings(parsed.editor),
+      includeWorkspaceInChat: parsed.includeWorkspaceInChat === true,
+      readFileCap: normalizeReadFileCap(parsed.readFileCap),
+      providerModelDefaults: providerDefaults,
     };
+  }
+
+  function normalizeLoaded(parsed: Partial<SettingsState>): SettingsState {
+    const providerDefaults = normalizeProviderModelDefaults(parsed.providerModelDefaults);
+    return normalizeLoadedInner(parsed, providerDefaults);
   }
 
   function loadSettings(): SettingsState {
@@ -220,13 +279,11 @@ function createSettingsStore() {
       if (raw) {
         return normalizeLoaded(JSON.parse(raw) as Partial<SettingsState>);
       }
-      const oldKeys = ["tinyllama.settings.v2", "tinyllama.settings.v1"];
-      for (const key of oldKeys) {
+      for (const key of LEGACY_SETTINGS_KEYS) {
         const oldRaw = localStorage.getItem(key);
         if (oldRaw) {
-          const migrated = normalizeLoaded(JSON.parse(oldRaw) as Partial<SettingsState>);
+          const migrated = migrateV3ToV4(JSON.parse(oldRaw) as Partial<SettingsState>);
           localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(migrated));
-          localStorage.removeItem(key);
           return migrated;
         }
       }
@@ -519,6 +576,51 @@ function createSettingsStore() {
         ...state,
         editor: normalizeEditorSettings({ ...state.editor, ...editor }),
       }));
+    },
+    setIncludeWorkspaceInChat: (includeWorkspaceInChat: boolean) => {
+      update((state) => ({ ...state, includeWorkspaceInChat }));
+    },
+    setReadFileCap: (readFileCap: Partial<ReadFileCapSettings>) => {
+      update((state) => ({
+        ...state,
+        readFileCap: normalizeReadFileCap({ ...state.readFileCap, ...readFileCap }),
+      }));
+    },
+    setProviderModelDefaults: (
+      backend: ChatBackend,
+      patch: Partial<ProviderModelDefaults>
+    ) => {
+      update((state) => {
+        const current = state.providerModelDefaults[backend];
+        const next = normalizeProviderModelDefaults({
+          ...state.providerModelDefaults,
+          [backend]: { ...current, ...patch },
+        });
+        return { ...state, providerModelDefaults: next };
+      });
+    },
+    patchModelConfig: (
+      backend: ChatBackend,
+      modelId: string,
+      patch: Partial<ModelConfig>
+    ) => {
+      update((state) => {
+        const defaults = state.providerModelDefaults[backend];
+        const apply = (list: ModelConfig[]) =>
+          list.map((m) =>
+            m.id === modelId ? normalizeModelConfig({ ...m, ...patch }, m.provider, defaults) : m
+          );
+        if (backend === "anthropic") {
+          return { ...state, anthropicModels: apply(state.anthropicModels) };
+        }
+        if (backend === "deepseek") {
+          return { ...state, deepseekModels: apply(state.deepseekModels) };
+        }
+        if (backend === "ollama") {
+          return { ...state, ollamaModels: apply(state.ollamaModels) };
+        }
+        return { ...state, llamacppModels: apply(state.llamacppModels) };
+      });
     },
   };
 }

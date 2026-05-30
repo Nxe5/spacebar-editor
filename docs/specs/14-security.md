@@ -2,7 +2,7 @@
 
 > **Status:** 🔶 **PARTIAL** — Basic security in place; hardening planned.
 
-See also: `docs/SECRETS.md` (if exists)
+See also: `docs/SECRETS.md` (if exists) · Hardening detail in [Enhancement Addenda](#enhancement-addenda-from-extensionmd-9) (keychain, iframe sandbox)
 
 ---
 
@@ -139,3 +139,48 @@ Permissive CSP allows:
 - Hostname allowlist enforced
 - Default hosts: github.com, raw.githubusercontent.com, docs.rs, developer.mozilla.org
 - User can add/remove hosts in Settings
+
+---
+
+## Enhancement Addenda (from `extension.md` §9)
+
+> **Status:** ❌ Not started — concrete specs for two items already flagged in the Roadmap table above.
+
+### A. OS Keychain for API Keys (detail for the "Stronghold / keychain" roadmap item)
+
+**Risk:** API keys in `localStorage` are readable by any JavaScript in the webview, including preview-iframe content if the sandbox is insufficient (see B).
+
+**Spec:**
+
+- Integrate `tauri-plugin-keychain` (or the Tauri **Stronghold** plugin).
+- On settings save, write each API key to the **OS keychain**; on load, read from the keychain.
+- `localStorage` retains only a **`hasStoredKey: boolean`** flag per provider — never the key itself.
+- **Migration:** on first launch after update, offer to move existing `localStorage` keys into the keychain, then clear them from `localStorage`.
+- **Fallback:** if the keychain is unavailable (some Linux configurations), warn the user and retain current `localStorage` behavior rather than blocking.
+
+**New Rust commands:** `keychain_set(provider, key)`, `keychain_get(provider) -> string | null`, `keychain_delete(provider)`.
+
+**Files to change:** `src/lib/stores/settings.ts`, `src-tauri/` (keychain commands + plugin), `src/modules/settings/SettingsPane.svelte`.
+
+This pairs with the existing **"LLM calls in Rust"** roadmap item: once keys live in the keychain and requests originate in Rust, keys never enter JavaScript at all.
+
+### B. Preview Iframe Sandbox (new)
+
+The preview iframe already restricts URLs to `localhost` / `127.0.0.1` (`previewUrl.ts`) but lacks explicit sandbox attributes.
+
+**Spec:** add explicit sandboxing to the preview iframe in `PreviewPane.svelte`:
+
+```html
+<iframe sandbox="allow-scripts allow-same-origin allow-forms" src={previewUrl} />
+```
+
+This prevents the previewed page from reaching `window.parent`, app `localStorage`, or Tauri globals — directly mitigating the key-exfiltration vector noted in A.
+
+**Files to change:** `src/modules/preview/PreviewPane.svelte`.
+
+### Addenda Roadmap
+
+| Item | Priority | Status |
+|------|----------|--------|
+| OS keychain + `hasStoredKey` flag + migration | Phase C | ❌ Not started |
+| Preview iframe `sandbox` attributes | Phase B (quick) | ✅ Implemented — `PreviewPane.svelte` drops `allow-popups`, keeps `allow-scripts allow-same-origin allow-forms` (dev-server/HMR needs same-origin), adds `referrerpolicy="no-referrer"` + empty `allow` |

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const mockReadFile = vi.fn();
+const mockReadFileRanged = vi.fn();
 const mockWriteFile = vi.fn();
 const mockListDir = vi.fn();
 const mockGrepWorkspace = vi.fn();
@@ -14,7 +14,8 @@ const mockGitDiff = vi.fn();
 const mockIsTauriAvailable = vi.fn();
 
 vi.mock("../../src/lib/ipc", () => ({
-  readFile: (...args: unknown[]) => mockReadFile(...args),
+  readFile: vi.fn(),
+  readFileRanged: (...args: unknown[]) => mockReadFileRanged(...args),
   writeFile: (...args: unknown[]) => mockWriteFile(...args),
   listDir: (...args: unknown[]) => mockListDir(...args),
   grepWorkspace: (...args: unknown[]) => mockGrepWorkspace(...args),
@@ -64,7 +65,7 @@ describe("toolRunner", () => {
 
     describe("error formatting", () => {
       it("includes string rejections from invoke", async () => {
-        mockReadFile.mockRejectedValue("permission denied");
+        mockReadFileRanged.mockRejectedValue("permission denied");
         const result = await executeTool("read_file", { path: "x.txt" }, workspacePath);
         expect(result.success).toBe(false);
         expect(result.output).toContain("permission denied");
@@ -74,10 +75,21 @@ describe("toolRunner", () => {
 
     describe("read_file", () => {
       it("reads file with relative path", async () => {
-        mockReadFile.mockResolvedValue("content");
+        mockReadFileRanged.mockResolvedValue({
+          content: "content",
+          start_line: 1,
+          end_line: 1,
+          total_lines: 1,
+          truncated: false,
+          hard_capped: false,
+        });
         const result = await executeTool("read_file", { path: "src/file.ts" }, workspacePath);
         expect(result.success).toBe(true);
-        expect(mockReadFile).toHaveBeenCalledWith("/test/workspace/src/file.ts");
+        expect(mockReadFileRanged).toHaveBeenCalledWith(
+          "/test/workspace/src/file.ts",
+          1,
+          500
+        );
       });
 
       it("rejects paths outside workspace", async () => {

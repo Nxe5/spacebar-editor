@@ -62,6 +62,34 @@ Override the model used in the chat completion test:
 RUN_OLLAMA_TESTS=1 OLLAMA_TEST_MODEL=qwen2.5:0.5b pnpm test
 ```
 
+### Tool calling probe (per model)
+
+`tests/integration/ollamaToolCalling.test.ts` checks whether each Ollama model can either emit **native** OpenAI-style `tool_calls` or produce **recoverable** ` ```json ` blocks (`recoverToolCallsFromText`, same path as Agent mode with text fallback).
+
+```bash
+pnpm test:ollama-tools
+```
+
+Probe one model (default `llama3.2:1b`):
+
+```bash
+RUN_OLLAMA_TESTS=1 OLLAMA_TOOL_TEST_MODEL=qwen2.5-coder:7b pnpm test:ollama-tools
+```
+
+Probe several models:
+
+```bash
+RUN_OLLAMA_TESTS=1 OLLAMA_TOOL_TEST_MODELS='qwen2.5-coder:7b,gemma2:2b,llama3.1:8b' pnpm test:ollama-tools
+```
+
+Probe every model returned by `ollama list` (slow):
+
+```bash
+RUN_OLLAMA_TESTS=1 OLLAMA_TOOL_TEST_ALL=1 pnpm test:ollama-tools
+```
+
+If a model fails, the test prints a response preview. Weak models should use **Text fallback** in Settings → model gear (Ollama defaults to text fallback). Models that only narrate JSON with `"tool_name"` instead of `"name"` are now recovered after the parser fix in `textToolCalls.ts`.
+
 ## Agent and tools (current behaviour)
 
 1. **Agent loop** — `ChatPane.svelte` `runAgentLoop()`: `streamOneTurn()` → optional tools → append results → repeat until stop or limits.

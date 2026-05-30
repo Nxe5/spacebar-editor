@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   combinePromptContents,
+  defaultPromptContentForEntry,
   defaultPromptsConfig,
+  isBuiltinPromptEntry,
   normalizePromptsConfig,
   promptModesSummary,
   slugifyPromptName,
@@ -67,6 +69,15 @@ describe("systemPrompts config", () => {
     expect(slugifyPromptName("My Rules!")).toBe("my-rules");
     const entries = defaultPromptsConfig().prompts;
     expect(uniquePromptFilename(entries, "agent")).toBe("agent-2.md");
+  });
+
+  it("identifies built-in mode prompts and default reset content", () => {
+    const agent = defaultPromptsConfig().prompts.find((p) => p.id === "agent")!;
+    expect(isBuiltinPromptEntry(agent)).toBe(true);
+    expect(defaultPromptContentForEntry(agent)).toContain("agent mode");
+    expect(defaultPromptContentForEntry({ ...agent, id: "custom", label: "Custom" })).toContain(
+      "Custom"
+    );
   });
 
   it("toggles mode membership for prompt entries", () => {

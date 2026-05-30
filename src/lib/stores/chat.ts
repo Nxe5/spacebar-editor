@@ -29,6 +29,8 @@ export interface Message {
   rawToolCalls?: StoredToolCall[];
   /** Git snapshot of the workspace immediately before this user message was sent. */
   checkpointOid?: string;
+  /** Marks the synthetic summary message produced by context compaction (spec 21 §7.3). */
+  compactionBoundary?: boolean;
 }
 
 export interface ToolCall {

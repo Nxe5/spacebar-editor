@@ -1,7 +1,8 @@
+use ignore::overrides::OverrideBuilder;
+use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -11,36 +12,44 @@ pub struct FileEntry {
     pub children: Option<Vec<FileEntry>>,
 }
 
-fn load_simple_gitignore_names(workspace_root: &Path) -> HashSet<String> {
-    let mut out = HashSet::new();
-    let p = workspace_root.join(".gitignore");
-    let Ok(raw) = fs::read_to_string(p) else {
-        return out;
-    };
-    for line in raw.lines() {
-        let t = line.trim();
-        if t.is_empty() || t.starts_with('#') {
-            continue;
-        }
-        if t.contains('/') || t.contains('*') || t.contains('?') || t.starts_with('!') {
-            continue;
-        }
-        out.insert(t.to_string());
-    }
-    out
-}
+/// Directories always excluded from trees/search regardless of `.gitignore`.
+/// These are vendored or generated and only waste model context / UI space.
+const ALWAYS_EXCLUDE: &[&str] = &[
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    ".svelte-kit",
+    ".turbo",
+    "coverage",
+    ".venv",
+    "vendor",
+    "__pycache__",
+];
 
-fn find_workspace_root_for_path(path: &Path) -> PathBuf {
-    let mut cur = path.to_path_buf();
-    loop {
-        if cur.join(".git").is_dir() {
-            return cur;
-        }
-        if !cur.pop() {
-            break;
-        }
+/// Build a `WalkBuilder` configured with `.gitignore` semantics (globs,
+/// negation, nested ignore files) plus our always-exclude overrides. Hidden
+/// dotfiles are skipped to match the prior explorer behavior.
+fn ignore_walk_builder(root: &Path) -> WalkBuilder {
+    let mut overrides = OverrideBuilder::new(root);
+    for name in ALWAYS_EXCLUDE {
+        // `!pattern` in an override means "exclude this".
+        let _ = overrides.add(&format!("!{name}/**"));
+        let _ = overrides.add(&format!("!{name}"));
     }
-    path.to_path_buf()
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .hidden(true)
+        .git_ignore(true)
+        .git_global(true)
+        .git_exclude(true)
+        .parents(true)
+        .follow_links(false);
+    if let Ok(ov) = overrides.build() {
+        builder.overrides(ov);
+    }
+    builder
 }
 
 pub fn list_directory(path: &str) -> Result<Vec<FileEntry>, String> {
@@ -54,50 +63,106 @@ pub fn list_directory(path: &str) -> Result<Vec<FileEntry>, String> {
         return Err(format!("Path is not a directory: {}", path.display()));
     }
 
-    let ws = find_workspace_root_for_path(path);
-    let gitignore_names = load_simple_gitignore_names(&ws);
-
+    // Start the walk at `path` (with `parents(true)`) so ancestor `.gitignore`
+    // rules still apply, but limit to direct children for a single-level listing.
     let mut entries: Vec<FileEntry> = Vec::new();
 
-    let read_dir = fs::read_dir(path).map_err(|e| e.to_string())?;
-
-    for entry in read_dir {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let file_name = entry.file_name().to_string_lossy().to_string();
-
-        if file_name.starts_with('.')
-            || file_name == "node_modules"
-            || file_name == "target"
-            || file_name == "dist"
-            || gitignore_names.contains(&file_name)
-        {
+    for result in ignore_walk_builder(path).max_depth(Some(1)).build() {
+        let Ok(entry) = result else { continue };
+        let entry_path = entry.path();
+        // depth 0 is `path` itself.
+        if entry.depth() == 0 {
             continue;
         }
-
-        let file_path = entry.path();
-        let is_dir = file_path.is_dir();
-
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
         entries.push(FileEntry {
             name: file_name,
-            path: file_path.to_string_lossy().to_string(),
+            path: entry_path.to_string_lossy().to_string(),
             is_dir,
             children: None,
         });
     }
 
-    entries.sort_by(|a, b| {
-        match (a.is_dir, b.is_dir) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        }
-    });
-
+    sort_entries(&mut entries);
     Ok(entries)
 }
 
+fn sort_entries(entries: &mut [FileEntry]) {
+    entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+    });
+}
+
 pub fn read_file_contents(path: &str) -> Result<String, String> {
-    fs::read_to_string(path).map_err(|e| e.to_string())
+    read_file_ranged(path, None, None).map(|r| r.content)
+}
+
+const READ_FILE_HARD_CHAR_CAP: usize = 50_000;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReadFileResult {
+    pub content: String,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub total_lines: u32,
+    pub truncated: bool,
+    pub hard_capped: bool,
+}
+
+pub fn read_file_ranged(
+    path: &str,
+    start_line: Option<u32>,
+    max_lines: Option<u32>,
+) -> Result<ReadFileResult, String> {
+    if start_line.is_none() && max_lines.is_none() {
+        let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+        let total = content.lines().count().max(1) as u32;
+        return Ok(ReadFileResult {
+            content,
+            start_line: 1,
+            end_line: total,
+            total_lines: total,
+            truncated: false,
+            hard_capped: false,
+        });
+    }
+
+    let raw = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let lines: Vec<&str> = raw.split_inclusive('\n').collect();
+    let total = lines.len().max(1) as u32;
+    let start = start_line.unwrap_or(1).max(1);
+    let max = max_lines.unwrap_or(500).max(1).min(5000);
+    if start > total {
+        return Ok(ReadFileResult {
+            content: format!("[start_line {start} is past end of file ({total} lines)]"),
+            start_line: start,
+            end_line: start.saturating_sub(1),
+            total_lines: total,
+            truncated: false,
+            hard_capped: false,
+        });
+    }
+    let start_idx = (start - 1) as usize;
+    let end_idx = (start_idx + max as usize).min(lines.len());
+    let mut slice = lines[start_idx..end_idx].concat();
+    let end_line = end_idx as u32;
+    let truncated = end_idx < lines.len();
+    let mut hard_capped = false;
+    if slice.len() > READ_FILE_HARD_CHAR_CAP {
+        slice = slice[..READ_FILE_HARD_CHAR_CAP].to_string();
+        hard_capped = true;
+    }
+    Ok(ReadFileResult {
+        content: slice,
+        start_line: start,
+        end_line,
+        total_lines: total,
+        truncated,
+        hard_capped,
+    })
 }
 
 pub fn write_file_contents(path: &str, contents: &str) -> Result<(), String> {
@@ -121,14 +186,6 @@ pub fn path_exists(path: &str) -> Result<bool, String> {
     Ok(Path::new(path).exists())
 }
 
-fn should_skip_dir_name(name: &str, gitignore_names: &HashSet<String>) -> bool {
-    name.starts_with('.')
-        || name == "node_modules"
-        || name == "target"
-        || name == "dist"
-        || gitignore_names.contains(name)
-}
-
 pub fn find_files(
     workspace_path: &str,
     glob_pattern: &str,
@@ -138,29 +195,19 @@ pub fn find_files(
     if !root.is_dir() {
         return Err(format!("Workspace path is not a directory: {workspace_path}"));
     }
-    let ws = find_workspace_root_for_path(root);
-    let gitignore_names = load_simple_gitignore_names(&ws);
     let pattern = glob_pattern.trim();
     let mut out: Vec<String> = Vec::new();
     let limit = max_results.max(1).min(500);
 
-    for entry in walkdir::WalkDir::new(root)
-        .follow_links(false)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
+    for result in ignore_walk_builder(root).build() {
         if out.len() >= limit {
             break;
         }
-        let p = entry.path();
-        if p.is_dir() {
-            if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
-                if should_skip_dir_name(name, &gitignore_names) {
-                    continue;
-                }
-            }
+        let Ok(entry) = result else { continue };
+        if entry.file_type().map(|t| t.is_dir()).unwrap_or(true) {
             continue;
         }
+        let p = entry.path();
         let Some(name) = p.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
@@ -203,64 +250,52 @@ pub fn list_dir_tree(
     if !root.is_dir() {
         return Err(format!("Path is not a directory: {}", root.display()));
     }
-    let ws = find_workspace_root_for_path(root);
-    let gitignore_names = load_simple_gitignore_names(&ws);
     let mut count = 0usize;
     let limit = max_entries.max(1).min(2000);
     let depth_limit = max_depth.max(1).min(8);
 
     fn walk(
         dir: &Path,
-        gitignore_names: &HashSet<String>,
         depth: usize,
         depth_limit: usize,
         count: &mut usize,
         limit: usize,
-    ) -> Result<Vec<FileEntry>, String> {
+    ) -> Vec<FileEntry> {
         if *count >= limit || depth > depth_limit {
-            return Ok(vec![]);
+            return vec![];
         }
-        let read_dir = fs::read_dir(dir).map_err(|e| e.to_string())?;
         let mut entries: Vec<FileEntry> = Vec::new();
-        for entry in read_dir {
+        // max_depth(1): direct children only; nested `.gitignore`/exclude rules
+        // still resolve because `parents(true)` reads ancestor ignore files.
+        for result in ignore_walk_builder(dir).max_depth(Some(1)).build() {
             if *count >= limit {
                 break;
             }
-            let entry = entry.map_err(|e| e.to_string())?;
-            let file_name = entry.file_name().to_string_lossy().to_string();
-            if should_skip_dir_name(&file_name, gitignore_names) {
+            let Ok(entry) = result else { continue };
+            if entry.depth() == 0 {
                 continue;
             }
-            let file_path = entry.path();
-            let is_dir = file_path.is_dir();
+            let file_path = entry.path().to_path_buf();
+            let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+            let file_name = entry.file_name().to_string_lossy().to_string();
             *count += 1;
-            let mut node = FileEntry {
+            let children = if is_dir && depth < depth_limit {
+                Some(walk(&file_path, depth + 1, depth_limit, count, limit))
+            } else {
+                None
+            };
+            entries.push(FileEntry {
                 name: file_name,
                 path: file_path.to_string_lossy().to_string(),
                 is_dir,
-                children: None,
-            };
-            if is_dir && depth < depth_limit {
-                node.children = Some(walk(
-                    &file_path,
-                    gitignore_names,
-                    depth + 1,
-                    depth_limit,
-                    count,
-                    limit,
-                )?);
-            }
-            entries.push(node);
+                children,
+            });
         }
-        entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        });
-        Ok(entries)
+        sort_entries(&mut entries);
+        entries
     }
 
-    walk(root, &gitignore_names, 0, depth_limit, &mut count, limit)
+    Ok(walk(root, 0, depth_limit, &mut count, limit))
 }
 
 pub fn web_fetch(url: &str, allowed_hosts: &[String], max_bytes: usize) -> Result<String, String> {

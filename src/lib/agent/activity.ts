@@ -95,6 +95,8 @@ type ChatLikeMessage = {
   toolSuccess?: boolean;
   toolPaths?: string[];
   toolCallId?: string;
+  /** Marks the synthetic summary message produced by context compaction (spec 21 §7.3). */
+  compactionBoundary?: boolean;
 };
 
 function mergeToolItem(existing: ToolActivityItem, next: Partial<ToolActivityItem>): ToolActivityItem {

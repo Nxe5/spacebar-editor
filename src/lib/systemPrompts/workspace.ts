@@ -104,7 +104,7 @@ export async function initializePromptFiles(workspacePath: string): Promise<Prom
   const legacy = existing ? "" : await migrateLegacyPromptContent(workspacePath);
 
   for (const entry of config.prompts) {
-    let content = defaultPromptTemplate(entry.label);
+    let content = defaultPromptContentForEntry(entry);
     if (entry.id === "agent" && legacy) {
       content = legacy;
       entry.enabled = true;
@@ -135,7 +135,8 @@ export async function savePromptsConfig(
 export async function createPromptFile(
   workspacePath: string,
   entries: SystemPromptEntry[],
-  displayName: string
+  displayName: string,
+  initialContent?: string
 ): Promise<{ entry: SystemPromptEntry; content: string }> {
   const stem = slugifyPromptName(displayName);
   const filename = uniquePromptFilename(entries, stem);
@@ -148,9 +149,18 @@ export async function createPromptFile(
     enabled: true,
     modes: [],
   };
-  const content = defaultPromptTemplate(label);
+  const trimmed = initialContent?.trim();
+  const content = trimmed ? trimmed : defaultPromptTemplate(label);
   await writePromptFile(workspacePath, entry, content);
   return { entry, content };
+}
+
+export async function savePromptFileContent(
+  workspacePath: string,
+  entry: SystemPromptEntry,
+  content: string
+): Promise<void> {
+  await writePromptFile(workspacePath, entry, content);
 }
 
 export async function deletePromptFile(workspacePath: string, entry: SystemPromptEntry): Promise<void> {

@@ -13,7 +13,7 @@ export function shouldRunSynthesis(deliveredSummary: boolean, toolsExecuted: num
   return !deliveredSummary && toolsExecuted > 0;
 }
 
-/** File mutations that are clear from the tool row + file chip — no summary bubble needed. */
+/** File mutations that are clear from the tool row + file chip (activity feed UI). */
 export const SELF_EXPLANATORY_MUTATION_TOOLS = new Set([
   "write_file",
   "create_file",
@@ -21,11 +21,12 @@ export const SELF_EXPLANATORY_MUTATION_TOOLS = new Set([
   "move_file",
 ]);
 
-export function toolResultsAreSelfExplanatory(
-  results: Array<{ name: string; success: boolean }>
-): boolean {
-  if (results.length === 0) return false;
-  return results.every(
-    (r) => r.success && SELF_EXPLANATORY_MUTATION_TOOLS.has(r.name)
-  );
+/** True when the model already wrote a closing reply (not just a pre-tool plan). */
+export function modelDeliveredSubstantiveReply(content: string): boolean {
+  const t = content.trim();
+  if (t.length < 48) return false;
+  if (/^I (will|should|'ll|need to|am going to)\b/im.test(t) && !/\b(wrote|created|updated|deleted|moved|saved|done)\b/i.test(t)) {
+    return false;
+  }
+  return true;
 }

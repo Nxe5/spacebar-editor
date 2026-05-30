@@ -1,5 +1,6 @@
 import {
   readFile,
+  readFileRanged,
   writeFile,
   listDir,
   grepWorkspace,
@@ -17,10 +18,13 @@ import {
 } from "../ipc";
 import type { FileEntry } from "../stores/files";
 import { formatGitLog, formatGitStatus } from "./gitFormat";
+import { unescapeLiteralEscapes } from "../textEscapes";
 import { joinPath, resolvePath, resolveWorkspacePath } from "./pathUtils";
 
 export interface ToolExecutionContext {
   webFetchAllowedHosts?: string[];
+  /** Effective max_lines cap for read_file (from agent settings). */
+  readFileMaxLines?: number;
 }
 
 export interface ToolResult {
@@ -69,13 +73,27 @@ function requireString(args: Record<string, unknown>, key: string): string | Too
 
 async function runReadFile(
   args: Record<string, unknown>,
-  workspacePath: string
+  workspacePath: string,
+  ctx?: ToolExecutionContext
 ): Promise<ToolResult> {
   const path = requireString(args, "path");
   if (typeof path !== "string") return path;
   const resolved = resolveWorkspacePath(workspacePath, path);
-  const content = await readFile(resolved);
-  return ok(content);
+  const startLine =
+    typeof args.start_line === "number" ? Math.max(1, Math.floor(args.start_line)) : 1;
+  const maxLines =
+    typeof args.max_lines === "number" && args.max_lines > 0
+      ? Math.floor(args.max_lines)
+      : ctx?.readFileMaxLines ?? 500;
+  const result = await readFileRanged(resolved, startLine, maxLines);
+  let output = result.content;
+  if (result.truncated) {
+    output += `\n\n[File truncated: showing lines ${result.start_line}–${result.end_line} of ${result.total_lines}. Call read_file again with start_line: ${result.end_line + 1} to continue.]`;
+  }
+  if (result.hard_capped) {
+    output += "\n\n[… hard cap reached]";
+  }
+  return ok(output);
 }
 
 async function runWriteFile(
@@ -315,18 +333,45 @@ async function runShellCommand(
     return fail(`Command timed out.\n${result.stderr}`);
   }
 
+  const stdout = result.stdout ? unescapeLiteralEscapes(result.stdout) : "";
   const output = [
-    result.stdout ? `stdout:\n${result.stdout}` : "",
+    stdout ? `stdout:\n${stdout}` : "",
     result.stderr ? `stderr:\n${result.stderr}` : "",
     `exit code: ${result.exit_code ?? "unknown"}`,
   ]
     .filter(Boolean)
     .join("\n\n");
 
+  if (result.exit_code === 0) {
+    await maybeRepairEchoRedirectFile(workspacePath, command);
+  }
+
   return {
     success: result.exit_code === 0,
     output,
   };
+}
+
+const ECHO_REDIRECT = /\b(?:echo|printf\s+%b)\s+[\s\S]*?>\s*['"]?([^\s'";|&]+)['"]?\s*$/i;
+const REPAIRABLE_EXT = /\.(txt|md|markdown)$/i;
+
+/** Fix files written via `echo '...\n...' > file.md` where bash printed literal `\n`. */
+async function maybeRepairEchoRedirectFile(
+  workspacePath: string,
+  command: string
+): Promise<void> {
+  const match = command.match(ECHO_REDIRECT);
+  if (!match?.[1]) return;
+  const rel = match[1].trim();
+  if (!REPAIRABLE_EXT.test(rel)) return;
+  try {
+    const resolved = resolveWorkspacePath(workspacePath, rel);
+    const raw = await readFile(resolved);
+    const fixed = unescapeLiteralEscapes(raw);
+    if (fixed !== raw) await writeFile(resolved, fixed);
+  } catch {
+    /* ignore missing paths or read errors */
+  }
 }
 
 type ToolHandler = (

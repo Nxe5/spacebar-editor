@@ -24,16 +24,73 @@ function tryParseObject(text: string): Record<string, unknown> | null {
   }
 }
 
+/** Scan content for balanced `{ ... }` objects (handles multi-line nested JSON). */
+export function extractTopLevelJsonObjects(
+  content: string
+): Array<{ raw: string; start: number; end: number }> {
+  const out: Array<{ raw: string; start: number; end: number }> = [];
+  let i = 0;
+  while (i < content.length) {
+    const start = content.indexOf("{", i);
+    if (start === -1) break;
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let closed = false;
+    for (let j = start; j < content.length; j++) {
+      const c = content[j];
+      if (inString) {
+        if (escape) escape = false;
+        else if (c === "\\") escape = true;
+        else if (c === '"') inString = false;
+        continue;
+      }
+      if (c === '"') {
+        inString = true;
+        continue;
+      }
+      if (c === "{") depth++;
+      else if (c === "}") {
+        depth--;
+        if (depth === 0) {
+          const raw = content.slice(start, j + 1);
+          out.push({ raw, start, end: j + 1 });
+          i = j + 1;
+          closed = true;
+          break;
+        }
+      }
+    }
+    if (!closed) break;
+  }
+  return out;
+}
+
+function looksLikeToolCallObject(obj: Record<string, unknown>): boolean {
+  return Boolean(readToolNameFromRecord(obj));
+}
+
 function isHallucinatedToolRecord(obj: Record<string, unknown>): boolean {
   if ("result" in obj || "output" in obj || "response" in obj) return true;
-  const name = typeof obj.name === "string" ? obj.name.toLowerCase() : "";
+  const name = readToolNameFromRecord(obj).toLowerCase();
   if (name.includes("porto")) return true;
   return false;
 }
 
+function readToolNameFromRecord(obj: Record<string, unknown>): string {
+  if (typeof obj.name === "string" && obj.name.trim()) return obj.name;
+  if (typeof obj.tool_name === "string" && obj.tool_name.trim()) return obj.tool_name;
+  const fn = obj.function;
+  if (fn && typeof fn === "object" && !Array.isArray(fn)) {
+    const name = (fn as Record<string, unknown>).name;
+    if (typeof name === "string" && name.trim()) return name;
+  }
+  return "";
+}
+
 function toStoredToolCall(obj: Record<string, unknown>, allowedTools: Set<string>): StoredToolCall | null {
   if (isHallucinatedToolRecord(obj)) return null;
-  const rawName = typeof obj.name === "string" ? obj.name : "";
+  const rawName = readToolNameFromRecord(obj);
   if (!rawName.trim()) return null;
   const name = normalizeToolName(rawName);
   if (!allowedTools.has(name)) return null;
@@ -79,11 +136,18 @@ export function recoverToolCallsFromText(
     if (obj) tryAdd(obj, raw);
   }
 
-  // Bare JSON objects on their own line
-  for (const match of content.matchAll(/^\s*(\{[\s\S]*?\})\s*$/gm)) {
-    const raw = match[0];
-    const obj = tryParseObject(match[1]);
-    if (obj) tryAdd(obj, raw);
+  const fencedRanges: Array<{ start: number; end: number }> = [];
+  for (const match of content.matchAll(JSON_FENCE)) {
+    if (match.index != null) {
+      fencedRanges.push({ start: match.index, end: match.index + match[0].length });
+    }
+  }
+  JSON_FENCE.lastIndex = 0;
+
+  for (const { raw, start, end } of extractTopLevelJsonObjects(content)) {
+    if (fencedRanges.some((r) => start >= r.start && end <= r.end)) continue;
+    const obj = tryParseObject(raw);
+    if (obj && looksLikeToolCallObject(obj)) tryAdd(obj, raw);
   }
 
   cleaned = cleaned
@@ -94,6 +158,22 @@ export function recoverToolCallsFromText(
   return { calls, cleanedText: cleaned };
 }
 
+/** JSON-like tool call blocks that failed to parse (spec 22 §5). */
+export function findMalformedToolCallFragments(content: string): string[] {
+  const errors: string[] = [];
+  for (const match of content.matchAll(JSON_FENCE)) {
+    const inner = match[1]?.trim();
+    if (!inner || !(/"name"\s*:/.test(inner) || /"tool_name"\s*:/.test(inner))) continue;
+    if (tryParseObject(inner)) continue;
+    errors.push(inner.slice(0, 200));
+  }
+  return errors;
+}
+
+export function formatToolParseError(raw: string): string {
+  return `[Tool call parse error: model emitted invalid JSON for a tool call.\nRaw (first 200 chars): ${raw}]`;
+}
+
 /** Model wrote tool-like JSON or fake results in prose — nothing actually ran. */
 export function textLooksLikeFakeToolUse(content: string): boolean {
   if (!content.trim()) return false;
@@ -102,6 +182,7 @@ export function textLooksLikeFakeToolUse(content: string): boolean {
     return true;
   }
   if (/\{"name"\s*:\s*"[^"]+"/.test(content)) return true;
+  if (/\{"tool_name"\s*:\s*"[^"]+"/.test(content)) return true;
   if (/porto_file/i.test(content)) return true;
   if (/"result"\s*:\s*\{/.test(content)) return true;
   return false;

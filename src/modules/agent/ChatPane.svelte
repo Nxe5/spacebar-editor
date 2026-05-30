@@ -44,12 +44,19 @@
   } from "$lib/agent/conversation";
   import { streamOneTurn, resolveStreamCredentials } from "$lib/agent/streamTurn";
   import { inferenceOptionsForSettings } from "$lib/inferenceOptions";
-  import { buildWorkspaceContextBlock } from "$lib/agent/workspaceContext";
-  import { TOOL_SUMMARY_INSTRUCTION, shouldRunSynthesis, toolResultsAreSelfExplanatory } from "$lib/agent/synthesis";
+  import { assembleSystemPrompt } from "$lib/agent/systemPrompt/assemble";
+  import { resolveActiveModelSettings, usesNativeToolCalls } from "$lib/modelSettings";
+  import { resolveReadFileMaxLines } from "$lib/readFileCap";
+  import {
+    SYNTHESIS_NUDGE,
+    shouldRunSynthesis,
+    modelDeliveredSubstantiveReply,
+  } from "$lib/agent/synthesis";
 import {
   recoverToolCallsFromText,
   textLooksLikeFakeToolUse,
-  TOOL_USE_INSTRUCTION,
+  findMalformedToolCallFragments,
+  formatToolParseError,
 } from "$lib/agent/textToolCalls";
   import { syncUiAfterFilesystemTool, openWorkspaceFile } from "$lib/filesystemSync";
   import { openableFilePaths } from "$lib/agent/toolDisplay";
@@ -77,6 +84,10 @@ import {
     type ToolPolicyState,
   } from "$lib/toolPolicy";
   import { executeTool } from "$lib/tools/toolRunner";
+  import {
+    StallTracker,
+    stallNudgeMessage,
+  } from "$lib/agent/stallDetection";
   import {
     isToolRunCapReached,
     perTurnToolCap,
@@ -796,21 +807,17 @@ import {
     if (!streamFirstTokenAt) streamFirstTokenAt = performance.now();
   }
 
-  function buildSystemPrompt(includeToolSummary = false): string {
-    const modeConfig = MODE_CONFIG[$currentMode];
-    const basePrompt = modeConfig.basePrompt;
-    const userPrompt = $activeSystemPromptText;
-    const workspaceBlock = buildWorkspaceContextBlock($files.workspacePath);
-
-    const parts = [basePrompt + workspaceBlock];
-    if (includeToolSummary && modeConfig.tools.length > 0) {
-      parts.push(TOOL_USE_INSTRUCTION.trim());
-      parts.push(TOOL_SUMMARY_INSTRUCTION.trim());
-    }
-    if (userPrompt.trim()) {
-      parts.push(`--- Custom Instructions ---\n${userPrompt}`);
-    }
-    return parts.join("\n\n");
+  function buildSystemPrompt(toolsEnabled: boolean): string {
+    const st = get(settings);
+    const { prompt } = assembleSystemPrompt({
+      mode: get(currentMode),
+      workspacePath: get(files).workspacePath,
+      includeWorkspaceInChat: st.includeWorkspaceInChat,
+      userPromptText: get(activeSystemPromptText),
+      toolsEnabled,
+      modelSettings: resolveActiveModelSettings(st),
+    });
+    return prompt;
   }
 
   async function executeToolCallsWithApproval(
@@ -819,7 +826,12 @@ import {
     workspacePath: string,
     webFetchAllowedHosts: string[],
     limits: AgentLimits,
-    runCounter: { executed: number }
+    runCounter: { executed: number },
+    options?: {
+      readFileMaxLines?: number;
+      parallelToolCalls?: boolean;
+      stallTracker?: StallTracker;
+    }
   ): Promise<{
     results: Array<{
       id: string;
@@ -830,6 +842,7 @@ import {
       paths: string[];
     }>;
     hitRunCap: boolean;
+    stallAbort?: boolean;
   }> {
     const results: Array<{
       id: string;
@@ -909,6 +922,22 @@ import {
         }
       }
 
+      const stall = options?.stallTracker?.record(tc.name, args);
+      if (stall === "abort") {
+        return { results, hitRunCap: false, stallAbort: true };
+      }
+      if (stall === "nudge") {
+        results.push({
+          id: tc.id,
+          name: tc.name,
+          content: stallNudgeMessage(tc.name),
+          input: args,
+          success: true,
+          paths: [],
+        });
+        continue;
+      }
+
       chat.setToolCall({
         id: tc.id,
         tool: tc.name,
@@ -926,6 +955,7 @@ import {
 
       const result = await executeTool(tc.name, args, workspacePath, {
         webFetchAllowedHosts,
+        readFileMaxLines: options?.readFileMaxLines,
       });
       chat.setToolCall(null);
       runCounter.executed++;
@@ -941,6 +971,7 @@ import {
         paths: openableFilePaths(tc.name, args, workspacePath, result.success),
       };
       results.push(toolResult);
+      options?.stallTracker?.resetOnProgress(tc.name, args);
 
       patchLiveTurn((t) =>
         upsertLiveTool(t, {
@@ -980,6 +1011,8 @@ import {
     const modeConfig = MODE_CONFIG[mode];
     const policyState = get(effectiveToolPolicy);
     const tools = getToolsForPolicy(policyState, modeConfig.tools);
+    const modelSettings = resolveActiveModelSettings(st);
+    const nativeTools = usesNativeToolCalls(modelSettings);
     const systemPromptText = buildSystemPrompt(tools.length > 0);
     const workspacePath = get(files).workspacePath;
     if (!workspacePath?.trim()) {
@@ -1003,6 +1036,9 @@ import {
     let hitStepLimit = false;
     let hitContextLimit = false;
     const contextWindow = agentContextWindow(st);
+    const readFileMaxLines = resolveReadFileMaxLines(st.readFileCap, contextWindow);
+    const stallTracker = new StallTracker();
+    let parseAttempts = 0;
     let step = 0;
     liveTurn = createLiveTurn();
 
@@ -1049,7 +1085,7 @@ import {
           model: st.selectedModel,
           systemPrompt: systemPromptText,
           messages: providerMessages,
-          tools: tools.length > 0 ? tools : undefined,
+          tools: nativeTools && tools.length > 0 ? tools : undefined,
           extendedThinking: st.anthropicExtendedThinking,
           signal: abortController.signal,
           inferenceOptions: inferenceOptionsForSettings(st),
@@ -1111,17 +1147,40 @@ import {
                 })
               );
             }
+          } else {
+            const malformed = findMalformedToolCallFragments(turn.content);
+            if (malformed.length > 0) {
+              parseAttempts += 1;
+              for (const raw of malformed) {
+                chat.addMessage({
+                  role: "tool",
+                  content: formatToolParseError(raw),
+                  toolName: "parse_error",
+                  toolSuccess: false,
+                });
+              }
+              providerMessages = appendToolResults(
+                providerMessages,
+                malformed.map((raw, i) => ({
+                  id: `parse-err-${step}-${i}`,
+                  content: formatToolParseError(raw),
+                }))
+              );
+              if (parseAttempts >= 3) {
+                showCompactionNotice(
+                  "Agent stalled: the model is not producing valid tool calls. Try a different model or simplify the request."
+                );
+                break;
+              }
+              step += 1;
+              continue;
+            }
           }
         }
 
         if (activeToolCalls.length === 0) {
           const text = turn.content.trim();
           if (text) {
-            if (toolResultsAreSelfExplanatory(executedToolOutcomes)) {
-              patchLiveTurn((t) => ({ ...t, response: "" }));
-              deliveredSummary = true;
-              break;
-            }
             let body = turn.content;
             if (
               textLooksLikeFakeToolUse(text) &&
@@ -1141,7 +1200,7 @@ import {
             });
             patchLiveTurn((t) => ({ ...t, response: body }));
             deferFinalizeReplyMetrics(turn.content);
-            deliveredSummary = true;
+            deliveredSummary = modelDeliveredSubstantiveReply(body);
           }
           break;
         }
@@ -1170,9 +1229,20 @@ import {
           workspacePath,
           st.webFetchAllowedHosts,
           agentLimits,
-          toolRunCounter
+          toolRunCounter,
+          {
+            readFileMaxLines,
+            parallelToolCalls: modelSettings.parallelToolCalls,
+            stallTracker,
+          }
         );
         hitRunCap = toolRound.hitRunCap;
+        if (toolRound.stallAbort) {
+          showCompactionNotice(
+            "Agent stopped: repeated the same tool call without progress."
+          );
+          break;
+        }
 
         for (const r of toolRound.results) {
           executedToolOutcomes.push({ name: r.name, success: r.success });
@@ -1198,7 +1268,6 @@ import {
       }
 
       if (
-        !toolResultsAreSelfExplanatory(executedToolOutcomes) &&
         shouldRunSynthesis(deliveredSummary, toolRunCounter.executed) &&
         !abortController.signal.aborted &&
         !hitContextLimit &&
@@ -1585,7 +1654,13 @@ import {
       </div>
     {:else}
       {#each groupAgentTurnsForDisplay($activeSession?.messages ?? [], $chat.isStreaming, Boolean(liveTurn)) as block (block.kind === "user" ? block.message.id : block.id)}
-        {#if block.kind === "user"}
+        {#if block.kind === "user" && block.message.compactionBoundary}
+          <div class="compaction-divider" role="separator">
+            <span class="compaction-divider-line"></span>
+            <span class="compaction-divider-label">Context compacted — session summary preserved</span>
+            <span class="compaction-divider-line"></span>
+          </div>
+        {:else if block.kind === "user"}
           {@const message = block.message}
           {@const expanded = userMessageExpanded[message.id] ?? false}
           <div
@@ -2427,6 +2502,29 @@ import {
     min-width: 0;
     max-width: 100%;
     box-sizing: border-box;
+  }
+
+  .compaction-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin: 14px 0;
+    user-select: none;
+  }
+
+  .compaction-divider-line {
+    flex: 1;
+    height: 1px;
+    background: color-mix(in srgb, var(--border, #4c4c4c) 70%, transparent);
+  }
+
+  .compaction-divider-label {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--muted-foreground, #808080);
   }
 
   .message.user-message-slot {

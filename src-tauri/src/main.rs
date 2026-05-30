@@ -8,16 +8,18 @@ use modules::commands::{
     git_restore_checkpoint, git_stage, git_status, git_unstage, grep_workspace, list_dir, list_dir_tree,
     icon_pack_get_dir, icon_pack_refresh_bundled, open_settings_window, path_exists,
     pick_icon_pack_folder, pick_workspace_folder, read_file, read_project_state,
-    read_system_prompt, rename_entry, run_shell, web_fetch, write_file, write_project_state,
-    write_system_prompt, ensure_system_prompts_layout,
+    read_system_prompt, rename_entry, run_shell, watch_workspace, web_fetch, write_file,
+    write_project_state, write_system_prompt, ensure_system_prompts_layout,
 };
 use modules::pty::{pty_close, pty_create, pty_resize, pty_write, PtyManager};
+use modules::watcher::WatcherState;
 use tauri::Manager;
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(PtyManager::default())
+        .manage(WatcherState::default())
         .invoke_handler(tauri::generate_handler![
             list_dir,
             read_file,
@@ -48,6 +50,7 @@ fn main() {
             pty_resize,
             pty_close,
             grep_workspace,
+            watch_workspace,
             run_shell,
             read_system_prompt,
             write_system_prompt,

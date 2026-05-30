@@ -3,10 +3,14 @@
   import FileText from "@lucide/svelte/icons/file-text";
   import {
     formatToolInput,
+    formatToolOutput,
     formatToolSummary,
+    shouldRenderToolOutputAsMarkdown,
+    toolOutputDisplayBody,
     toolResultIsError,
     workspaceRelativePath,
   } from "$lib/agent/toolDisplay";
+  import ChatMarkdown from "$lib/components/ChatMarkdown.svelte";
 
   let {
     toolName = "tool",
@@ -32,6 +36,9 @@
 
   let summary = $derived(formatToolSummary(toolName, toolInput));
   let inputText = $derived(formatToolInput(toolName, toolInput));
+  let outputText = $derived(formatToolOutput(content));
+  let outputMarkdown = $derived(shouldRenderToolOutputAsMarkdown(toolName, content));
+  let outputBody = $derived(toolOutputDisplayBody(toolName, content));
   let failed = $derived(!success || toolResultIsError(content));
 </script>
 
@@ -70,7 +77,13 @@
       <p class="tool-call-section-label">Input</p>
       <pre class="tool-call-pre">{inputText}</pre>
       <p class="tool-call-section-label">Output</p>
-      <pre class="tool-call-pre tool-call-output">{content || "(empty)"}</pre>
+      {#if outputMarkdown}
+        <div class="tool-call-markdown">
+          <ChatMarkdown content={outputBody} />
+        </div>
+      {:else}
+        <pre class="tool-call-pre tool-call-output">{outputText || "(empty)"}</pre>
+      {/if}
     </div>
   {/if}
 </div>
@@ -215,5 +228,16 @@
 
   .tool-call-output {
     margin-bottom: 0;
+  }
+
+  .tool-call-markdown {
+    margin: 0 0 6px;
+    padding: 8px;
+    border-radius: 4px;
+    background: var(--muted);
+    max-height: 280px;
+    overflow: auto;
+    font-size: 11px;
+    line-height: 1.5;
   }
 </style>

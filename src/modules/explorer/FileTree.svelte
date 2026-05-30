@@ -1,6 +1,6 @@
 <script lang="ts">
   import { get } from "svelte/store";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { files, type FileEntry } from "$lib/stores/files";
   import { workbench, activeWorkbenchTab } from "$lib/stores/workbench";
   import {
@@ -12,6 +12,7 @@
     deleteEntry,
     renameEntry,
     pickWorkspaceFolder,
+    listenFsChanged,
   } from "$lib/ipc";
   import {
     applyWorkspaceFolder,
@@ -37,6 +38,7 @@
   let lastRevealedPath = $state<string | null>(null);
   let gitRows = $state<GitPathStatus[]>([]);
   let ctxMenu = $state<{ x: number; y: number; entry: FileEntry } | null>(null);
+  let unlistenFsChanged: (() => void) | null = null;
 
   const gitByRel = $derived(buildGitStatusByRelPath(gitRows));
 
@@ -185,6 +187,20 @@
     } finally {
       loading = false;
     }
+
+    try {
+      unlistenFsChanged = await listenFsChanged(() => {
+        void reloadWorkspaceTree();
+        bumpGitRefresh();
+      });
+    } catch (e) {
+      console.error("Failed to subscribe to fs:changed:", e);
+    }
+  });
+
+  onDestroy(() => {
+    unlistenFsChanged?.();
+    unlistenFsChanged = null;
   });
 
   async function handleToggle(entry: FileEntry) {
@@ -245,7 +261,7 @@
         File access, the explorer, tools, and the editor need the Tauri shell. Run:
       </p>
       <code class="cmd">pnpm tauri dev</code>
-      <p class="hint">Opening <code>http://localhost:14200</code> in a browser alone will not load your project files.</p>
+      <p class="hint">Opening <code>http://127.0.0.1:14200</code> in a browser alone will not load your project files.</p>
     </div>
   {:else if error}
     <div class="error">{error}</div>
