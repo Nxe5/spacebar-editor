@@ -96,6 +96,6 @@ export function contextBudgetStopMessage(contextWindow: number, tokensUsed: numb
   const limit = contextBudgetLimit(contextWindow);
   return (
     `Stopped: context budget reached (~${tokensUsed.toLocaleString()} / ${limit.toLocaleString()} tokens for this model's ${contextWindow.toLocaleString()}-token window). ` +
-    `Conversation compaction is not available yet — start a new chat, use a smaller context in Settings, or ask for a shorter task.`
+    `Enable compaction in Settings → Compaction, start a new chat, or use a smaller context window.`
   );
 }

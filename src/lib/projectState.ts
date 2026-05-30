@@ -10,7 +10,7 @@ import {
   isTauriAvailable,
 } from "./ipc";
 import { reloadProjectTools } from "./stores/toolPolicy";
-import { systemPrompt } from "./stores/systemPrompt";
+import { systemPrompts } from "./stores/systemPrompts";
 import { buildWorkspaceTree, normalizeFileEntry } from "./workspace";
 import type { FileEntry } from "./stores/files";
 import { listDir } from "./ipc";
@@ -246,7 +246,7 @@ export async function switchProjectWorkspace(path: string): Promise<void> {
   activeWorkspace = normalized;
 
   if (isTauriAvailable()) {
-    void systemPrompt.load(normalized);
+    void systemPrompts.load(normalized);
     await reloadProjectTools(normalized);
   }
 }

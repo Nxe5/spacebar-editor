@@ -1,8 +1,10 @@
 # Tiny Llama — Application Overview
 
-> **Status:** ✅ **COMPLETE** — Current product snapshot.
+> **Status:** ✅ **COMPLETE** — Current product snapshot (summary).
 >
-> See also: [Architecture](../architecture/ARCHITECTURE.md) · [Specifications](../specs/README.md) · [README](../../README.md)
+> **Full overview:** [README.md](../../README.md) — detailed guide to features, agent loop, tool calling, compaction, and configuration.
+>
+> See also: [Architecture](../architecture/ARCHITECTURE.md) · [Specifications](../specs/README.md)
 
 **Tiny Llama** is a minimal, local-first desktop IDE with an integrated AI coding agent. It targets developers who want a hackable Cursor-like shell without cloud lock-in: bring your own model (Ollama, llama.cpp, Anthropic), keep code on disk, and control tool policy per project.
 
@@ -15,8 +17,9 @@
 | Area | Status | Notes |
 |------|--------|-------|
 | Workbench UI | ✅ Complete | Chat, editor, terminal, preview, explorer, git |
-| AI Backends | ✅ Complete | Ollama, llama.cpp, Anthropic |
+| AI Backends | ✅ Complete | Ollama, llama.cpp, Anthropic, DeepSeek |
 | Agent Loop | ✅ Complete | Multi-turn tool chains with configurable limits |
+| Context compaction | 🔶 Experimental | Manual + auto; Settings → Compaction — [spec](specs/21-context-compaction.md) |
 | Tools (16) | ✅ Complete | Filesystem, git, grep, shell, web fetch |
 | Git UI | ✅ Complete | Staged/changes, diff view, discard |
 | Editor | 🔶 Partial | CodeMirror 6, 15 grammars, diff mode; wrap/Prettier/full syntax — [spec](specs/20-editor-formatting-and-theming.md) |
@@ -41,6 +44,7 @@
 | **Ollama** | `POST /v1/chat/completions` | Local; context window adjustable from chat footer |
 | **llama.cpp** | OpenAI-compatible | `llama-server`; context from server config |
 | **Anthropic** | Messages API + SSE | API key in Settings; monthly token usage tracking |
+| **DeepSeek** | OpenAI-compatible API | API key in Settings |
 
 ### Agent Loop
 
@@ -143,10 +147,10 @@ Dev server default port: **14200**. No Node sidecar build step.
 
 | Document | Purpose |
 |----------|---------|
-| **[Overview](../overview/OVERVIEW.md)** (this file) | Current product snapshot |
+| **[README.md](../../README.md)** | **Primary overview** — how the app works end-to-end |
+| **[Overview](../overview/OVERVIEW.md)** (this file) | Short status snapshot |
 | **[Architecture](../architecture/ARCHITECTURE.md)** | System design deep dive |
 | **[Specifications](../specs/README.md)** | Detailed specs with completion status |
-| **[README](../../README.md)** | Install, prerequisites, quick start |
 
 ---
 

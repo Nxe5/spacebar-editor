@@ -65,15 +65,27 @@ function parseNumCtxFromParameters(parameters: string | undefined): number | nul
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/** Auth headers for remote or secured Ollama instances. */
+export function ollamaAuthHeaders(apiKey?: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const k = apiKey?.trim();
+  if (k) headers.Authorization = `Bearer ${k}`;
+  return headers;
+}
+
 /**
  * Max context length Ollama reports for an installed model (`POST /api/show`).
  */
-export async function fetchOllamaModelMaxContext(endpoint: string, modelName: string): Promise<number> {
+export async function fetchOllamaModelMaxContext(
+  endpoint: string,
+  modelName: string,
+  apiKey?: string
+): Promise<number> {
   const base = endpoint.replace(/\/$/, "");
   try {
     const res = await fetch(`${base}/api/show`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...ollamaAuthHeaders(apiKey) },
       body: JSON.stringify({ name: modelName }),
       signal: AbortSignal.timeout(15_000),
     });
@@ -115,10 +127,12 @@ function mergePreviousContext(
  */
 export async function fetchOllamaModelList(
   endpoint: string,
-  previousModels?: { id: string; contextWindow: number; showInPicker?: boolean }[]
+  previousModels?: { id: string; contextWindow: number; showInPicker?: boolean }[],
+  apiKey?: string
 ): Promise<OllamaModelConfig[]> {
   const base = endpoint.replace(/\/$/, "");
   const res = await fetch(`${base}/api/tags`, {
+    headers: ollamaAuthHeaders(apiKey),
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
@@ -129,7 +143,7 @@ export async function fetchOllamaModelList(
 
   const enriched = await Promise.all(
     names.map(async (name) => {
-      const maxCtx = await fetchOllamaModelMaxContext(endpoint, name);
+      const maxCtx = await fetchOllamaModelMaxContext(endpoint, name, apiKey);
       const { contextWindow, contextLimitMax, showInPicker } = mergePreviousContext(
         name,
         maxCtx,

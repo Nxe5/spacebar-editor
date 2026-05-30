@@ -1,5 +1,7 @@
 /** Connection health for local inference servers (Ollama, llama.cpp). */
 
+import { ollamaAuthHeaders } from "./ollamaClient";
+
 export type ProviderDot = "idle" | "green" | "red" | "yellow";
 
 export type ProviderHealth = {
@@ -30,17 +32,18 @@ export function portFromBaseUrl(url: string, defaultPort: number): number {
 }
 
 /** Probe Ollama (`/api/version` + `/api/tags`). */
-export async function probeOllama(endpoint: string): Promise<ProviderHealth> {
+export async function probeOllama(endpoint: string, apiKey?: string): Promise<ProviderHealth> {
   const base = (endpoint.trim() || "http://127.0.0.1:11434").replace(/\/$/, "");
+  const headers = ollamaAuthHeaders(apiKey);
   try {
-    const ver = await fetch(`${base}/api/version`, { signal: probeSignal() });
+    const ver = await fetch(`${base}/api/version`, { headers, signal: probeSignal() });
     if (!ver.ok) {
       return { dot: "red", detail: `HTTP ${ver.status} at ${base}`, modelCount: 0 };
     }
     const verJson = (await ver.json().catch(() => ({}))) as { version?: string };
     const version = verJson.version;
 
-    const tagsRes = await fetch(`${base}/api/tags`, { signal: probeSignal() });
+    const tagsRes = await fetch(`${base}/api/tags`, { headers, signal: probeSignal() });
     if (!tagsRes.ok) {
       return {
         dot: "yellow",

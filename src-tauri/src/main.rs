@@ -9,7 +9,7 @@ use modules::commands::{
     icon_pack_get_dir, icon_pack_refresh_bundled, open_settings_window, path_exists,
     pick_icon_pack_folder, pick_workspace_folder, read_file, read_project_state,
     read_system_prompt, rename_entry, run_shell, web_fetch, write_file, write_project_state,
-    write_system_prompt,
+    write_system_prompt, ensure_system_prompts_layout,
 };
 use modules::pty::{pty_close, pty_create, pty_resize, pty_write, PtyManager};
 use tauri::Manager;
@@ -51,6 +51,7 @@ fn main() {
             run_shell,
             read_system_prompt,
             write_system_prompt,
+            ensure_system_prompts_layout,
             read_project_state,
             write_project_state,
             icon_pack_get_dir,

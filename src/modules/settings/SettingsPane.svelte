@@ -14,7 +14,8 @@
     fetchAnthropicModelCatalog,
     fetchDeepseekModelCatalog,
   } from "$lib/cloudModelCatalog";
-  import { chunkIntoRows, mergeCloudModelCatalog, modelsVisibleInPicker } from "$lib/modelPicker";
+  import { buildCompactionModelOptions } from "$lib/compactionModel";
+  import { mergeCloudModelCatalog, modelsVisibleInPicker } from "$lib/modelPicker";
   import {
     fetchOllamaModelList,
     RECOMMENDED_OLLAMA_MODELS,
@@ -46,6 +47,7 @@
   } from "$lib/toolPolicy";
   import { EMPTY_PARAMETERS_JSON } from "$lib/toolSchema";
   import { files } from "$lib/stores/files";
+  import SystemPromptsManager from "$lib/components/SystemPromptsManager.svelte";
   import { isTauriAvailable, runShell } from "$lib/ipc";
   import {
     probeOllama,
@@ -154,6 +156,7 @@
   let deepseekCatalogError = $state("");
   let openaiKey = $state("");
   let ollamaEndpoint = $state("");
+  let ollamaApiKey = $state("");
   let selectedModel = $state("");
   let ollamaModels = $state<ModelConfig[]>([]);
   let loadingOllama = $state(false);
@@ -215,8 +218,11 @@
   let explorerColors = $state<ExplorerAppearanceMap>(explorerAppearance.get());
   let chatColors = $state<ChatAppearanceMap>(chatAppearance.get());
   let autoCompact = $state(false);
+  let compactEnabled = $state(false);
+  let useActiveChatModel = $state(true);
   let compactThresholdPct = $state(85);
   let compactKeepRecent = $state(6);
+  let compactionModelChoice = $state("");
   let autocompleteEnabled = $state(false);
   let autocompleteDebounceMs = $state(300);
 
@@ -267,7 +273,6 @@
     { id: "keybindings", label: "Keybindings" },
   ];
 
-  const MODEL_PICKER_GRID_COLS = 3;
 
   let activeChatModelLabel = $derived.by(() => {
     const st = $settings;
@@ -286,6 +291,15 @@
     return st.selectedModel;
   });
 
+  let compactionModelOptions = $derived.by(() =>
+    buildCompactionModelOptions({
+      ollamaModels: $settings.ollamaModels,
+      llamacppModels: $settings.llamacppModels,
+      anthropicModels: $settings.anthropicModels,
+      deepseekModels: $settings.deepseekModels,
+    })
+  );
+
   let settingsModalWasOpen = $state(false);
 
   $effect(() => {
@@ -303,6 +317,7 @@
     deepseekKey = $settings.apiKeys.deepseek;
     openaiKey = $settings.apiKeys.openai;
     ollamaEndpoint = $settings.ollamaEndpoint;
+    ollamaApiKey = $settings.ollamaApiKey;
     llamacppEndpoint = $settings.llamacppEndpoint;
     llamacppApiKey = $settings.llamacppApiKey;
     selectedModel = $settings.selectedModel;
@@ -330,8 +345,11 @@
     explorerColors = { ...explorerAppearance.get() };
     chatColors = { ...chatAppearance.get() };
     autoCompact = $settings.agentCompaction.autoCompact;
+    compactEnabled = $settings.agentCompaction.enabled;
+    useActiveChatModel = $settings.agentCompaction.useActiveChatModel;
     compactThresholdPct = compactionThresholdPercent($settings.agentCompaction.compactThreshold);
     compactKeepRecent = $settings.agentCompaction.compactKeepRecentTurns;
+    compactionModelChoice = $settings.modelRoles.compaction ?? "";
     autocompleteEnabled = $settings.autocomplete.enabled;
     autocompleteDebounceMs = $settings.autocomplete.debounceMs;
     llamacppModels = $settings.llamacppModels;
@@ -356,14 +374,44 @@
 
   function persistAgentCompaction() {
     settings.setAgentCompaction({
+      enabled: compactEnabled,
       autoCompact,
+      useActiveChatModel,
       compactThreshold: compactionThresholdFromPercent(compactThresholdPct),
       compactKeepRecentTurns: compactKeepRecent,
     });
+    if (useActiveChatModel) {
+      settings.setModelRoles({ compaction: null });
+      compactionModelChoice = "";
+    }
     const saved = get(settings).agentCompaction;
+    compactEnabled = saved.enabled;
     autoCompact = saved.autoCompact;
+    useActiveChatModel = saved.useActiveChatModel;
     compactThresholdPct = compactionThresholdPercent(saved.compactThreshold);
     compactKeepRecent = saved.compactKeepRecentTurns;
+    if (useActiveChatModel) {
+      compactionModelChoice = "";
+    }
+  }
+
+  function persistUseActiveChatModel() {
+    if (useActiveChatModel) {
+      compactionModelChoice = "";
+    }
+    persistAgentCompaction();
+  }
+
+  function persistCompactionModel() {
+    settings.setModelRoles({
+      compaction: compactionModelChoice.trim() || null,
+    });
+    if (compactionModelChoice.trim()) {
+      useActiveChatModel = false;
+      settings.setAgentCompaction({ useActiveChatModel: false });
+    }
+    compactionModelChoice = get(settings).modelRoles.compaction ?? "";
+    useActiveChatModel = get(settings).agentCompaction.useActiveChatModel;
   }
 
   function persistAutocompleteSettings() {
@@ -391,7 +439,7 @@
 
   async function checkOllamaStatus(): Promise<ProviderHealth> {
     ollamaStatus = { ...ollamaStatus, checking: true, dot: "idle", detail: "Checking…" };
-    const health = await probeOllama(ollamaEndpoint);
+    const health = await probeOllama(ollamaEndpoint, ollamaApiKey);
     ollamaStatus = { ...health, checking: false };
     return health;
   }
@@ -416,8 +464,21 @@
       );
       llamacppModels = rows as ModelConfig[];
       settings.setLlamacppModels(llamacppModels);
+      const loadedId = props.model?.trim() || null;
+      if (llamacppModels.length > 0) {
+        const match =
+          (loadedId && llamacppModels.find((m) => m.id === loadedId)) ??
+          llamacppModels.find((m) => m.id === selectedModel) ??
+          llamacppModels[0];
+        if (match) {
+          selectedModel = match.id;
+          settings.setSelectedModel(match.id);
+        }
+      }
       if (props.nCtx != null) {
         llamacppContextChoice = props.nCtx;
+      } else if (llamacppModels[0]?.contextWindow) {
+        llamacppContextChoice = llamacppModels[0].contextWindow;
       }
       if (llamacppStatus.dot === "green" || llamacppStatus.dot === "yellow") {
         const ctxNote = props.nCtx != null ? ` · ctx ${fmtCtx(props.nCtx)}` : "";
@@ -439,7 +500,7 @@
     loadingOllama = true;
     try {
       const prev = get(settings).ollamaModels;
-      ollamaModels = await fetchOllamaModelList(ollamaEndpoint, prev);
+      ollamaModels = await fetchOllamaModelList(ollamaEndpoint, prev, ollamaApiKey);
       settings.setOllamaModels(ollamaModels);
     } catch {
       ollamaModels = [];
@@ -635,17 +696,16 @@
       llamacppLiveProps?.nCtx ?? row?.contextWindow ?? llamacppServerTemplate.context;
   });
 
-  const llamacppGenerationRows = $derived.by(() => {
-    const gen = llamacppLiveProps?.generationDefaults;
-    if (!gen) return [] as { key: string; value: string }[];
-    const skip = new Set(["n_ctx", "model"]);
-    return Object.entries(gen)
-      .filter(([k, v]) => !skip.has(k) && v != null && v !== "")
-      .slice(0, 12)
-      .map(([key, value]) => ({
-        key,
-        value: typeof value === "object" ? JSON.stringify(value) : String(value),
-      }));
+  const llamacppLoadedModelId = $derived.by(() => {
+    const fromProps = llamacppLiveProps?.model?.trim();
+    if (fromProps && llamacppModels.some((m) => m.id === fromProps)) return fromProps;
+    if (llamacppModels.length === 1) return llamacppModels[0]!.id;
+    return selectedModel;
+  });
+
+  const llamacppChatModelLabel = $derived.by(() => {
+    const row = llamacppModels.find((m) => m.id === selectedModel);
+    return row?.name ?? selectedModel ?? "—";
   });
 
   function openToolEditor(name: string, builtin: boolean) {
@@ -704,6 +764,7 @@
     settings.setApiKey("deepseek", deepseekKey);
     settings.setApiKey("openai", openaiKey);
     settings.setOllamaEndpoint(ollamaEndpoint);
+    settings.setOllamaApiKey(ollamaApiKey);
     settings.setLlamacppEndpoint(llamacppEndpoint);
     settings.setLlamacppApiKey(llamacppApiKey);
     settings.setSelectedModel(selectedModel);
@@ -776,38 +837,46 @@
 
 <svelte:window onkeydown={onWindowKeydown} />
 
-{#snippet modelPickerGrid(
-  models: ModelConfig[],
-  onToggle: (modelId: string, show: boolean) => void,
-  plain = false
-)}
-  <div class="model-picker-grid-wrap" class:model-picker-grid-wrap--plain={plain}>
-    <table class="model-picker-grid">
-      <tbody>
-        {#each chunkIntoRows(models, MODEL_PICKER_GRID_COLS) as row, rowIdx (rowIdx)}
-          <tr>
-            {#each row as model (model.id)}
-              <td class="model-picker-cell">
-                <label class="model-picker-cell-label">
-                  <input
-                    type="checkbox"
-                    class="checkbox"
-                    checked={model.showInPicker !== false}
-                    aria-label="Show {model.name} in chat model menu"
-                    onchange={(e) =>
-                      onToggle(model.id, (e.currentTarget as HTMLInputElement).checked)}
-                  />
-                  <span class="model-picker-name" title={model.name}>{model.name}</span>
-                </label>
-              </td>
-            {/each}
-            {#each { length: MODEL_PICKER_GRID_COLS - row.length } as _, padIdx (padIdx)}
-              <td class="model-picker-cell model-picker-cell--empty" aria-hidden="true"></td>
-            {/each}
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+{#snippet modelPickerGrid(models: ModelConfig[], onToggle: (modelId: string, show: boolean) => void)}
+  <div class="model-picker-cards">
+    {#each models as model (model.id)}
+      <label class="model-picker-card" class:model-picker-card--hidden={model.showInPicker === false}>
+        <input
+          type="checkbox"
+          class="checkbox"
+          checked={model.showInPicker !== false}
+          aria-label="Show {model.name} in chat model menu"
+          onchange={(e) => onToggle(model.id, (e.currentTarget as HTMLInputElement).checked)}
+        />
+        <span class="model-picker-card-body">
+          <span class="model-picker-card-name" title={model.name}>{model.name}</span>
+          {#if model.contextWindow}
+            <span class="model-list-meta">{fmtCtx(model.contextWindow)} ctx</span>
+          {/if}
+        </span>
+      </label>
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet llamacppModelGrid(models: ModelConfig[], loadedModelId: string | null)}
+  <div class="model-picker-cards">
+    {#each models as model (model.id)}
+      <div
+        class="model-picker-card model-picker-card--readonly"
+        class:model-picker-card--loaded={loadedModelId != null && model.id === loadedModelId}
+      >
+        <span class="model-picker-card-body">
+          <span class="model-picker-card-name" title={model.name}>{model.name}</span>
+          {#if model.contextWindow}
+            <span class="model-list-meta">{fmtCtx(model.contextWindow)} ctx</span>
+          {/if}
+          {#if loadedModelId != null && model.id === loadedModelId}
+            <span class="model-list-meta model-list-meta--loaded">Loaded on server</span>
+          {/if}
+        </span>
+      </div>
+    {/each}
   </div>
 {/snippet}
 
@@ -922,6 +991,13 @@
                 {/each}
               </select>
             </label>
+
+            <p class="group-label">System prompts</p>
+            <p class="note muted">
+              Per-project files in <code class="inline-code">.tinyllama/prompts/</code>. Enable prompts
+              to append them to the active chat mode. Edit files in the main editor.
+            </p>
+            <SystemPromptsManager variant="settings" />
 
             <p class="group-label">Explorer</p>
             {#each EXPLORER_SIZE_FIELDS as field}
@@ -1160,6 +1236,16 @@
                   {/if}
                 </div>
               </div>
+              <label class="field">
+                <span class="name">API key (optional)</span>
+                <input
+                  type="password"
+                  bind:value={ollamaApiKey}
+                  placeholder="Bearer token for remote Ollama"
+                  class="input"
+                  autocomplete="off"
+                />
+              </label>
             </div>
 
             <p class="group-label">Default for new chats</p>
@@ -1197,7 +1283,7 @@
             <p class="group-label">Installed models</p>
             <p class="note muted">Choose which models appear in the chat model menu.</p>
             {#if ollamaModels.length > 0}
-              {@render modelPickerGrid(ollamaModels, toggleOllamaPicker, true)}
+              {@render modelPickerGrid(ollamaModels, toggleOllamaPicker)}
             {:else}
               <p class="note muted">No models installed yet.</p>
             {/if}
@@ -1277,7 +1363,7 @@
           </div>
 
         {:else if activeSection === "providers-llamacpp"}
-          <div class="stack provider-page-shell">
+          <div class="stack ollama-settings provider-page-shell">
             {#if providerSubview === "llamacpp-server"}
               <div class="provider-advanced-page">
               <button
@@ -1313,32 +1399,59 @@
               <code class="inline-code">llama-server</code> with OpenAI API enabled (often port 8080).
             </p>
 
-            <div class="provider-card">
+            <div class="ollama-connection">
               <div class="provider-head">
-                <span class="provider-title">
-                  <span
-                    class="status-dot"
-                    class:green={!llamacppStatus.checking && llamacppStatus.dot === "green"}
-                    class:red={!llamacppStatus.checking && llamacppStatus.dot === "red"}
-                    class:yellow={!llamacppStatus.checking && llamacppStatus.dot === "yellow"}
-                    class:idle={llamacppStatus.checking || llamacppStatus.dot === "idle"}
-                    title={llamacppStatus.detail}
-                  ></span>
-                  Server
-                </span>
+                <span
+                  class="status-dot"
+                  class:green={!llamacppStatus.checking && llamacppStatus.dot === "green"}
+                  class:red={!llamacppStatus.checking && llamacppStatus.dot === "red"}
+                  class:yellow={!llamacppStatus.checking && llamacppStatus.dot === "yellow"}
+                  class:idle={llamacppStatus.checking || llamacppStatus.dot === "idle"}
+                  title={llamacppStatus.detail}
+                ></span>
                 <span class="provider-detail">
                   {llamacppStatus.checking ? "Checking…" : llamacppStatus.detail}
                 </span>
               </div>
-              <label class="field">
-                <span class="name">Server base URL</span>
+              <div class="row ollama-endpoint-row">
                 <input
                   type="text"
                   bind:value={llamacppEndpoint}
                   placeholder={DEFAULT_LLAMACPP_ENDPOINT}
-                  class="input"
+                  class="input grow ollama-endpoint-input"
                 />
-              </label>
+                <div class="ollama-connection-actions">
+                  {#if llamacppStatus.dot === "red"}
+                    <button
+                      type="button"
+                      class="btn secondary ollama-action-btn"
+                      onclick={() => connectLlamacpp()}
+                      disabled={llamacppStatus.checking}
+                    >
+                      {llamacppStatus.checking ? "…" : "Connect"}
+                    </button>
+                  {:else}
+                    <button
+                      type="button"
+                      class="btn secondary ollama-action-btn"
+                      onclick={() => connectLlamacpp()}
+                      disabled={loadingLlamacpp || llamacppStatus.checking}
+                    >
+                      {loadingLlamacpp || llamacppStatus.checking ? "…" : "Refresh"}
+                    </button>
+                    {#if canRunShell}
+                      <button
+                        type="button"
+                        class="btn ghost ollama-action-btn"
+                        onclick={() => stopLlamacppServer()}
+                        disabled={loadingLlamacpp || llamacppStatus.checking}
+                      >
+                        Stop
+                      </button>
+                    {/if}
+                  {/if}
+                </div>
+              </div>
               <label class="field">
                 <span class="name">API key (optional)</span>
                 <input
@@ -1349,179 +1462,76 @@
                   autocomplete="off"
                 />
               </label>
-              <div class="row provider-toolbar">
-                {#if llamacppStatus.checking}
-                  <button type="button" class="btn secondary" disabled>…</button>
-                {:else if llamacppStatus.dot === "red"}
-                  <button type="button" class="btn secondary" onclick={() => connectLlamacpp()}>
-                    Connect
-                  </button>
-                {:else}
-                  <button
-                    type="button"
-                    class="btn secondary"
-                    onclick={() => connectLlamacpp()}
-                    disabled={loadingLlamacpp}
-                  >
-                    {loadingLlamacpp ? "…" : "Refresh"}
-                  </button>
-                  {#if canRunShell}
-                    <button type="button" class="btn ghost" onclick={() => stopLlamacppServer()}>
-                      Stop
-                    </button>
-                  {/if}
-                {/if}
-              </div>
-
-              <p class="group-label">Server Models</p>
-              {#if llamacppLiveProps}
-                <div class="live-server-panel">
-                  <p class="group-label">Running server (GET /props)</p>
-                  <dl class="live-server-dl">
-                    <dt>Context (n_ctx)</dt>
-                    <dd>
-                      {#if llamacppLiveProps.nCtx != null}
-                        {llamacppLiveProps.nCtx.toLocaleString()} tokens
-                      {:else}
-                        <span class="muted">Not reported — is llama-server running?</span>
-                      {/if}
-                    </dd>
-                    {#if llamacppLiveProps.model}
-                      <dt>Loaded model</dt>
-                      <dd><code class="inline-code">{llamacppLiveProps.model}</code></dd>
-                    {/if}
-                    {#if llamacppLiveProps.totalSlots != null}
-                      <dt>Parallel slots</dt>
-                      <dd>{llamacppLiveProps.totalSlots}</dd>
-                    {/if}
-                  </dl>
-                  {#if llamacppLiveProps.nCtx != null && llamacppServerTemplate.context !== llamacppLiveProps.nCtx}
-                    <p class="note caution">
-                      Saved template uses <code class="inline-code">-c {llamacppServerTemplate.context}</code>,
-                      but the running server reports
-                      <code class="inline-code">n_ctx={llamacppLiveProps.nCtx}</code>. Restart with the
-                      ExecStart below or update systemd.
-                    </p>
-                  {/if}
-                  {#if llamacppGenerationRows.length > 0}
-                    <p class="group-label">Default generation settings</p>
-                    <div class="api-table-wrap">
-                      <table class="api-table">
-                        <thead>
-                          <tr><th>Key</th><th>Value</th></tr>
-                        </thead>
-                        <tbody>
-                          {#each llamacppGenerationRows as row}
-                            <tr>
-                              <td><code class="inline-code">{row.key}</code></td>
-                              <td>{row.value}</td>
-                            </tr>
-                          {/each}
-                        </tbody>
-                      </table>
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-
-              {#if llamacppModels.length > 0}
-                <div class="model-list">
-                  {#each llamacppModels as model}
-                    <div class="model-list-item">
-                      <span class="model-list-name">{model.name}</span>
-                      {#if model.contextWindow}
-                        <span class="model-list-meta">{fmtCtx(model.contextWindow)} ctx</span>
-                      {/if}
-                    </div>
-                  {/each}
-                </div>
-              {:else}
-                <p class="note muted">
-                  {#if llamacppStatus.dot === "red"}
-                    Server not reachable — start llama-server, then Connect.
-                  {:else}
-                    No models reported — load a GGUF with llama-server, then Refresh.
-                  {/if}
-                </p>
-              {/if}
-
-              <p class="group-label">Get GGUF Models</p>
-              <p class="note">
-                llama.cpp uses GGUF model files. Download models from HuggingFace, then run:
-                <code class="inline-code">llama-server -m model.gguf --port 8080</code>
-              </p>
-              <div class="gguf-links">
-                <a href="https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
-                  <span class="gguf-name">Llama 3.2 3B</span>
-                  <span class="gguf-desc">Meta's lightweight model</span>
-                </a>
-                <a href="https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
-                  <span class="gguf-name">Qwen 2.5 7B</span>
-                  <span class="gguf-desc">Strong reasoning & coding</span>
-                </a>
-                <a href="https://huggingface.co/bartowski/Qwen2.5-Coder-7B-Instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
-                  <span class="gguf-name">Qwen 2.5 Coder 7B</span>
-                  <span class="gguf-desc">Code-specialized model</span>
-                </a>
-                <a href="https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
-                  <span class="gguf-name">Mistral 7B</span>
-                  <span class="gguf-desc">Fast & efficient</span>
-                </a>
-                <a href="https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
-                  <span class="gguf-name">Phi 3.5 Mini</span>
-                  <span class="gguf-desc">Microsoft's small model</span>
-                </a>
-                <a href="https://huggingface.co/bartowski/gemma-2-9b-it-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
-                  <span class="gguf-name">Gemma 2 9B</span>
-                  <span class="gguf-desc">Google's open model</span>
-                </a>
-              </div>
-              <p class="note muted" style="margin-top: 8px;">
-                Choose Q4_K_M quantization for best quality/size balance. See
-                <a href="https://huggingface.co/models?library=gguf&sort=trending" target="_blank" rel="noreferrer">all GGUF models</a>.
-              </p>
             </div>
 
-            <label class="field">
-              <span class="name">Chat model</span>
-              {#if llamacppModels.length > 0}
-                <select bind:value={selectedModel} class="input">
-                  {#each llamacppModels as model}
-                    <option value={model.id}>{model.name}</option>
-                  {/each}
-                </select>
-              {:else}
-                <input
-                  type="text"
-                  bind:value={selectedModel}
-                  placeholder="local-model"
-                  class="input"
-                />
-                <span class="hint">Model id reported by llama-server, or your loaded GGUF name.</span>
-              {/if}
-            </label>
+            {#if llamacppModels.length > 0}
+              <p class="group-label">Default for new chats</p>
+              <div class="chat-model-context-row">
+                <label class="chat-model-context-field">
+                  <span class="name">Chat model</span>
+                  <span class="provider-readonly-value" title={llamacppChatModelLabel}>
+                    {llamacppChatModelLabel}
+                  </span>
+                </label>
+                <label class="chat-model-context-field">
+                  <span class="name" title="From running server (GET /props)">Context</span>
+                  <span class="provider-readonly-value">{fmtCtx(llamacppContextChoice)}</span>
+                </label>
+              </div>
+            {/if}
 
-            <label class="field">
-              <span class="name">Context window (chat meter &amp; num_ctx)</span>
-              <input
-                class="input"
-                type="number"
-                bind:value={llamacppContextChoice}
-                min="512"
-                step="512"
-                readonly={llamacppLiveProps?.nCtx != null}
-              />
-              <span class="hint">
-                {#if llamacppLiveProps?.nCtx != null}
-                  Synced from the running server (<code class="inline-code">GET /props</code>). Chat footer
-                  uses this value. Change <code class="inline-code">-c</code> in the service and restart to
-                  resize.
+            <p class="group-label">Server models</p>
+            <p class="note muted">
+              Models reported by the running server. Only the loaded GGUF is usable for chat; visibility
+              in the chat menu is not configurable.
+            </p>
+            {#if llamacppModels.length > 0}
+              {@render llamacppModelGrid(llamacppModels, llamacppLoadedModelId)}
+            {:else}
+              <p class="note muted">
+                {#if llamacppStatus.dot === "red"}
+                  Server not reachable — start llama-server, then Connect.
                 {:else}
-                  Connect to read <code class="inline-code">n_ctx</code> from the server, or set manually.
-                  Server context is fixed at launch (<code class="inline-code">-c</code>).
+                  No models reported — load a GGUF with llama-server, then Connect.
                 {/if}
-              </span>
-            </label>
+              </p>
+            {/if}
+
+            <p class="group-label">Get GGUF models</p>
+            <p class="note">
+              llama.cpp uses GGUF model files. Download models from HuggingFace, then run:
+              <code class="inline-code">llama-server -m model.gguf --port 8080</code>
+            </p>
+            <div class="gguf-links">
+              <a href="https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+                <span class="gguf-name">Llama 3.2 3B</span>
+                <span class="gguf-desc">Meta's lightweight model</span>
+              </a>
+              <a href="https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+                <span class="gguf-name">Qwen 2.5 7B</span>
+                <span class="gguf-desc">Strong reasoning & coding</span>
+              </a>
+              <a href="https://huggingface.co/bartowski/Qwen2.5-Coder-7B-Instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+                <span class="gguf-name">Qwen 2.5 Coder 7B</span>
+                <span class="gguf-desc">Code-specialized model</span>
+              </a>
+              <a href="https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+                <span class="gguf-name">Mistral 7B</span>
+                <span class="gguf-desc">Fast & efficient</span>
+              </a>
+              <a href="https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+                <span class="gguf-name">Phi 3.5 Mini</span>
+                <span class="gguf-desc">Microsoft's small model</span>
+              </a>
+              <a href="https://huggingface.co/bartowski/gemma-2-9b-it-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+                <span class="gguf-name">Gemma 2 9B</span>
+                <span class="gguf-desc">Google's open model</span>
+              </a>
+            </div>
+            <p class="note muted" style="margin-top: 8px;">
+              Choose Q4_K_M quantization for best quality/size balance. See
+              <a href="https://huggingface.co/models?library=gguf&sort=trending" target="_blank" rel="noreferrer">all GGUF models</a>.
+            </p>
             </div>
 
             <footer class="provider-page-footer">
@@ -1853,11 +1863,55 @@
               <span class="experimental-pill">Experimental</span>
             </div>
             <p class="note">
-              Summarize-and-rehydrate long chat sessions when context fills up (spec 21). Settings
-              are saved now; automatic compaction and the chat <strong>Compact</strong> button are not
-              wired yet.
+              Summarize-and-rehydrate long chat sessions when context fills up (spec 21). Enable
+              compaction first, then choose manual-only or automatic behavior.
             </p>
 
+            <label class="field checkbox-field">
+              <input
+                type="checkbox"
+                bind:checked={compactEnabled}
+                onchange={persistAgentCompaction}
+              />
+              <span class="name">Enable compaction</span>
+            </label>
+            <p class="note muted">
+              When off, the chat footer Compact button and automatic compaction are disabled.
+            </p>
+
+            {#if compactEnabled}
+            <p class="group-label">Compaction model</p>
+            <label class="field checkbox-field">
+              <input
+                type="checkbox"
+                bind:checked={useActiveChatModel}
+                onchange={persistUseActiveChatModel}
+              />
+              <span class="name">Use active chat model</span>
+            </label>
+            {#if useActiveChatModel}
+              <p class="note muted">Summaries use <strong>{activeChatModelLabel}</strong>.</p>
+            {:else}
+              <label class="field">
+                <span class="name">Compaction model</span>
+                <select
+                  class="input"
+                  bind:value={compactionModelChoice}
+                  onchange={persistCompactionModel}
+                >
+                  <option value="" disabled>Select a model…</option>
+                  {#each compactionModelOptions as opt (opt.value)}
+                    <option value={opt.value}>{opt.label}</option>
+                  {/each}
+                </select>
+                <span class="hint">
+                  Pick a model from any connected provider — useful for a cheaper or faster
+                  summarizer.
+                </span>
+              </label>
+            {/if}
+
+            <p class="group-label">Automatic compaction</p>
             <label class="field checkbox-field">
               <input
                 type="checkbox"
@@ -1866,9 +1920,12 @@
               />
               <span class="name">Enable automatic compaction</span>
             </label>
-            <p class="note muted">When off, only manual compacting will apply once implemented.</p>
+            <p class="note muted">
+              When off, compact only from the chat footer button. Manual compact is always available
+              while compaction is enabled.
+            </p>
 
-            <label class="field">
+            <label class="field" class:field--disabled={!autoCompact}>
               <span class="name">Auto-compact when context reaches</span>
               <div class="threshold-row">
                 <input
@@ -1877,6 +1934,7 @@
                   min={compactionThresholdPercent(AGENT_COMPACTION_BOUNDS.compactThreshold.min)}
                   max={compactionThresholdPercent(AGENT_COMPACTION_BOUNDS.compactThreshold.max)}
                   bind:value={compactThresholdPct}
+                  disabled={!autoCompact}
                   onchange={persistAgentCompaction}
                 />
                 <span class="threshold-suffix">% of model window</span>
@@ -1898,15 +1956,7 @@
                 Raw messages preserved after the summary (default 6, max {AGENT_COMPACTION_BOUNDS.compactKeepRecentTurns.max}).
               </span>
             </label>
-
-            <p class="group-label">Model for compaction</p>
-            <label class="field">
-              <span class="name">Compaction model</span>
-              <select class="input" disabled title="Not wired yet — uses active chat model">
-                <option value="">{activeChatModelLabel} (active chat model)</option>
-              </select>
-              <span class="hint">Per-role model overrides will apply in a future release.</span>
-            </label>
+            {/if}
           </div>
 
         {:else if activeSection === "experimental-autocomplete"}
@@ -2671,6 +2721,10 @@
     gap: 4px;
   }
 
+  .field--disabled {
+    opacity: 0.55;
+  }
+
   .chat-model-context-row {
     display: grid;
     grid-template-columns: auto auto;
@@ -2968,25 +3022,105 @@
     border-radius: 6px;
   }
 
-  .model-picker-grid-wrap {
-    overflow-x: auto;
+  .model-picker-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .model-picker-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 8px;
+    background: #1c1c1c;
     border: 1px solid #333;
     border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .model-picker-card--hidden {
+    opacity: 0.55;
+  }
+
+  .model-picker-card--readonly {
+    cursor: default;
+    padding: 6px 10px;
+  }
+
+  .model-picker-card--loaded {
+    border-color: color-mix(in srgb, var(--primary, #007acc) 55%, #333);
+    background: color-mix(in srgb, var(--primary, #007acc) 8%, #1c1c1c);
+  }
+
+  .model-list-meta--loaded {
+    color: #7eb8e8;
+  }
+
+  .provider-readonly-value {
+    display: block;
+    min-height: 24px;
+    padding: 4px 8px;
+    box-sizing: border-box;
+    border: 1px solid #333;
+    border-radius: 4px;
     background: #1a1a1a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #d4d4d4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .model-picker-grid-wrap--plain {
-    border: none;
-    border-radius: 0;
-    background: transparent;
+  .chat-model-context-field .provider-readonly-value {
+    width: 100%;
+    min-width: 0;
   }
 
-  .model-picker-grid-wrap--plain .model-picker-cell {
-    border-color: #2a2a2a;
+  .chat-model-context-row .provider-readonly-value {
+    min-width: 72px;
   }
 
-  .model-picker-grid-wrap--plain .model-picker-cell--empty {
-    background: transparent;
+  .model-picker-card .checkbox {
+    flex-shrink: 0;
+    margin: 1px 0 0;
+  }
+
+  .model-picker-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .model-picker-card-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10px;
+    line-height: 1.3;
+    color: #86c9b7;
+  }
+
+  .model-picker-card:hover .model-picker-card-name {
+    color: #a8e6d4;
+  }
+
+  @media (max-width: 720px) {
+    .model-picker-cards {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 480px) {
+    .model-picker-cards {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   .ollama-settings {
@@ -3026,55 +3160,6 @@
     flex: 1 1 auto;
     min-width: 0;
     width: 0;
-  }
-
-  .model-picker-grid {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    font-size: 11px;
-  }
-
-  .model-picker-cell {
-    padding: 2px 6px;
-    border: 1px solid #2a2a2a;
-    vertical-align: middle;
-    width: 33.33%;
-  }
-
-  .model-picker-cell--empty {
-    padding: 0;
-    background: #181818;
-  }
-
-  .model-picker-cell-label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    min-width: 0;
-    padding: 2px 0;
-    cursor: pointer;
-  }
-
-  .model-picker-cell-label .checkbox {
-    flex-shrink: 0;
-    margin: 0;
-  }
-
-  .model-picker-name {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 10px;
-    line-height: 1.3;
-    color: #86c9b7;
-  }
-
-  .model-picker-cell-label:hover .model-picker-name {
-    color: #a8e0cf;
   }
 
   .provider-connect-row {

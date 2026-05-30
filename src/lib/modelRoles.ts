@@ -1,4 +1,4 @@
-/** Per-role model overrides (persisted; not wired to runtime in v1). */
+/** Per-role model overrides (persisted). Compaction refs use `provider:modelId`. */
 
 export type ModelRoleOverrides = {
   chat: string | null;

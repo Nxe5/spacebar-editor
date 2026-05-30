@@ -1,7 +1,7 @@
 <script lang="ts">
   import { get } from "svelte/store";
   import { chat, activeSession } from "$lib/stores/chat";
-  import { settings, type ModelConfig } from "$lib/stores/settings";
+  import { settings, type ModelConfig, type SettingsState } from "$lib/stores/settings";
   import {
     fetchAnthropicModelCatalog,
     fetchDeepseekModelCatalog,
@@ -17,7 +17,7 @@
     reloadProjectTools,
   } from "$lib/stores/toolPolicy";
   import { currentMode, MODE_CONFIG, type ChatMode } from "$lib/stores/mode";
-  import { systemPrompt } from "$lib/stores/systemPrompt";
+  import { activeSystemPromptText, systemPrompts } from "$lib/stores/systemPrompts";
   import { files } from "$lib/stores/files";
   import {
     countTokens,
@@ -91,9 +91,13 @@ import {
   } from "$lib/contextBudget";
   import {
     chatHasMessagesForCompaction,
+    COMPACTION_SUCCESS_NOTICE,
+    compactionThresholdPercent,
     MANUAL_COMPACTION_BUTTON_TITLE,
-    MANUAL_COMPACTION_UNAVAILABLE,
+    MANUAL_COMPACTION_DISABLED_TITLE,
   } from "$lib/agentCompaction";
+  import { compactChatSession, maybeAutoCompactBeforeTurn } from "$lib/agent/sessionCompaction";
+  import { persistCurrentProjectState } from "$lib/projectState";
   import {
     chatFooterProfile,
     formatMonthlyUsageLabel,
@@ -143,6 +147,7 @@ import {
   let rewindNotice = $state<string | null>(null);
   let compactionNotice = $state<string | null>(null);
   let compactionNoticeTimer: ReturnType<typeof setTimeout> | null = null;
+  let compacting = $state(false);
   let messagesContainer: HTMLDivElement;
 
   function expandUserMessage(id: string, content: string) {
@@ -453,7 +458,19 @@ import {
   }
 
   let compactButtonInactive = $derived(
-    !chatHasMessagesForCompaction($activeSession?.messages.length ?? 0)
+    !$settings.agentCompaction.enabled ||
+      compacting ||
+      $chat.isStreaming ||
+      !chatHasMessagesForCompaction(
+        $activeSession?.messages.length ?? 0,
+        $settings.agentCompaction.compactKeepRecentTurns
+      )
+  );
+
+  let compactButtonTitle = $derived(
+    !$settings.agentCompaction.enabled
+      ? MANUAL_COMPACTION_DISABLED_TITLE
+      : MANUAL_COMPACTION_BUTTON_TITLE
   );
 
   function showCompactionNotice(message: string) {
@@ -465,10 +482,35 @@ import {
     }, 8000);
   }
 
-  function requestManualCompaction() {
+  async function requestManualCompaction() {
     if (compactButtonInactive) return;
-    // TODO(spec 21): compactHistory() — replace placeholder when runtime ships.
-    showCompactionNotice(MANUAL_COMPACTION_UNAVAILABLE);
+    const st = get(settings);
+    if (!st.agentCompaction.enabled) {
+      showCompactionNotice(MANUAL_COMPACTION_DISABLED_TITLE);
+      return;
+    }
+    const session = get(activeSession);
+    if (!session) return;
+
+    compacting = true;
+    try {
+      const st = get(settings);
+      const keepRecent = st.agentCompaction.compactKeepRecentTurns;
+      const thresholdPercent = Math.round(contextPct()) || compactionThresholdPercent(st.agentCompaction.compactThreshold);
+      const newMessages = await compactChatSession({
+        settings: st,
+        messages: session.messages,
+        keepRecent,
+        thresholdPercent,
+      });
+      chat.applyCompaction(newMessages);
+      await persistCurrentProjectState();
+      showCompactionNotice(COMPACTION_SUCCESS_NOTICE);
+    } catch (err) {
+      showCompactionNotice(err instanceof Error ? err.message : String(err));
+    } finally {
+      compacting = false;
+    }
   }
 
   function clearStreamTiming() {
@@ -512,7 +554,11 @@ import {
 
   async function refreshOllamaModelsFromHost() {
     try {
-      const list = await fetchOllamaModelList(get(settings).ollamaEndpoint, get(settings).ollamaModels);
+      const list = await fetchOllamaModelList(
+        get(settings).ollamaEndpoint,
+        get(settings).ollamaModels,
+        get(settings).ollamaApiKey
+      );
       settings.setOllamaModels(list);
       ollamaCatalogStatus = "ok";
     } catch (e) {
@@ -549,7 +595,7 @@ import {
     void refreshOllamaModelsFromHost();
     void syncCloudCatalogOnce();
     if (isTauriAvailable() && $files.workspacePath) {
-      await systemPrompt.load($files.workspacePath);
+      await systemPrompts.load($files.workspacePath);
       await reloadProjectTools($files.workspacePath);
     }
   });
@@ -753,7 +799,7 @@ import {
   function buildSystemPrompt(includeToolSummary = false): string {
     const modeConfig = MODE_CONFIG[$currentMode];
     const basePrompt = modeConfig.basePrompt;
-    const userPrompt = $systemPrompt;
+    const userPrompt = $activeSystemPromptText;
     const workspaceBlock = buildWorkspaceContextBlock($files.workspacePath);
 
     const parts = [basePrompt + workspaceBlock];
@@ -916,7 +962,7 @@ import {
     return { results, hitRunCap };
   }
 
-  function agentContextWindow(st: ReturnType<typeof get<typeof settings>>): number {
+  function agentContextWindow(st: SettingsState): number {
     return resolveModelContextWindow({
       chatBackend: st.chatBackend,
       selectedModel: st.selectedModel,
@@ -945,7 +991,7 @@ import {
       chat.setStreaming(false);
       return;
     }
-    const history = get(activeSession)?.messages ?? [];
+    let history = get(activeSession)?.messages ?? [];
 
     let providerMessages = buildProviderMessages(systemPromptText, history);
     abortController = new AbortController();
@@ -959,6 +1005,21 @@ import {
     const contextWindow = agentContextWindow(st);
     let step = 0;
     liveTurn = createLiveTurn();
+
+    const autoCompacted = await maybeAutoCompactBeforeTurn({
+      settings: st,
+      messages: history,
+      providerMessages,
+      contextWindow,
+      signal: abortController.signal,
+    });
+    if (autoCompacted) {
+      chat.applyCompaction(autoCompacted);
+      history = autoCompacted;
+      providerMessages = buildProviderMessages(systemPromptText, history);
+      await persistCurrentProjectState();
+      showCompactionNotice(COMPACTION_SUCCESS_NOTICE);
+    }
 
     try {
       while (shouldContinueAgentStep(step, agentLimits)) {
@@ -977,6 +1038,7 @@ import {
           backend: st.chatBackend,
           apiKeys: st.apiKeys,
           ollamaEndpoint: st.ollamaEndpoint,
+          ollamaApiKey: st.ollamaApiKey,
           llamacppEndpoint: st.llamacppEndpoint,
           llamacppApiKey: st.llamacppApiKey,
         });
@@ -1147,6 +1209,7 @@ import {
           backend: st.chatBackend,
           apiKeys: st.apiKeys,
           ollamaEndpoint: st.ollamaEndpoint,
+          ollamaApiKey: st.ollamaApiKey,
           llamacppEndpoint: st.llamacppEndpoint,
           llamacppApiKey: st.llamacppApiKey,
         });
@@ -2054,8 +2117,8 @@ import {
           class="context-compact-btn"
           class:context-compact-btn--inactive={compactButtonInactive}
           aria-disabled={compactButtonInactive}
-          title={MANUAL_COMPACTION_BUTTON_TITLE}
-          aria-label={MANUAL_COMPACTION_BUTTON_TITLE}
+          title={compactButtonTitle}
+          aria-label={compactButtonTitle}
           onclick={() => requestManualCompaction()}
         >
           <AppIcon name="circle-spark" size={14} />

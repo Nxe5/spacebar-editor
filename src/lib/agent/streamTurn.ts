@@ -18,6 +18,7 @@ export function resolveStreamCredentials(input: {
   backend: StreamChatBackend;
   apiKeys: { anthropic: string; deepseek: string };
   ollamaEndpoint: string;
+  ollamaApiKey: string;
   llamacppEndpoint: string;
   llamacppApiKey: string;
 }): { apiKey: string; baseUrl: string } {
@@ -27,7 +28,7 @@ export function resolveStreamCredentials(input: {
     case "deepseek":
       return { apiKey: input.apiKeys.deepseek, baseUrl: DEEPSEEK_API_BASE };
     case "ollama":
-      return { apiKey: "", baseUrl: input.ollamaEndpoint };
+      return { apiKey: input.ollamaApiKey, baseUrl: input.ollamaEndpoint };
     case "llamacpp":
       return { apiKey: input.llamacppApiKey, baseUrl: input.llamacppEndpoint };
   }

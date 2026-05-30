@@ -291,6 +291,11 @@ export async function writeSystemPrompt(workspacePath: string, content: string):
   return invoke<void>("write_system_prompt", { workspacePath, content });
 }
 
+export async function ensureSystemPromptsLayout(workspacePath: string): Promise<void> {
+  await ensureTauriApi();
+  return invoke<void>("ensure_system_prompts_layout", { workspacePath });
+}
+
 export async function readProjectState(workspacePath: string): Promise<string | null> {
   await ensureTauriApi();
   return invoke<string | null>("read_project_state", { workspacePath });

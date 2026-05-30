@@ -1,10 +1,16 @@
 import path from "node:path";
+import type { Plugin } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, loadEnv } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { sveltePhosphorOptimize } from "phosphor-svelte/vite";
 
 const devPort = Number(process.env.VITE_PORT ?? process.env.PORT ?? 14200);
+
+/** `@tailwindcss/vite` uses `enforce: "pre"`; Svelte must run in the same phase first. */
+function preSvelte(): Plugin[] {
+  return svelte().map((plugin) => ({ ...plugin, enforce: "pre" as const }));
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -16,8 +22,8 @@ export default defineConfig(({ mode }) => {
   return {
   /** VS Code icon pack and other shipped static assets (`static/icon-packs/…`). */
   publicDir: path.resolve(import.meta.dirname, "static"),
-  /** Svelte must run before `@tailwindcss/vite` so `.svelte` files are not parsed as raw CSS (fixes "Invalid declaration: onMount"). */
-  plugins: [svelte(), sveltePhosphorOptimize(), tailwindcss()],
+  /** Svelte `pre` before Tailwind `pre` so `*.svelte?lang.css` is extracted CSS, not raw SFC source. */
+  plugins: [...preSvelte(), sveltePhosphorOptimize(), ...tailwindcss()],
   define: {
     __TINYLLAMA_ENV_DEEPSEEK_API_KEY__: JSON.stringify(deepseekApiKey),
     __TINYLLAMA_ENV_ANTHROPIC_API_KEY__: JSON.stringify(anthropicApiKey),

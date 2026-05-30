@@ -1,6 +1,7 @@
 import { writable } from "svelte/store";
 import type { ChatBackend } from "./settings";
 import { probeOllama, probeLlamacpp } from "../providerHealth";
+import { ollamaAuthHeaders } from "../ollamaClient";
 
 export type StatusDot = "green" | "red" | "yellow" | "idle";
 
@@ -43,6 +44,7 @@ export async function pollBackendHealth(input: {
   chatBackend: ChatBackend;
   selectedModel: string;
   ollamaEndpoint: string;
+  ollamaApiKey?: string;
   llamacppEndpoint: string;
   llamacppApiKey?: string;
   anthropicApiKey: string;
@@ -52,6 +54,7 @@ export async function pollBackendHealth(input: {
     chatBackend,
     selectedModel,
     ollamaEndpoint,
+    ollamaApiKey,
     llamacppEndpoint,
     llamacppApiKey,
     anthropicApiKey,
@@ -59,8 +62,9 @@ export async function pollBackendHealth(input: {
   } = input;
 
   if (chatBackend === "ollama") {
-    const h = await probeOllama(ollamaEndpoint);
+    const h = await probeOllama(ollamaEndpoint, ollamaApiKey);
     const base = ollamaEndpoint.replace(/\/$/, "");
+    const ollamaHeaders = ollamaAuthHeaders(ollamaApiKey);
     if (h.dot === "red") {
       return { backend: "ollama", dot: "red", label: "Ollama", detail: h.detail };
     }
@@ -68,7 +72,10 @@ export async function pollBackendHealth(input: {
       return { backend: "ollama", dot: "yellow", label: "Ollama", detail: h.detail };
     }
     try {
-      const tagsRes = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(8_000) });
+      const tagsRes = await fetch(`${base}/api/tags`, {
+        headers: ollamaHeaders,
+        signal: AbortSignal.timeout(8_000),
+      });
       const tagsJson = (await tagsRes.json()) as { models?: { name: string }[] };
       const names = (tagsJson.models ?? []).map((m) => m.name);
       if (ollamaTagMatches(names, selectedModel)) {

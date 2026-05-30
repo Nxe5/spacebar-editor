@@ -44,6 +44,10 @@ export interface ChatSession {
   title: string;
   messages: Message[];
   updatedAt: number;
+  /** ISO timestamp of the last compaction (spec 21). */
+  compactedAt?: string;
+  /** Number of times this session has been compacted. */
+  compactionCount?: number;
   /** Set when the session lives in history (last closed time). */
   closedAt?: number;
 }
@@ -254,6 +258,24 @@ function createChatStore() {
       });
     },
     /** Drop the user message and everything after it (for rewind / resend). */
+    applyCompaction: (messages: Message[]) => {
+      update((s) => {
+        const aid = s.activeSessionId;
+        if (!aid) return s;
+        const now = new Date().toISOString();
+        const sessions = s.sessions.map((sess) => {
+          if (sess.id !== aid) return sess;
+          return {
+            ...sess,
+            messages,
+            compactedAt: now,
+            compactionCount: (sess.compactionCount ?? 0) + 1,
+            updatedAt: Date.now(),
+          };
+        });
+        return { ...s, sessions, isStreaming: false, currentToolCall: null };
+      });
+    },
     truncateBeforeUserMessage: (userMessageId: string) => {
       update((s) => {
         const aid = s.activeSessionId;

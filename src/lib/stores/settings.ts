@@ -94,39 +94,40 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
 
 const SETTINGS_STORAGE_KEY = "tinyllama.settings.v3";
 
-function createSettingsStore() {
-  type SettingsState = {
-    schemaVersion: 3;
-    apiKeys: {
-      anthropic: string;
-      deepseek: string;
-      openai: string;
-    };
-    chatBackend: ChatBackend;
-    ollamaEndpoint: string;
-    llamacppEndpoint: string;
-    llamacppApiKey: string;
-    selectedModel: string;
-    lastOllamaModelId: string;
-    ollamaModels: ModelConfig[];
-    llamacppModels: ModelConfig[];
-    anthropicModels: ModelConfig[];
-    deepseekModels: ModelConfig[];
-    anthropicCatalogFetched: boolean;
-    deepseekCatalogFetched: boolean;
-    anthropicExtendedThinking: boolean;
-    workbenchTheme: WorkbenchThemeId;
-    anthropicContextBudget: number | null;
-    webFetchAllowedHosts: string[];
-    agentLimits: AgentLimits;
-    agentCompaction: AgentCompactionSettings;
-    autocomplete: AutocompleteSettings;
-    modelRoles: ModelRoleOverrides;
-    ollamaServerTemplate: OllamaServerTemplate;
-    llamacppServerTemplate: LlamacppServerTemplate;
-    editor: EditorSettings;
+export type SettingsState = {
+  schemaVersion: 3;
+  apiKeys: {
+    anthropic: string;
+    deepseek: string;
+    openai: string;
   };
+  chatBackend: ChatBackend;
+  ollamaEndpoint: string;
+  ollamaApiKey: string;
+  llamacppEndpoint: string;
+  llamacppApiKey: string;
+  selectedModel: string;
+  lastOllamaModelId: string;
+  ollamaModels: ModelConfig[];
+  llamacppModels: ModelConfig[];
+  anthropicModels: ModelConfig[];
+  deepseekModels: ModelConfig[];
+  anthropicCatalogFetched: boolean;
+  deepseekCatalogFetched: boolean;
+  anthropicExtendedThinking: boolean;
+  workbenchTheme: WorkbenchThemeId;
+  anthropicContextBudget: number | null;
+  webFetchAllowedHosts: string[];
+  agentLimits: AgentLimits;
+  agentCompaction: AgentCompactionSettings;
+  autocomplete: AutocompleteSettings;
+  modelRoles: ModelRoleOverrides;
+  ollamaServerTemplate: OllamaServerTemplate;
+  llamacppServerTemplate: LlamacppServerTemplate;
+  editor: EditorSettings;
+};
 
+function createSettingsStore() {
   const DEFAULT_WEB_FETCH_HOSTS = [
     "github.com",
     "raw.githubusercontent.com",
@@ -143,6 +144,7 @@ function createSettingsStore() {
     },
     chatBackend: "ollama",
     ollamaEndpoint: "http://127.0.0.1:11434",
+    ollamaApiKey: "",
     llamacppEndpoint: DEFAULT_LLAMACPP_ENDPOINT,
     llamacppApiKey: "",
     selectedModel: "llama3.2:1b",
@@ -171,12 +173,14 @@ function createSettingsStore() {
       ...defaultState.apiKeys,
       ...(parsed.apiKeys ?? {}),
     });
+    const modelRoles = normalizeModelRoles(parsed.modelRoles);
     return {
       ...defaultState,
       ...parsed,
       schemaVersion: 3,
       apiKeys: api,
       ollamaEndpoint: parsed.ollamaEndpoint ?? defaultState.ollamaEndpoint,
+      ollamaApiKey: parsed.ollamaApiKey ?? defaultState.ollamaApiKey,
       llamacppEndpoint: parsed.llamacppEndpoint ?? defaultState.llamacppEndpoint,
       llamacppApiKey: parsed.llamacppApiKey ?? defaultState.llamacppApiKey,
       lastOllamaModelId: parsed.lastOllamaModelId ?? defaultState.lastOllamaModelId,
@@ -198,9 +202,9 @@ function createSettingsStore() {
             ? parsed.anthropicContextBudget
             : defaultState.anthropicContextBudget,
       agentLimits: normalizeAgentLimits(parsed.agentLimits),
-      agentCompaction: normalizeAgentCompaction(parsed.agentCompaction),
+      modelRoles,
+      agentCompaction: normalizeAgentCompaction(parsed.agentCompaction, modelRoles.compaction),
       autocomplete: normalizeAutocompleteSettings(parsed.autocomplete),
-      modelRoles: normalizeModelRoles(parsed.modelRoles),
       ollamaServerTemplate: normalizeOllamaServerTemplate(parsed.ollamaServerTemplate),
       llamacppServerTemplate: normalizeLlamacppServerTemplate(parsed.llamacppServerTemplate),
       editor: normalizeEditorSettings(parsed.editor),
@@ -275,6 +279,12 @@ function createSettingsStore() {
       update((state) => ({
         ...state,
         ollamaEndpoint: endpoint,
+      }));
+    },
+    setOllamaApiKey: (key: string) => {
+      update((state) => ({
+        ...state,
+        ollamaApiKey: key,
       }));
     },
     setLlamacppEndpoint: (endpoint: string) => {
@@ -371,7 +381,15 @@ function createSettingsStore() {
       });
     },
     setLlamacppModels: (models: ModelConfig[]) => {
-      update((state) => ({ ...state, llamacppModels: models }));
+      update((state) => {
+        let selectedModel = state.selectedModel;
+        if (state.chatBackend === "llamacpp" && models.length > 0) {
+          if (!models.some((m) => m.id === selectedModel)) {
+            selectedModel = models[0]!.id;
+          }
+        }
+        return { ...state, llamacppModels: models, selectedModel };
+      });
     },
     setAnthropicModels: (models: ModelConfig[]) => {
       update((state) => {
@@ -460,7 +478,10 @@ function createSettingsStore() {
     setAgentCompaction: (agentCompaction: Partial<AgentCompactionSettings>) => {
       update((state) => ({
         ...state,
-        agentCompaction: normalizeAgentCompaction({ ...state.agentCompaction, ...agentCompaction }),
+        agentCompaction: normalizeAgentCompaction(
+          { ...state.agentCompaction, ...agentCompaction },
+          state.modelRoles.compaction
+        ),
       }));
     },
     setAutocompleteSettings: (autocomplete: Partial<AutocompleteSettings>) => {

@@ -340,6 +340,7 @@ pub fn run_shell(
 
 const TINYLLAMA_DIR: &str = ".tinyllama";
 const SYSTEM_PROMPT_FILE: &str = "prompt.md";
+const PROMPTS_DIR: &str = "prompts";
 const PROJECT_STATE_FILE: &str = "state.json";
 
 fn tinyllama_dir(workspace_path: &str) -> Result<PathBuf, String> {
@@ -357,6 +358,14 @@ fn ensure_tinyllama_dir(workspace_path: &str) -> Result<PathBuf, String> {
             .map_err(|e| format!("Failed to create .tinyllama directory: {e}"))?;
     }
     Ok(dir)
+}
+
+#[tauri::command]
+pub fn ensure_system_prompts_layout(workspace_path: String) -> Result<(), String> {
+    let dir = ensure_tinyllama_dir(&workspace_path)?;
+    let prompts_dir = dir.join(PROMPTS_DIR);
+    std::fs::create_dir_all(&prompts_dir)
+        .map_err(|e| format!("Failed to create .tinyllama/prompts directory: {e}"))
 }
 
 #[tauri::command]

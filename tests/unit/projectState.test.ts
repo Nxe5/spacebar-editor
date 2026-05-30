@@ -32,8 +32,8 @@ vi.mock("../../src/lib/stores/toolPolicy", () => ({
   reloadProjectTools: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../../src/lib/stores/systemPrompt", () => ({
-  systemPrompt: { load: vi.fn().mockResolvedValue(undefined) },
+vi.mock("../../src/lib/stores/systemPrompts", () => ({
+  systemPrompts: { load: vi.fn().mockResolvedValue(undefined) },
 }));
 
 describe("projectState", () => {
