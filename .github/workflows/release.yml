@@ -56,15 +56,13 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             libssl-dev \
-            patchelf
+            patchelf \
+            squashfs-tools
 
       - run: pnpm install
 
       - name: Run tests
         run: pnpm test
-
-      - name: Generate app icons
-        run: pnpm tauri icon src-tauri/icons/icon.png
 
       - name: Build & publish release
         uses: tauri-apps/tauri-action@v0
@@ -72,7 +70,25 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: Tiny Llama ${{ github.ref_name }}
-          releaseDraft: true
+          releaseName: "Sidebar Editor ${{ github.ref_name }}"
+          releaseBody: |
+            ## Sidebar Editor ${{ github.ref_name }}
+
+            ### Install
+
+            | Platform | File |
+            |----------|------|
+            | Linux | `.AppImage` (portable) or `.deb` (Debian/Ubuntu) |
+            | macOS | `.dmg` (universal — Apple Silicon + Intel) |
+            | Windows | `.msi` installer |
+
+            ### CLI usage
+            ```
+            sidebar <file>        # open file, all panes collapsed
+            sidebar <directory>   # open project folder
+            ```
+
+            > **Migration:** project data is stored in `.sidebar/` inside your workspace.
+          releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.args }}
