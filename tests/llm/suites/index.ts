@@ -13,6 +13,10 @@ import { suite as s12 } from "./12-agent-git";
 import { suite as s13 } from "./13-agent-search";
 import { suite as s14 } from "./14-agent-shell";
 import { suite as s15 } from "./15-stress-repetition";
+import { suite as s16 } from "./16-gemma-tool-calling";
+import { suite as s17 } from "./17-gemma-local-project";
+import { suite as s18 } from "./18-gemma-weakness-probe";
+import { suite as s19 } from "./19-gemma-project-build";
 import type { LLMSuite } from "../types";
 
 export const allSuites: LLMSuite[] = [
@@ -31,6 +35,10 @@ export const allSuites: LLMSuite[] = [
   s13,
   s14,
   s15,
+  s16,
+  s17,
+  s18,
+  s19,
 ];
 
 export function findSuite(id: string): LLMSuite | undefined {

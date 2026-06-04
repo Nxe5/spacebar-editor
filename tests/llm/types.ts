@@ -1,6 +1,19 @@
 import type { Message as ProviderMessage } from "../../src/lib/providers/openaiCompat";
 import type { Tool } from "../../src/lib/providers/openaiCompat";
 
+export type ArtifactCheck = {
+  id: string;
+  pass: boolean;
+  detail?: string;
+};
+
+export type ProjectVerifyResult = {
+  pass: boolean;
+  message?: string;
+  score: number;
+  checks: ArtifactCheck[];
+};
+
 export type EvalMode = "chat" | "plan" | "agent";
 
 export interface EvalMessage {
@@ -19,10 +32,18 @@ export interface LLMTestCase {
   expectedBehavior: string;
   tags: string[];
   repeat?: number;
+  /** Category for analysis grouping (e.g. tool-calling, local-project). */
+  category?: string;
+  /** Include in profile smoke runs when tagged gemma-smoke. */
+  smoke?: boolean;
   /** Run before this test (e.g. seed plan files). */
   setup?: (ctx: EvalRunContext) => Promise<void>;
   /** Expected tool names for agent/plan tests (objective pass/fail signal). */
   expectedTools?: string[];
+  /** Override harness max agent steps (project builds need more). */
+  maxAgentSteps?: number;
+  /** Objective artifact checks after the run (HTML structure, files on disk, etc.). */
+  verify?: (ctx: EvalRunContext) => Promise<ProjectVerifyResult>;
 }
 
 export interface LLMSuite {
@@ -38,6 +59,15 @@ export interface ToolCallRecord {
   durationMs: number;
   success: boolean;
   errorMessage?: string;
+  /** True when the call was recovered from assistant text (text fallback). */
+  recoveredFromText?: boolean;
+}
+
+export interface LLMTestMetrics {
+  textToolRecoveries: number;
+  toolSuccessRate: number;
+  avgToolDurationMs: number;
+  failedToolNames: string[];
 }
 
 export interface LLMTestResult {
@@ -58,6 +88,10 @@ export interface LLMTestResult {
   errorMessage?: string;
   humanScore?: 1 | 2 | 3 | 4 | 5;
   humanNotes?: string;
+  metrics?: LLMTestMetrics;
+  /** Objective artifact verification (project build suites). */
+  artifactChecks?: ArtifactCheck[];
+  artifactScore?: number;
 }
 
 export interface EvalRunContext {

@@ -10,6 +10,8 @@ export type AgentCompactionSettings = {
   compactThreshold: number;
   /** Raw messages kept after compaction. */
   compactKeepRecentTurns: number;
+  /** Tool result messages kept verbatim after compaction (may extend the kept window). */
+  compactKeepRecentToolMessages: number;
 };
 
 export const DEFAULT_AGENT_COMPACTION: AgentCompactionSettings = {
@@ -18,11 +20,13 @@ export const DEFAULT_AGENT_COMPACTION: AgentCompactionSettings = {
   useActiveChatModel: true,
   compactThreshold: 0.85,
   compactKeepRecentTurns: 6,
+  compactKeepRecentToolMessages: 5,
 };
 
 export const AGENT_COMPACTION_BOUNDS = {
   compactThreshold: { min: 0.5, max: 0.95 },
   compactKeepRecentTurns: { min: 2, max: 20 },
+  compactKeepRecentToolMessages: { min: 0, max: 20 },
 } as const;
 
 function clampNum(value: unknown, min: number, max: number, fallback: number): number {
@@ -55,6 +59,14 @@ export function normalizeAgentCompaction(
         AGENT_COMPACTION_BOUNDS.compactKeepRecentTurns.min,
         AGENT_COMPACTION_BOUNDS.compactKeepRecentTurns.max,
         DEFAULT_AGENT_COMPACTION.compactKeepRecentTurns
+      )
+    ),
+    compactKeepRecentToolMessages: Math.round(
+      clampNum(
+        base.compactKeepRecentToolMessages,
+        AGENT_COMPACTION_BOUNDS.compactKeepRecentToolMessages.min,
+        AGENT_COMPACTION_BOUNDS.compactKeepRecentToolMessages.max,
+        DEFAULT_AGENT_COMPACTION.compactKeepRecentToolMessages
       )
     ),
   };

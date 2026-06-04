@@ -24,7 +24,15 @@
   import { skills } from "$lib/stores/skills";
   import { buildActiveSkillBlocks } from "$lib/skills/activeSkills";
   import type { VariableContext } from "$lib/skills/skillVariables";
-  import { gitCurrentBranch } from "$lib/ipc";
+  import { gitCurrentBranch, pathExists } from "$lib/ipc";
+  import { cloudApiKeysForStream } from "$lib/apiSecrets";
+  import {
+    nestedScaffoldNoticeMessage,
+    shouldFlagNestedScaffold,
+    topLevelDirFromWritePath,
+    topLevelDirsFromShellCommand,
+  } from "$lib/agent/nestedScaffoldNotice";
+  import { resolveWorkspacePath } from "$lib/tools/pathUtils";
   import { normalizeFilePath } from "$lib/fsPath";
   import {
     countTokens,
@@ -99,6 +107,7 @@ import {
   import {
     isReadOnlyTool,
     isToolRunCapReached,
+    toolCountsTowardRunCap,
     perTurnToolCap,
     shouldContinueAgentStep,
     type AgentLimits,
@@ -337,6 +346,7 @@ import {
   let showAnthropicInModelMenu = $derived(
     cloudProviderMenuReady(
       $settings.apiKeys.anthropic,
+      $settings.cloudApiKeyStored.anthropic,
       $settings.anthropicModels,
       $settings.anthropicCatalogFetched
     )
@@ -345,6 +355,7 @@ import {
   let showDeepseekInModelMenu = $derived(
     cloudProviderMenuReady(
       $settings.apiKeys.deepseek,
+      $settings.cloudApiKeyStored.deepseek,
       $settings.deepseekModels,
       $settings.deepseekCatalogFetched
     )
@@ -631,6 +642,7 @@ import {
         settings: st,
         messages: session.messages,
         keepRecent,
+        keepRecentToolMessages: st.agentCompaction.compactKeepRecentToolMessages,
         thresholdPercent,
       });
       chat.applyCompaction(newMessages);
@@ -698,22 +710,22 @@ import {
   }
 
   async function syncCloudCatalogOnce() {
+    const { getCloudApiKey } = await import("$lib/apiSecrets");
     const st = get(settings);
-    if (
-      st.apiKeys.anthropic.trim().length >= 20 &&
-      !st.anthropicCatalogFetched
-    ) {
+    const anthropicKey = await getCloudApiKey("anthropic");
+    if (anthropicKey.length >= 20 && !st.anthropicCatalogFetched) {
       try {
-        const rows = await fetchAnthropicModelCatalog(st.apiKeys.anthropic);
+        const rows = await fetchAnthropicModelCatalog(anthropicKey);
         settings.setAnthropicModels(mergeCloudModelCatalog(st.anthropicModels, rows));
       } catch (e) {
         console.warn("Anthropic model catalog:", e);
       }
     }
     const st2 = get(settings);
-    if (st2.apiKeys.deepseek.trim().length >= 20 && !st2.deepseekCatalogFetched) {
+    const deepseekKey = await getCloudApiKey("deepseek");
+    if (deepseekKey.length >= 20 && !st2.deepseekCatalogFetched) {
       try {
-        const rows = await fetchDeepseekModelCatalog(st2.apiKeys.deepseek);
+        const rows = await fetchDeepseekModelCatalog(deepseekKey);
         settings.setDeepseekModels(mergeCloudModelCatalog(st2.deepseekModels, rows));
       } catch (e) {
         console.warn("DeepSeek model catalog:", e);
@@ -949,21 +961,65 @@ import {
     paths: string[];
   };
 
+  async function maybeNotifyNestedScaffold(
+    workspacePath: string,
+    toolName: string,
+    args: Record<string, unknown>,
+    success: boolean,
+    notified: Set<string>
+  ): Promise<void> {
+    if (!success || !workspacePath) return;
+    const checkDir = async (dir: string) => {
+      if (!dir || notified.has(dir)) return;
+      const flagged = await shouldFlagNestedScaffold(workspacePath, dir, async (p) => {
+        try {
+          return await pathExists(p);
+        } catch {
+          return false;
+        }
+      });
+      if (!flagged) return;
+      notified.add(dir);
+      toast.info(nestedScaffoldNoticeMessage(dir), { duration: 10000 });
+    };
+    if (toolName === "run_shell" && typeof args.command === "string") {
+      for (const dir of topLevelDirsFromShellCommand(args.command, workspacePath)) {
+        await checkDir(dir);
+      }
+    }
+    if (
+      (toolName === "write_file" || toolName === "create_file") &&
+      typeof args.path === "string"
+    ) {
+      try {
+        const resolved = resolveWorkspacePath(workspacePath, args.path);
+        const dir = topLevelDirFromWritePath(workspacePath, resolved);
+        if (dir) await checkDir(dir);
+      } catch {
+        /* ignore bad paths */
+      }
+    }
+  }
+
   async function runOneTool(
     tc: StoredToolCall,
     args: Record<string, unknown>,
     workspacePath: string,
     webFetchAllowedHosts: string[],
-    readFileMaxLines: number | undefined
+    readFileMaxLines: number | undefined,
+    nestedScaffoldNotified?: Set<string>
   ): Promise<ToolExecResult> {
     patchLiveTurn((t) =>
       upsertLiveTool(t, { id: tc.id, name: tc.name, input: args, status: "running" })
     );
+    const st = get(settings);
     const result = await executeTool(tc.name, args, workspacePath, {
       webFetchAllowedHosts,
       readFileMaxLines,
       onNetworkRetryExhausted: (msg) => toast.error(msg, { duration: 5000 }),
       readOnly: get(workspaceReadOnly),
+      lspToolTimeout: st.agentLimits.lspToolTimeout,
+      lspWorkspaceSymbolTimeout: st.agentLimits.lspWorkspaceSymbolTimeout,
     });
     await syncUiAfterFilesystemTool(workspacePath, tc.name, args, result.success);
     const toolResult: ToolExecResult = {
@@ -985,6 +1041,15 @@ import {
         paths: toolResult.paths,
       })
     );
+    if (nestedScaffoldNotified) {
+      await maybeNotifyNestedScaffold(
+        workspacePath,
+        tc.name,
+        args,
+        toolResult.success,
+        nestedScaffoldNotified
+      );
+    }
     return toolResult;
   }
 
@@ -994,7 +1059,9 @@ import {
     webFetchAllowedHosts: string[],
     readFileMaxLines: number | undefined,
     maxConcurrent: number,
-    runCounter: { executed: number }
+    runCounter: { executed: number },
+    limits: AgentLimits,
+    nestedScaffoldNotified?: Set<string>
   ): Promise<ToolExecResult[]> {
     if (batch.length === 0) return [];
     const out: ToolExecResult[] = [];
@@ -1002,11 +1069,18 @@ import {
       const chunk = batch.slice(i, i + maxConcurrent);
       const chunkResults = await Promise.all(
         chunk.map(({ tc, args }) =>
-          runOneTool(tc, args, workspacePath, webFetchAllowedHosts, readFileMaxLines)
+          runOneTool(
+            tc,
+            args,
+            workspacePath,
+            webFetchAllowedHosts,
+            readFileMaxLines,
+            nestedScaffoldNotified
+          )
         )
       );
       for (const r of chunkResults) {
-        runCounter.executed++;
+        if (toolCountsTowardRunCap(r.name, limits)) runCounter.executed++;
         out.push(r);
       }
     }
@@ -1025,6 +1099,7 @@ import {
       readFileMaxLines?: number;
       parallelToolCalls?: boolean;
       stallTracker?: StallTracker;
+      nestedScaffoldNotified?: Set<string>;
     }
   ): Promise<{
     results: ToolExecResult[];
@@ -1044,7 +1119,9 @@ import {
         webFetchAllowedHosts,
         options?.readFileMaxLines,
         limits.maxConcurrentTools,
-        runCounter
+        runCounter,
+        limits,
+        options?.nestedScaffoldNotified
       );
       for (const r of batchResults) {
         results.push(r);
@@ -1076,7 +1153,10 @@ import {
         args = {};
       }
 
-      if (isToolRunCapReached(runCounter.executed, limits)) {
+      if (
+        isToolRunCapReached(runCounter.executed, limits) &&
+        toolCountsTowardRunCap(tc.name, limits)
+      ) {
         await flushBatch();
         hitRunCap = true;
         results.push({
@@ -1090,7 +1170,7 @@ import {
         continue;
       }
 
-      if (toolIsDenied(policy, tc.name)) {
+      if (toolIsDenied(policy, tc.name, args)) {
         results.push({
           id: tc.id,
           name: tc.name,
@@ -1102,7 +1182,7 @@ import {
         continue;
       }
 
-      if (toolNeedsUserApproval(policy, tc.name)) {
+      if (toolNeedsUserApproval(policy, tc.name, args)) {
         await flushBatch();
         toolApprovalChoice = "allow";
         toolApprovalMenuOpen = false;
@@ -1146,15 +1226,23 @@ import {
         await flushBatch();
         chat.setToolCall({ id: tc.id, tool: tc.name, input: args, status: "running" });
         const toolResult = await runOneTool(
-          tc, args, workspacePath, webFetchAllowedHosts, options?.readFileMaxLines
+          tc,
+          args,
+          workspacePath,
+          webFetchAllowedHosts,
+          options?.readFileMaxLines,
+          options?.nestedScaffoldNotified
         );
         chat.setToolCall(null);
-        runCounter.executed++;
+        if (toolCountsTowardRunCap(tc.name, limits)) runCounter.executed++;
         results.push(toolResult);
         options?.stallTracker?.resetOnProgress(tc.name, args);
       }
 
-      if (isToolRunCapReached(runCounter.executed, limits)) {
+      if (
+        isToolRunCapReached(runCounter.executed, limits) &&
+        toolCountsTowardRunCap(tc.name, limits)
+      ) {
         hitRunCap = true;
       }
     }
@@ -1211,6 +1299,8 @@ import {
     const contextWindow = agentContextWindow(st);
     const readFileMaxLines = resolveReadFileMaxLines(st.readFileCap, contextWindow);
     const stallTracker = new StallTracker();
+    const nestedScaffoldNotified = new Set<string>();
+    const streamApiKeys = await cloudApiKeysForStream();
     let parseAttempts = 0;
     let step = 0;
     liveTurn = createLiveTurn();
@@ -1245,7 +1335,7 @@ import {
 
         const creds = resolveStreamCredentials({
           backend: st.chatBackend,
-          apiKeys: st.apiKeys,
+          apiKeys: streamApiKeys,
           ollamaEndpoint: st.ollamaEndpoint,
           ollamaApiKey: st.ollamaApiKey,
           llamacppEndpoint: st.llamacppEndpoint,
@@ -1407,6 +1497,7 @@ import {
             readFileMaxLines,
             parallelToolCalls: modelSettings.parallelToolCalls,
             stallTracker,
+            nestedScaffoldNotified,
           }
         );
         hitRunCap = toolRound.hitRunCap;
@@ -1449,7 +1540,7 @@ import {
         streamingContent = "";
         const synthCreds = resolveStreamCredentials({
           backend: st.chatBackend,
-          apiKeys: st.apiKeys,
+          apiKeys: streamApiKeys,
           ollamaEndpoint: st.ollamaEndpoint,
           ollamaApiKey: st.ollamaApiKey,
           llamacppEndpoint: st.llamacppEndpoint,

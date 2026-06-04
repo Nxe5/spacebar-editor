@@ -335,6 +335,96 @@ export const TOOL_DEFINITIONS: Record<string, Tool> = {
       },
     },
   },
+
+  lsp_find_references: {
+    type: "function",
+    function: {
+      name: "lsp_find_references",
+      description:
+        "Find all references to a symbol at a file position using the language server. More accurate than grep — handles renames, overloads, and cross-file type relationships.",
+      parameters: {
+        type: "object",
+        properties: {
+          file: { type: "string", description: "Workspace-relative file path" },
+          line: { type: "integer", description: "1-based line number" },
+          character: { type: "integer", description: "1-based character column" },
+          symbol: { type: "string", description: "Optional symbol label for output" },
+          include_declaration: {
+            type: "boolean",
+            description: "Include the declaration site (default false)",
+          },
+        },
+        required: ["file", "line", "character"],
+      },
+    },
+  },
+
+  lsp_go_to_definition: {
+    type: "function",
+    function: {
+      name: "lsp_go_to_definition",
+      description: "Resolve the definition location of a symbol at a given file position.",
+      parameters: {
+        type: "object",
+        properties: {
+          file: { type: "string", description: "Workspace-relative file path" },
+          line: { type: "integer", description: "1-based line number" },
+          character: { type: "integer", description: "1-based character column" },
+          symbol: { type: "string", description: "Optional symbol label for output" },
+        },
+        required: ["file", "line", "character"],
+      },
+    },
+  },
+
+  lsp_document_symbols: {
+    type: "function",
+    function: {
+      name: "lsp_document_symbols",
+      description:
+        "List symbols (functions, classes, methods, variables) in a file without reading full contents.",
+      parameters: {
+        type: "object",
+        properties: {
+          file: { type: "string", description: "Workspace-relative file path" },
+        },
+        required: ["file"],
+      },
+    },
+  },
+
+  lsp_workspace_symbols: {
+    type: "function",
+    function: {
+      name: "lsp_workspace_symbols",
+      description: "Search for symbols by name across the workspace.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Symbol name or substring to search" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+
+  lsp_get_diagnostics: {
+    type: "function",
+    function: {
+      name: "lsp_get_diagnostics",
+      description:
+        "Get current language server diagnostics (errors and warnings) for a file or the whole workspace.",
+      parameters: {
+        type: "object",
+        properties: {
+          file: {
+            type: "string",
+            description: "Optional workspace-relative file path; omit for workspace-wide diagnostics",
+          },
+        },
+      },
+    },
+  },
 };
 
 export const ALL_TOOL_NAMES = Object.keys(TOOL_DEFINITIONS);
@@ -349,6 +439,11 @@ export const READ_ONLY_TOOLS = [
   "get_git_log",
   "get_git_diff",
   "web_fetch",
+  "lsp_find_references",
+  "lsp_go_to_definition",
+  "lsp_document_symbols",
+  "lsp_workspace_symbols",
+  "lsp_get_diagnostics",
 ];
 
 export const WRITE_TOOLS = [

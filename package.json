@@ -21,7 +21,12 @@
     "test:coverage": "vitest run --coverage",
     "sync-icons": "node scripts/sync-vscode-icons.mjs",
     "eval": "tsx tests/llm/harness.ts",
-    "eval:report": "tsx tests/llm/scripts/open-latest-report.ts"
+    "eval:report": "tsx tests/llm/scripts/open-latest-report.ts",
+    "eval:gemma": "EVAL_PROFILE=gemma-12b tsx tests/llm/harness.ts",
+    "eval:gemma-smoke": "EVAL_PROFILE=gemma-12b tsx tests/llm/harness.ts -- --smoke",
+    "eval:gemma-tools": "EVAL_PROFILE=gemma-12b tsx tests/llm/harness.ts -- --suite 16-gemma-tool-calling",
+    "eval:gemma-build": "EVAL_PROFILE=gemma-12b tsx tests/llm/harness.ts -- --suite 19-gemma-project-build",
+    "eval:gemma-landing": "EVAL_PROFILE=gemma-12b tsx tests/llm/harness.ts -- --test build-landing-01"
   },
   "devDependencies": {
     "@internationalized/date": "^3.12.1",

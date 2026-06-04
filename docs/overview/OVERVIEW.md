@@ -172,6 +172,7 @@ Dev server default port: **14200**. No Node sidecar build step.
 | **[Overview](../overview/OVERVIEW.md)** (this file) | Short status snapshot |
 | **[Architecture](../architecture/ARCHITECTURE.md)** | System design deep dive |
 | **[Specifications](../specs/README.md)** | Detailed specs with completion status |
+| **[Spec 40 — Hardening & agent UX](../specs/40-product-hardening-and-agent-ux.md)** | v0.1.1: keychain, shell patterns, write audit, limits, workspace notice (done); Plan/Step UI (§5) + LSP agent tools (§9) remaining |
 
 ---
 

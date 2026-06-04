@@ -1,4 +1,5 @@
 import type { Tool } from "./providers/openaiCompat";
+import { resolveShellPatternRule, type ShellRules } from "./shellPolicy";
 import { ALL_TOOL_NAMES, TOOL_DEFINITIONS } from "./tools/toolDefinitions";
 import {
   buildToolDefinition,
@@ -24,6 +25,7 @@ export type CustomToolEntry = {
 export type ToolPolicyState = {
   defaultRule: ToolRule;
   toolRules: Record<string, ToolRule>;
+  shellRules?: ShellRules;
   removedBuiltinTools: string[];
   builtinOverrides: Record<string, BuiltinToolOverride>;
   customTools: CustomToolEntry[];
@@ -50,6 +52,7 @@ export function buildDefaultToolRules(): Record<string, ToolRule> {
 export const DEFAULT_TOOL_POLICY: ToolPolicyState = {
   defaultRule: "allow",
   toolRules: buildDefaultToolRules(),
+  shellRules: { allowPatterns: [], denyPatterns: [] },
   removedBuiltinTools: [],
   builtinOverrides: {},
   customTools: [],
@@ -63,19 +66,46 @@ export type ToolEditorPayload = {
   builtin: boolean;
 };
 
-export function resolveToolRule(state: ToolPolicyState, toolName: string): ToolRule {
+export function shellCommandFromInput(
+  toolName: string,
+  input: Record<string, unknown> | undefined
+): string | null {
+  if (toolName !== "run_shell" || !input) return null;
+  const cmd = input.command;
+  return typeof cmd === "string" ? cmd : null;
+}
+
+export function resolveToolRule(
+  state: ToolPolicyState,
+  toolName: string,
+  input?: Record<string, unknown>
+): ToolRule {
+  const shellCmd = shellCommandFromInput(toolName, input);
+  if (shellCmd != null) {
+    const patternRule = resolveShellPatternRule(state.shellRules, shellCmd);
+    if (patternRule === "deny") return "deny";
+    if (patternRule === "allow") return "allow";
+  }
   const custom = state.customTools.find((t) => t.name === toolName);
   if (custom) return custom.rule;
   if (state.toolRules[toolName] != null) return state.toolRules[toolName];
   return state.defaultRule;
 }
 
-export function toolNeedsUserApproval(state: ToolPolicyState, toolName: string): boolean {
-  return resolveToolRule(state, toolName) === "ask";
+export function toolNeedsUserApproval(
+  state: ToolPolicyState,
+  toolName: string,
+  input?: Record<string, unknown>
+): boolean {
+  return resolveToolRule(state, toolName, input) === "ask";
 }
 
-export function toolIsDenied(state: ToolPolicyState, toolName: string): boolean {
-  return resolveToolRule(state, toolName) === "deny";
+export function toolIsDenied(
+  state: ToolPolicyState,
+  toolName: string,
+  input?: Record<string, unknown>
+): boolean {
+  return resolveToolRule(state, toolName, input) === "deny";
 }
 
 export function setToolRule(
@@ -321,6 +351,7 @@ export function migrateLegacyToolPolicy(
   return {
     defaultRule: "ask",
     toolRules: Object.fromEntries(ALL_TOOL_NAMES.map((n) => [n, "ask" as ToolRule])),
+    shellRules: { allowPatterns: [], denyPatterns: [] },
     removedBuiltinTools: [],
     builtinOverrides: {},
     customTools: [],

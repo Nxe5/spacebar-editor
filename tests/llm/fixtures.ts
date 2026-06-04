@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { EVAL_CONFIG } from "./config";
+import { seedBaselineFixtures } from "./fixture-baseline";
 
 const execFileAsync = promisify(execFile);
 
@@ -44,6 +45,7 @@ export async function setupFixtures(force = false): Promise<void> {
   }
 
   await fs.mkdir(EVAL_CONFIG.fixturesDir, { recursive: true });
+  await seedBaselineFixtures();
   await fs.mkdir(path.join(EVAL_CONFIG.fixturesDir, "plans"), { recursive: true });
 
   const gitDir = path.join(EVAL_CONFIG.fixturesDir, ".git");

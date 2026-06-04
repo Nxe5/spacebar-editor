@@ -49,6 +49,11 @@ const TOOL_LABELS: Record<string, string> = {
   run_tests: "Tests",
   web_fetch: "Fetched",
   parse_error: "Parse error",
+  lsp_find_references: "LSP refs",
+  lsp_go_to_definition: "LSP def",
+  lsp_document_symbols: "LSP symbols",
+  lsp_workspace_symbols: "LSP search",
+  lsp_get_diagnostics: "LSP diag",
 };
 
 export function toolActivityLabel(toolName: string): string {

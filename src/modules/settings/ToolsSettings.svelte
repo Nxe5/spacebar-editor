@@ -2,6 +2,7 @@
   import { get } from "svelte/store";
   import { settings, AGENT_LIMIT_BOUNDS, READ_FILE_CAP_BOUNDS } from "$lib/stores/settings";
   import { toolPolicy as toolPolicyStore } from "$lib/stores/toolPolicy";
+  import { normalizeShellRules } from "$lib/shellPolicy";
   import { listManagedTools, type ToolRule } from "$lib/toolPolicy";
   import GearIcon from "phosphor-svelte/lib/GearIcon";
 
@@ -28,14 +29,42 @@
   }: Props = $props();
 
   const initial = get(settings);
+  const policyInitial = get(toolPolicyStore);
   let maxAgentSteps = $state(initial.agentLimits.maxAgentSteps);
   let maxToolCallsPerRun = $state(initial.agentLimits.maxToolCallsPerRun);
   let maxToolsPerTurn = $state(initial.agentLimits.maxToolsPerTurn);
   let parallelExecution = $state(initial.agentLimits.parallelExecution);
   let maxConcurrentTools = $state(initial.agentLimits.maxConcurrentTools);
+  let lspToolTimeout = $state(initial.agentLimits.lspToolTimeout);
+  let lspWorkspaceSymbolTimeout = $state(initial.agentLimits.lspWorkspaceSymbolTimeout);
+  let lspToolsCountTowardLimit = $state(initial.agentLimits.lspToolsCountTowardLimit);
   let readFileCapMode = $state(initial.readFileCap.mode);
   let readFileCapMaxLines = $state(initial.readFileCap.maxLines);
   let readFileCapMaxPercent = $state(initial.readFileCap.maxPercent);
+
+  let shellAllowText = $state(
+    (policyInitial.shellRules?.allowPatterns ?? []).join("\n")
+  );
+  let shellDenyText = $state(
+    (policyInitial.shellRules?.denyPatterns ?? []).join("\n")
+  );
+
+  function persistShellRules() {
+    const lines = (text: string) =>
+      text
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+    toolPolicyStore.setShellRules(
+      normalizeShellRules({
+        allowPatterns: lines(shellAllowText),
+        denyPatterns: lines(shellDenyText),
+      })
+    );
+    const saved = $toolPolicyStore.shellRules ?? { allowPatterns: [], denyPatterns: [] };
+    shellAllowText = saved.allowPatterns.join("\n");
+    shellDenyText = saved.denyPatterns.join("\n");
+  }
 
   function persistAgentLimits() {
     settings.setAgentLimits({
@@ -44,6 +73,9 @@
       maxToolsPerTurn,
       parallelExecution,
       maxConcurrentTools,
+      lspToolTimeout,
+      lspWorkspaceSymbolTimeout,
+      lspToolsCountTowardLimit,
     });
     const saved = get(settings).agentLimits;
     maxAgentSteps = saved.maxAgentSteps;
@@ -51,6 +83,9 @@
     maxToolsPerTurn = saved.maxToolsPerTurn;
     parallelExecution = saved.parallelExecution;
     maxConcurrentTools = saved.maxConcurrentTools;
+    lspToolTimeout = saved.lspToolTimeout;
+    lspWorkspaceSymbolTimeout = saved.lspWorkspaceSymbolTimeout;
+    lspToolsCountTowardLimit = saved.lspToolsCountTowardLimit;
   }
 
   function persistReadFileCap() {
@@ -70,7 +105,8 @@
   <p class="group-label">Agent limits</p>
   <p class="note">
     Optional caps for Plan and Agent modes on a single user message.
-    <strong>0 = unlimited</strong> (default). The agent loop otherwise stops when the
+    <strong>0 = unlimited</strong> (opt-in). New installs use bounded defaults (local: 40 steps).
+    The agent loop otherwise stops when the
     model finishes or the <strong>context budget</strong> for the active model is full
     (see context meter in chat). Compaction options are under
     <button type="button" class="linkish" onclick={() => onNavigate("experimental-compaction")}>
@@ -147,6 +183,38 @@
     </label>
   {/if}
 
+  <p class="group-label">LSP agent tools</p>
+  <p class="note muted">
+    Timeouts for <code class="inline-code">lsp_*</code> tools (references, definitions, symbols, diagnostics).
+  </p>
+  <label class="field">
+    <span class="name">LSP query timeout (ms)</span>
+    <input
+      type="number"
+      class="input"
+      min={AGENT_LIMIT_BOUNDS.lspToolTimeout.min}
+      max={AGENT_LIMIT_BOUNDS.lspToolTimeout.max}
+      bind:value={lspToolTimeout}
+      onchange={persistAgentLimits}
+    />
+  </label>
+  <label class="field">
+    <span class="name">LSP workspace symbol timeout (ms)</span>
+    <input
+      type="number"
+      class="input"
+      min={AGENT_LIMIT_BOUNDS.lspWorkspaceSymbolTimeout.min}
+      max={AGENT_LIMIT_BOUNDS.lspWorkspaceSymbolTimeout.max}
+      bind:value={lspWorkspaceSymbolTimeout}
+      onchange={persistAgentLimits}
+    />
+  </label>
+  <label class="field">
+    <span class="name">LSP tools count toward run limit</span>
+    <input type="checkbox" bind:checked={lspToolsCountTowardLimit} onchange={persistAgentLimits} />
+    <span class="hint">When off, LSP queries do not consume the max tool calls per run budget.</span>
+  </label>
+
   <p class="group-label">read_file cap</p>
   <p class="note muted">
     Limits how many lines the agent can read per <code class="inline-code">read_file</code> call
@@ -204,6 +272,33 @@
       <option value="allow">Allow</option>
       <option value="deny">Deny</option>
     </select>
+  </label>
+
+  <p class="group-label">Shell command patterns</p>
+  <p class="note muted">
+    For <code class="inline-code">run_shell</code> only. One JavaScript regex per line.
+    <strong>Deny</strong> patterns run first, then <strong>allow</strong>, then the per-tool rule above.
+    Example allow: <code class="inline-code">^pnpm test</code>, <code class="inline-code">^cargo test</code>.
+  </p>
+  <label class="field">
+    <span class="name">Auto-allow (regex)</span>
+    <textarea
+      class="input textarea"
+      rows="3"
+      bind:value={shellAllowText}
+      onchange={persistShellRules}
+      placeholder="^pnpm test&#10;^npm run build"
+    ></textarea>
+  </label>
+  <label class="field">
+    <span class="name">Always deny (regex)</span>
+    <textarea
+      class="input textarea"
+      rows="2"
+      bind:value={shellDenyText}
+      onchange={persistShellRules}
+      placeholder="\\brm\\s+-rf\\b"
+    ></textarea>
   </label>
 
   <p class="group-label">Tools</p>

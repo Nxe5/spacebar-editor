@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   clampAgentLimits,
-  DEFAULT_AGENT_LIMITS,
+  LOCAL_AGENT_LIMITS,
+  UNLIMITED_AGENT_LIMITS,
+  defaultAgentLimitsForBackend,
   AGENT_LIMIT_BOUNDS,
   isReadOnlyTool,
   READ_ONLY_TOOL_NAMES,
@@ -14,8 +16,9 @@ import {
 import { READ_ONLY_TOOLS } from "../../src/lib/tools/toolDefinitions";
 
 describe("clampAgentLimits", () => {
-  it("returns unlimited defaults for empty input", () => {
-    expect(clampAgentLimits(undefined)).toEqual(DEFAULT_AGENT_LIMITS);
+  it("returns local defaults for empty input via normalize", () => {
+    expect(normalizeAgentLimits(undefined, "ollama")).toEqual(LOCAL_AGENT_LIMITS);
+    expect(normalizeAgentLimits(undefined, "anthropic").maxAgentSteps).toBe(24);
   });
 
   it("clamps values to bounds", () => {
@@ -42,7 +45,24 @@ describe("normalizeAgentLimits", () => {
   it("migrates legacy 12/48 defaults to unlimited", () => {
     expect(
       normalizeAgentLimits({ maxAgentSteps: 12, maxToolCallsPerRun: 48, maxToolsPerTurn: 0 })
-    ).toEqual(DEFAULT_AGENT_LIMITS);
+    ).toEqual(UNLIMITED_AGENT_LIMITS);
+  });
+
+  it("preserves explicit unlimited caps for upgraded users", () => {
+    expect(
+      normalizeAgentLimits({
+        maxAgentSteps: 0,
+        maxToolCallsPerRun: 0,
+        maxToolsPerTurn: 0,
+        parallelExecution: false,
+        maxConcurrentTools: 4,
+      })
+    ).toEqual(UNLIMITED_AGENT_LIMITS);
+  });
+
+  it("defaultAgentLimitsForBackend", () => {
+    expect(defaultAgentLimitsForBackend("ollama").maxAgentSteps).toBe(40);
+    expect(defaultAgentLimitsForBackend("anthropic").maxAgentSteps).toBe(24);
   });
 
   it("keeps explicit non-default caps", () => {
@@ -73,7 +93,7 @@ describe("isReadOnlyTool", () => {
 });
 
 describe("limit helpers", () => {
-  const unlimited = DEFAULT_AGENT_LIMITS;
+  const unlimited = UNLIMITED_AGENT_LIMITS;
   const capped = { maxAgentSteps: 3, maxToolCallsPerRun: 2, maxToolsPerTurn: 1 };
 
   it("isUnlimitedCap", () => {

@@ -5,7 +5,7 @@ import {
   type AgentCompactionSettings,
 } from "../agentCompaction";
 import {
-  DEFAULT_AGENT_LIMITS,
+  defaultAgentLimitsForBackend,
   normalizeAgentLimits,
   type AgentLimits,
 } from "../agentLimits";
@@ -57,7 +57,13 @@ export { DEFAULT_READ_FILE_CAP, READ_FILE_CAP_BOUNDS } from "../readFileCap";
 export type { AgentCompactionSettings };
 export type { AutocompleteSettings };
 export type { ModelRoleOverrides };
-export { DEFAULT_AGENT_LIMITS, AGENT_LIMIT_BOUNDS } from "../agentLimits";
+export {
+  CLOUD_AGENT_LIMITS,
+  LOCAL_AGENT_LIMITS,
+  UNLIMITED_AGENT_LIMITS,
+  defaultAgentLimitsForBackend,
+  AGENT_LIMIT_BOUNDS,
+} from "../agentLimits";
 export {
   DEFAULT_AGENT_COMPACTION,
   AGENT_COMPACTION_BOUNDS,
@@ -123,6 +129,11 @@ export type SettingsState = {
     deepseek: string;
     openai: string;
   };
+  /** Desktop: key lives in OS keychain; never persist secret in localStorage. */
+  cloudApiKeyStored: {
+    anthropic: boolean;
+    deepseek: boolean;
+  };
   chatBackend: ChatBackend;
   ollamaEndpoint: string;
   ollamaApiKey: string;
@@ -168,6 +179,10 @@ function createSettingsStore() {
       deepseek: "",
       openai: "",
     },
+    cloudApiKeyStored: {
+      anthropic: false,
+      deepseek: false,
+    },
     chatBackend: "ollama",
     ollamaEndpoint: "http://127.0.0.1:11434",
     ollamaApiKey: "",
@@ -185,7 +200,7 @@ function createSettingsStore() {
     workbenchTheme: "vscode-dark",
     anthropicContextBudget: null,
     webFetchAllowedHosts: DEFAULT_WEB_FETCH_HOSTS,
-    agentLimits: { ...DEFAULT_AGENT_LIMITS },
+    agentLimits: defaultAgentLimitsForBackend("ollama"),
     agentCompaction: { ...DEFAULT_AGENT_COMPACTION },
     autocomplete: { ...DEFAULT_AUTOCOMPLETE },
     modelRoles: { ...DEFAULT_MODEL_ROLES },
@@ -224,7 +239,15 @@ function createSettingsStore() {
       ...defaultState,
       ...parsed,
       schemaVersion: 4,
-      apiKeys: api,
+      apiKeys: {
+        anthropic: parsed.cloudApiKeyStored?.anthropic ? "" : api.anthropic,
+        deepseek: parsed.cloudApiKeyStored?.deepseek ? "" : api.deepseek,
+        openai: api.openai,
+      },
+      cloudApiKeyStored: {
+        anthropic: parsed.cloudApiKeyStored?.anthropic === true,
+        deepseek: parsed.cloudApiKeyStored?.deepseek === true,
+      },
       ollamaEndpoint: parsed.ollamaEndpoint ?? defaultState.ollamaEndpoint,
       ollamaApiKey: parsed.ollamaApiKey ?? defaultState.ollamaApiKey,
       llamacppEndpoint: parsed.llamacppEndpoint ?? defaultState.llamacppEndpoint,
@@ -252,7 +275,10 @@ function createSettingsStore() {
           : typeof parsed.anthropicContextBudget === "number"
             ? parsed.anthropicContextBudget
             : defaultState.anthropicContextBudget,
-      agentLimits: normalizeAgentLimits(parsed.agentLimits),
+      agentLimits: normalizeAgentLimits(
+        parsed.agentLimits,
+        (parsed.chatBackend as ChatBackend) ?? defaultState.chatBackend
+      ),
       modelRoles,
       agentCompaction: normalizeAgentCompaction(parsed.agentCompaction, modelRoles.compaction),
       autocomplete: normalizeAutocompleteSettings(parsed.autocomplete),
@@ -331,6 +357,13 @@ function createSettingsStore() {
         }
         return { ...state, apiKeys: nextKeys };
       });
+    },
+    setCloudApiKeyStored: (provider: "anthropic" | "deepseek", stored: boolean) => {
+      update((state) => ({
+        ...state,
+        cloudApiKeyStored: { ...state.cloudApiKeyStored, [provider]: stored },
+        apiKeys: { ...state.apiKeys, [provider]: "" },
+      }));
     },
     setOllamaEndpoint: (endpoint: string) => {
       update((state) => ({

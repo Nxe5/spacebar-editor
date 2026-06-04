@@ -36,7 +36,7 @@ pub fn read_file(
 }
 
 #[tauri::command]
-pub fn write_file(path: &str, contents: &str) -> Result<(), String> {
+pub fn write_file(path: &str, contents: &str) -> Result<String, String> {
     write_file_contents(path, contents)
 }
 

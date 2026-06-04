@@ -20,6 +20,9 @@ import type { FileEntry } from "../stores/files";
 import { formatGitLog, formatGitStatus } from "./gitFormat";
 import { unescapeLiteralEscapes } from "../textEscapes";
 import { joinPath, resolvePath, resolveWorkspacePath } from "./pathUtils";
+import { capShellToolOutput } from "./shellOutputSpill";
+import { runLspAgentTool } from "../lsp/lspAgentBridge";
+import { normalizeToolArguments } from "../agent/textToolCalls";
 
 export interface ToolExecutionContext {
   webFetchAllowedHosts?: string[];
@@ -33,6 +36,8 @@ export interface ToolExecutionContext {
   onNetworkRetryExhausted?: (message: string) => void;
   /** When true, mutation tools are blocked (workspace opened read-only). */
   readOnly?: boolean;
+  lspToolTimeout?: number;
+  lspWorkspaceSymbolTimeout?: number;
 }
 
 /** Tools that write or mutate state — blocked in read-only mode. */
@@ -152,8 +157,9 @@ async function runWriteFile(
     return fail("Missing required parameter: content");
   }
   const resolved = resolveWorkspacePath(workspacePath, path);
-  await writeFile(resolved, String(args.content));
-  return ok(`Successfully wrote to ${path}`);
+  const audit = (await writeFile(resolved, String(args.content))).trim();
+  const prefix = audit ? `${audit}\n` : "";
+  return ok(`${prefix}Successfully wrote to ${path}`);
 }
 
 async function runCreateFile(
@@ -169,8 +175,9 @@ async function runCreateFile(
   if (await pathExists(resolved)) {
     return fail(`File already exists: ${path}. Use write_file to overwrite.`);
   }
-  await writeFile(resolved, String(args.content));
-  return ok(`Successfully created ${path}`);
+  const audit = (await writeFile(resolved, String(args.content))).trim();
+  const prefix = audit ? `${audit}\n` : "";
+  return ok(`${prefix}Successfully created ${path}`);
 }
 
 async function runDeleteFile(
@@ -216,9 +223,10 @@ async function runGrep(
   args: Record<string, unknown>,
   workspacePath: string
 ): Promise<ToolResult> {
-  const pattern = requireString(args, "pattern");
+  const normalized = normalizeToolArguments("grep", args);
+  const pattern = requireString(normalized, "pattern");
   if (typeof pattern !== "string") return pattern;
-  const fileGlob = typeof args.file_glob === "string" ? args.file_glob : undefined;
+  const fileGlob = typeof normalized.file_glob === "string" ? normalized.file_glob : undefined;
   const matches = await grepWorkspace(workspacePath, pattern, fileGlob);
 
   if (matches.length === 0) {
@@ -404,9 +412,14 @@ async function runShellCommand(
     await maybeRepairEchoRedirectFile(workspacePath, command);
   }
 
+  const capped = await capShellToolOutput(workspacePath, output, {
+    command,
+    exitCode: result.exit_code,
+  });
+
   return {
     success: result.exit_code === 0,
-    output,
+    output: capped,
   };
 }
 
@@ -432,6 +445,24 @@ async function maybeRepairEchoRedirectFile(
   }
 }
 
+async function runLspTool(
+  name: string,
+  args: Record<string, unknown>,
+  workspacePath: string,
+  context?: ToolExecutionContext
+): Promise<ToolResult> {
+  const result = await runLspAgentTool(
+    name as Parameters<typeof runLspAgentTool>[0],
+    args,
+    workspacePath,
+    {
+      lspToolTimeout: context?.lspToolTimeout ?? 5000,
+      lspWorkspaceSymbolTimeout: context?.lspWorkspaceSymbolTimeout ?? 8000,
+    }
+  );
+  return { success: result.success, output: result.output };
+}
+
 type ToolHandler = (
   args: Record<string, unknown>,
   workspacePath: string,
@@ -455,6 +486,11 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   run_script: runScript,
   web_fetch: runWebFetch,
   run_shell: runShellCommand,
+  lsp_find_references: (a, w, c) => runLspTool("lsp_find_references", a, w, c),
+  lsp_go_to_definition: (a, w, c) => runLspTool("lsp_go_to_definition", a, w, c),
+  lsp_document_symbols: (a, w, c) => runLspTool("lsp_document_symbols", a, w, c),
+  lsp_workspace_symbols: (a, w, c) => runLspTool("lsp_workspace_symbols", a, w, c),
+  lsp_get_diagnostics: (a, w, c) => runLspTool("lsp_get_diagnostics", a, w, c),
 };
 
 export async function executeTool(

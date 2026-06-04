@@ -32,6 +32,10 @@
 | Workbench themes (incl. Rosé Pine) + theme→editor sync | ✅ Done | [13-theming.md](13-theming.md) |
 | Filter custom tools without handlers | ❌ Planned | Tool system cleanup |
 | **Planning system** (`plans/` + file-backed Plan mode) | ❌ Spec ready | [19-planning-system.md](19-planning-system.md) |
+| **Agent activity step grouping** (Plan → steps, not raw shell rows) | 📋 **v0.1.1** | [40](40-product-hardening-and-agent-ux.md) §5 — remaining |
+| **LSP agent tools** (`lsp_find_references`, etc.) | ✅ Done | [41](41-lsp-agent-tools.md) |
+| **Scope-aware shell policy** (`pnpm test` auto-allow, etc.) | ✅ Done | [40](40-product-hardening-and-agent-ux.md) §6 — v0.1.1 |
+| **Nested scaffold notice** (agent created `tester/` inside workspace) | ✅ Done | [40](40-product-hardening-and-agent-ux.md) §4 — v0.1.1 |
 | **Editor wrap + syntax/markdown colors** | ✅ Done | [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.md) |
 | **Prettier (format document / on save)** | ✅ Done | [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.md) |
 
@@ -53,9 +57,11 @@
 
 ## Phase C — Security (Before External Users)
 
+> Full program: [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md)
+
 | Item | Status | Notes |
 |------|--------|-------|
-| Stronghold / keychain | ❌ Not started | Keys never in JS |
+| OS keychain / keyring | ❌ Not started | **P0** — [40](40-product-hardening-and-agent-ux.md) §3; keys never in `localStorage` |
 | LLM calls in Rust | ❌ Not started | `reqwest` + stream events |
 | Production CSP | ❌ Not started | `tauri.conf.json` |
 

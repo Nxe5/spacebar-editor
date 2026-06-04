@@ -24,6 +24,11 @@ const CORE_TOOLS = [
   "run_tests",
   "run_script",
   "web_fetch",
+  "lsp_find_references",
+  "lsp_go_to_definition",
+  "lsp_document_symbols",
+  "lsp_workspace_symbols",
+  "lsp_get_diagnostics",
 ];
 
 describe("toolDefinitions", () => {

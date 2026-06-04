@@ -15,6 +15,7 @@
     runShell,
   } from "$lib/ipc";
   import { invokeSafe } from "$lib/invokeSafe";
+  import { cloudApiKeysForStream } from "$lib/apiSecrets";
   import { streamOneTurn, resolveStreamCredentials } from "$lib/agent/streamTurn";
   import type { GitLogEntry, GitPathStatus } from "$lib/gitTypes";
   import {
@@ -255,7 +256,7 @@
       const st = get(settings);
       const creds = resolveStreamCredentials({
         backend: st.chatBackend,
-        apiKeys: st.apiKeys,
+        apiKeys: await cloudApiKeysForStream(),
         ollamaEndpoint: st.ollamaEndpoint,
         ollamaApiKey: st.ollamaApiKey,
         llamacppEndpoint: st.llamacppEndpoint,

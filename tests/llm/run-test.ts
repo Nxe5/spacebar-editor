@@ -8,20 +8,14 @@ import {
 } from "../../src/lib/agent/conversation";
 import { recoverToolCallsFromText } from "../../src/lib/agent/textToolCalls";
 import { streamOneTurn } from "../../src/lib/agent/streamTurn";
-import { getModeBasePrompt, getModeTools } from "../../src/lib/stores/mode";
-import { DEFAULT_PROVIDER_MODEL_DEFAULTS, usesNativeToolCalls } from "../../src/lib/modelSettings";
+import { getModeTools } from "../../src/lib/stores/mode";
+import { usesNativeToolCalls, type ResolvedModelSettings } from "../../src/lib/modelSettings";
 import { getToolsForNames } from "../../src/lib/tools/toolDefinitions";
 import type { Message as ChatMessage, StoredToolCall } from "../../src/lib/stores/chat";
 import { shouldContinueAgentStep } from "../../src/lib/agentLimits";
+import { resolveEvalSystemPrompt } from "./eval-prompt";
 import { executeEvalTool, type EvalToolContext } from "./eval-tool-runner";
-import type { EvalRunContext, LLMTestCase, LLMTestResult, ToolCallRecord } from "./types";
-
-const PLAN_MODE_PROMPT = `${getModeBasePrompt("plan")}
-
-When the user asks you to create or update a plan, write a markdown file under plans/ with YAML frontmatter:
-- id, status (draft | in_progress | done | blocked), created, updated (ISO dates)
-- A ## Tasks section with GFM checkboxes (- [ ] / - [x])
-- Only write files under plans/ — never modify code outside plans/`;
+import type { EvalRunContext, LLMTestCase, LLMTestMetrics, LLMTestResult, ToolCallRecord } from "./types";
 
 function planExists(workspacePath: string): Promise<boolean> {
   return fs
@@ -38,15 +32,21 @@ function resolveRepetitions(test: LLMTestCase, repetitions: Record<string, numbe
     return repetitions.basic;
   }
   if (test.mode === "plan") return repetitions.agent;
+  if (test.tags.includes("project-build")) return 1;
   if (test.tags.includes("stress")) return repetitions.stress;
   return repetitions.agent;
 }
 
-function resolveSystemPrompt(test: LLMTestCase): string {
-  if (test.systemPrompt) return test.systemPrompt;
-  if (test.mode === "plan") return PLAN_MODE_PROMPT;
-  if (test.mode === "agent") return getModeBasePrompt("agent");
-  return getModeBasePrompt("chat");
+function buildMetrics(toolCalls: ToolCallRecord[], textToolRecoveries: number): LLMTestMetrics | undefined {
+  if (toolCalls.length === 0) return undefined;
+  const successes = toolCalls.filter((t) => t.success).length;
+  const failedToolNames = [...new Set(toolCalls.filter((t) => !t.success).map((t) => t.toolName))];
+  return {
+    textToolRecoveries,
+    toolSuccessRate: successes / toolCalls.length,
+    avgToolDurationMs: toolCalls.reduce((s, t) => s + t.durationMs, 0) / toolCalls.length,
+    failedToolNames,
+  };
 }
 
 function resolveToolNames(test: LLMTestCase): string[] {
@@ -153,6 +153,7 @@ export async function runChatTest(input: {
   model: string;
   ollamaBaseUrl: string;
   workspacePath: string;
+  modelSettings: ResolvedModelSettings;
   timeouts: { firstToken: number; fullResponse: number };
 }): Promise<LLMTestResult> {
   const startedAt = new Date().toISOString();
@@ -164,7 +165,11 @@ export async function runChatTest(input: {
   let timedOut = false;
 
   const history = toChatHistory(input.test.messages);
-  const systemPrompt = resolveSystemPrompt(input.test);
+  const systemPrompt = resolveEvalSystemPrompt({
+    test: input.test,
+    workspacePath: input.workspacePath,
+    modelSettings: input.modelSettings,
+  });
   const providerMessages = buildProviderMessages(systemPrompt, history);
 
   const controller = new AbortController();
@@ -179,7 +184,7 @@ export async function runChatTest(input: {
       systemPrompt,
       messages: providerMessages,
       signal: controller.signal,
-      inferenceOptions: { num_ctx: DEFAULT_PROVIDER_MODEL_DEFAULTS.ollama.contextWindow },
+      inferenceOptions: { num_ctx: input.modelSettings.contextWindow },
       onDelta: () => {
         if (firstTokenMs == null) firstTokenMs = Date.now() - t0;
       },
@@ -228,6 +233,7 @@ export async function runAgentTest(input: {
   model: string;
   ollamaBaseUrl: string;
   workspacePath: string;
+  modelSettings: ResolvedModelSettings;
   timeouts: { firstToken: number; fullResponse: number; toolCall: number; agentRun: number };
   maxAgentSteps: number;
   ctx: EvalRunContext;
@@ -240,6 +246,7 @@ export async function runAgentTest(input: {
   let error: string | undefined;
   let timedOut = false;
   const allToolCalls: ToolCallRecord[] = [];
+  let textToolRecoveries = 0;
   let agentSteps = 0;
 
   if (input.test.setup) {
@@ -249,9 +256,13 @@ export async function runAgentTest(input: {
   const toolNames = resolveToolNames(input.test);
   const tools = getToolsForNames(toolNames);
   const allowed = new Set(toolNames);
-  const modelSettings = DEFAULT_PROVIDER_MODEL_DEFAULTS.ollama;
+  const modelSettings = input.modelSettings;
   const nativeTools = usesNativeToolCalls(modelSettings);
-  const systemPrompt = resolveSystemPrompt(input.test);
+  const systemPrompt = resolveEvalSystemPrompt({
+    test: input.test,
+    workspacePath: input.workspacePath,
+    modelSettings,
+  });
   const toolCtx: EvalToolContext = {
     readFileMaxLines: 500,
     writePrefix: input.test.mode === "plan" ? "plans" : undefined,
@@ -261,7 +272,7 @@ export async function runAgentTest(input: {
   let history = toChatHistory(input.test.messages);
   let providerMessages = buildProviderMessages(systemPrompt, history);
   const agentLimits = {
-    maxAgentSteps: input.maxAgentSteps,
+    maxAgentSteps: input.test.maxAgentSteps ?? input.maxAgentSteps,
     maxToolCallsPerRun: 0,
     maxToolsPerTurn: 0,
   };
@@ -305,11 +316,14 @@ export async function runAgentTest(input: {
       let activeToolCalls = turn!.toolCalls;
       let turnContent = turn!.content;
 
+      let recoveredThisRound = false;
       if (activeToolCalls.length === 0 && allowed.size > 0) {
         const recovered = recoverToolCallsFromText(turnContent, allowed);
         if (recovered.calls.length > 0) {
           activeToolCalls = recovered.calls;
           turnContent = recovered.cleanedText;
+          textToolRecoveries += recovered.calls.length;
+          recoveredThisRound = true;
         }
       }
 
@@ -336,6 +350,9 @@ export async function runAgentTest(input: {
         toolCtx,
         input.timeouts.toolCall
       );
+      for (const r of roundRecords) {
+        if (recoveredThisRound) r.recoveredFromText = true;
+      }
       allToolCalls.push(...roundRecords);
 
       for (const r of roundRecords) {
@@ -366,7 +383,7 @@ export async function runAgentTest(input: {
   }
 
   const planFileCreated = await planExists(input.workspacePath);
-  const outcome = classifyOutcome({
+  let outcome = classifyOutcome({
     response,
     error,
     timedOut,
@@ -376,6 +393,25 @@ export async function runAgentTest(input: {
     workspacePath: input.workspacePath,
     planFileCreated,
   });
+
+  let artifactChecks: LLMTestResult["artifactChecks"];
+  let artifactScore: number | undefined;
+  if (input.test.verify && !error) {
+    try {
+      const verified = await input.test.verify(input.ctx);
+      artifactChecks = verified.checks;
+      artifactScore = verified.score;
+      if (outcome.status === "pass" && !verified.pass) {
+        outcome = {
+          status: "fail",
+          errorMessage: verified.message ?? `Artifact verification failed (${verified.score}%)`,
+        };
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      outcome = { status: "error", errorMessage: `Verify hook failed: ${msg}` };
+    }
+  }
 
   return {
     testId: input.test.id,
@@ -391,6 +427,9 @@ export async function runAgentTest(input: {
     firstTokenMs,
     toolCalls: allToolCalls.length ? allToolCalls : undefined,
     agentSteps: agentSteps || undefined,
+    metrics: buildMetrics(allToolCalls, textToolRecoveries),
+    artifactChecks,
+    artifactScore,
     status: outcome.status,
     errorMessage: outcome.errorMessage,
   };

@@ -9,6 +9,7 @@ export async function compactChatSession(options: {
   settings: SettingsState;
   messages: Message[];
   keepRecent: number;
+  keepRecentToolMessages?: number;
   thresholdPercent: number;
   planContent?: string | null;
   signal?: AbortSignal;
@@ -25,7 +26,13 @@ export async function compactChatSession(options: {
     signal: options.signal,
   });
 
-  return buildCompactedMessages(summary, options.messages, options.keepRecent);
+  return buildCompactedMessages(
+    summary,
+    options.messages,
+    options.keepRecent,
+    options.keepRecentToolMessages ??
+      options.settings.agentCompaction.compactKeepRecentToolMessages
+  );
 }
 
 export async function maybeAutoCompactBeforeTurn(options: {
@@ -55,6 +62,7 @@ export async function maybeAutoCompactBeforeTurn(options: {
     settings: options.settings,
     messages: options.messages,
     keepRecent,
+    keepRecentToolMessages: agentCompaction.compactKeepRecentToolMessages,
     thresholdPercent: thresholdPercent || 85,
     signal: options.signal,
   });

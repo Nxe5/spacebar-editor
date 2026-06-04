@@ -2,6 +2,7 @@ import { writable, derived, get } from "svelte/store";
 import { loadProjectToolsFile, mergeProjectToolsLayer, type ProjectToolsFile } from "../projectTools";
 import { ALL_TOOL_NAMES } from "../tools/toolDefinitions";
 import { EMPTY_PARAMETERS_JSON } from "../toolSchema";
+import { normalizeShellRules } from "../shellPolicy";
 import {
   DEFAULT_TOOL_POLICY,
   migrateLegacyToolPolicy,
@@ -65,6 +66,7 @@ function loadState(): ToolPolicyState {
         ...DEFAULT_TOOL_POLICY,
         ...parsed,
         toolRules: { ...DEFAULT_TOOL_POLICY.toolRules, ...parsed.toolRules },
+        shellRules: normalizeShellRules(parsed.shellRules),
         builtinOverrides: { ...(parsed.builtinOverrides ?? {}) },
         customTools: normalizeCustomTools(parsed.customTools),
       };
@@ -100,6 +102,14 @@ function createToolPolicyStore() {
     setDefaultRule: (defaultRule: ToolRule) => {
       update((s) => {
         const next = { ...s, defaultRule };
+        persist(next);
+        return next;
+      });
+    },
+
+    setShellRules: (shellRules: ToolPolicyState["shellRules"]) => {
+      update((s) => {
+        const next = { ...s, shellRules: normalizeShellRules(shellRules) };
         persist(next);
         return next;
       });

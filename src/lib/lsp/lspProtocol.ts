@@ -15,6 +15,22 @@ export interface Location {
   range: Range;
 }
 
+export interface DocumentSymbol {
+  name: string;
+  detail?: string;
+  kind?: number;
+  range: Range;
+  selectionRange?: Range;
+  children?: DocumentSymbol[];
+}
+
+export interface SymbolInformation {
+  name: string;
+  kind?: number;
+  location: Location;
+  containerName?: string;
+}
+
 export const DiagnosticSeverity = {
   Error: 1,
   Warning: 2,
@@ -119,6 +135,12 @@ export const DEFAULT_LSP_SERVERS: LspServerConfig[] = [
     command: null,
     args: ["--stdio"],
   },
+  {
+    language: "svelte",
+    enabled: false,
+    command: null,
+    args: ["--stdio"],
+  },
 ];
 
 /** Well-known binary names per language for auto-detection. */
@@ -131,4 +153,5 @@ export const LSP_BINARY_NAMES: Record<string, string> = {
   css: "vscode-css-language-server",
   html: "vscode-html-language-server",
   json: "vscode-json-language-server",
+  svelte: "svelte-language-server",
 };

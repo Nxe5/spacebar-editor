@@ -1,0 +1,9 @@
+{
+  "name": "eval-fixture",
+  "version": "1.0.0",
+  "features": {
+    "auth": true,
+    "logging": false
+  },
+  "tags": ["test", "fixture"]
+}

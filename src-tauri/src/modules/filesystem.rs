@@ -165,18 +165,44 @@ pub fn read_file_ranged(
     })
 }
 
-pub fn write_file_contents(path: &str, contents: &str) -> Result<(), String> {
-    // `fs::write` does not create intermediate directories, so writing to a
-    // nested path like `glass_rainbow/__init__.py` fails with ENOENT when the
-    // parent folder doesn't exist yet. Create the parent chain first so new
-    // files (editor "New file" and the agent's write_file/create_file tools)
-    // land in fresh subdirectories without a separate mkdir step.
-    if let Some(parent) = Path::new(path).parent() {
+/// Ancestor directories that did not exist before this write (deepest-first).
+fn missing_ancestor_dirs(parent: &Path) -> Vec<std::path::PathBuf> {
+    let mut missing = Vec::new();
+    let mut current = Some(parent);
+    while let Some(dir) = current {
+        if dir.as_os_str().is_empty() {
+            break;
+        }
+        if dir.exists() {
+            break;
+        }
+        missing.push(dir.to_path_buf());
+        current = dir.parent();
+    }
+    missing.reverse();
+    missing
+}
+
+/// Write `path`, creating parent directories when needed.
+/// Returns an optional audit line listing directories created (empty if none).
+pub fn write_file_contents(path: &str, contents: &str) -> Result<String, String> {
+    let file_path = Path::new(path);
+    let mut audit = String::new();
+    if let Some(parent) = file_path.parent() {
         if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            let created = missing_ancestor_dirs(parent);
+            if !created.is_empty() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                let listed: Vec<String> = created
+                    .iter()
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .collect();
+                audit = format!("Created directories: {}\n\n", listed.join(", "));
+            }
         }
     }
-    fs::write(path, contents).map_err(|e| e.to_string())
+    fs::write(path, contents).map_err(|e| e.to_string())?;
+    Ok(audit)
 }
 
 pub fn rename_path(from: &str, to: &str) -> Result<(), String> {
@@ -362,7 +388,10 @@ mod write_tests {
         let nested_str = nested.to_string_lossy().to_string();
 
         // Parent dirs do not exist yet — this used to fail with ENOENT.
-        write_file_contents(&nested_str, "print(1)").expect("should create parents and write");
+        let audit = write_file_contents(&nested_str, "print(1)")
+            .expect("should create parents and write");
+        assert!(audit.contains("Created directories:"));
+        assert!(audit.contains("glass_rainbow"));
         assert_eq!(fs::read_to_string(&nested).unwrap(), "print(1)");
 
         let _ = fs::remove_dir_all(&base);

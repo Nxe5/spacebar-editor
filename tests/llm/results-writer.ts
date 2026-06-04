@@ -113,6 +113,15 @@ export class ResultsWriter {
         for (const r of runs) {
           lines.push(`**Run ${r.runIndex}** (${(r.durationMs / 1000).toFixed(1)}s) — ${r.status}`);
           if (r.errorMessage) lines.push(`**Error:** ${r.errorMessage}`);
+          if (r.artifactScore != null) {
+            lines.push(`**Artifact score:** ${r.artifactScore}%`);
+          }
+          if (r.artifactChecks?.length) {
+            lines.push("**Artifact checks:**");
+            for (const c of r.artifactChecks) {
+              lines.push(`  - ${c.pass ? "✅" : "❌"} ${c.id}${c.detail ? ` (${c.detail})` : ""}`);
+            }
+          }
           if (r.toolCalls?.length) {
             lines.push("**Tools called:**");
             for (const [i, tc] of r.toolCalls.entries()) {

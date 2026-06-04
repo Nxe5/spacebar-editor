@@ -10,7 +10,7 @@ See also: `docs/SECRETS.md` (if exists) · Hardening detail in [Enhancement Adde
 
 | Topic | Current Implementation | Status |
 |-------|------------------------|--------|
-| API keys | `localStorage` v3 | 🔶 Working but not ideal |
+| API keys | `localStorage` `sidebar.settings.v4` | 🔶 **P0** — migrate per [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) §3 |
 | LLM HTTP | Webview `fetch` | ✅ Working |
 | CSP | `null` in `tauri.conf.json` | 🔶 Permissive |
 | Path sandbox | TS tools only (`pathUtils.ts`) | 🔶 Partial |
@@ -26,11 +26,11 @@ See also: `docs/SECRETS.md` (if exists) · Hardening detail in [Enhancement Adde
 - Accessible to any JavaScript in the webview
 - Cleared on localStorage clear
 
-### Planned
+### Planned (P0 — [Spec 40](40-product-hardening-and-agent-ux.md) §3)
 
-- OS keychain via **Stronghold** plugin
-- Keys never touch JavaScript
-- Secure retrieval only for LLM calls
+- OS keychain via Tauri **keyring** (Keychain / libsecret / Credential Manager) or **Stronghold**
+- Keys never persisted in `localStorage`; migration on upgrade clears legacy fields
+- Secure retrieval for LLM calls (Rust-held or ephemeral handoff — not devtools-visible storage)
 
 ---
 

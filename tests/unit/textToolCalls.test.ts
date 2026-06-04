@@ -123,6 +123,42 @@ describe("textToolCalls", () => {
     expect(calls).toHaveLength(0);
   });
 
+  it("maps ls alias to list_dir", () => {
+    expect(normalizeToolName("ls")).toBe("list_dir");
+  });
+
+  it("recovers ls alias from json block as list_dir with default path", () => {
+    const ALLOWED_LIST = new Set(["list_dir", "read_file"]);
+    const text = `\`\`\`json
+{"name": "ls", "arguments": {}}
+\`\`\``;
+    const { calls } = recoverToolCallsFromText(text, ALLOWED_LIST);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].name).toBe("list_dir");
+    expect(JSON.parse(calls[0].arguments)).toEqual({ path: "." });
+  });
+
+  it("recovers agent-files-style ls hallucination as list_dir", () => {
+    const ALLOWED = new Set(["read_file", "list_dir", "grep"]);
+    const text = `Okay, I will read the \`sample.ts\` file.
+
+\`\`\`json
+{"name": "ls", "arguments": {}}
+\`\`\``;
+    const { calls } = recoverToolCallsFromText(text, ALLOWED);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].name).toBe("list_dir");
+  });
+
+  it("recovers grep_file_content alias from JSON inside delimited tool_call", () => {
+    const ALLOWED_GREP = new Set(["grep", "run_shell"]);
+    const text = `<|tool_call>call1{"name":"grep_file_content","arguments":{"search_string": "executeTool","directory": "."}}<tool_call|>`;
+    const { calls } = recoverToolCallsFromText(text, ALLOWED_GREP);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].name).toBe("grep");
+    expect(JSON.parse(calls[0].arguments)).toEqual({ search_string: "executeTool", directory: ".", pattern: "executeTool" });
+  });
+
   it("textLooksLikeFakeToolUse detects the delimited token", () => {
     expect(textLooksLikeFakeToolUse("<|tool_call>call:run_shell{}<tool_call|>")).toBe(true);
   });

@@ -65,9 +65,10 @@ export async function readFileRanged(
   });
 }
 
-export async function writeFile(path: string, contents: string): Promise<void> {
+/** Returns an optional audit prefix (e.g. created parent directories) before the write. */
+export async function writeFile(path: string, contents: string): Promise<string> {
   await ensureTauriApi();
-  return invoke<void>("write_file", { path, contents });
+  return invoke<string>("write_file", { path, contents });
 }
 
 export async function getWorkspacePath(): Promise<string> {

@@ -1,5 +1,6 @@
 import type { Message } from "../stores/chat";
 import type { SettingsState } from "../stores/settings";
+import { cloudApiKeysForStream } from "../apiSecrets";
 import { streamOneTurn, resolveStreamCredentials } from "./streamTurn";
 import {
   assertCompactionCredentials,
@@ -87,9 +88,18 @@ ${transcript}${planBlock}
 export function buildCompactedMessages(
   summary: string,
   priorMessages: Message[],
-  keepRecent: number
+  keepRecent: number,
+  keepRecentToolMessages = 5
 ): Message[] {
-  const recent = priorMessages.slice(-keepRecent);
+  let startIdx = Math.max(0, priorMessages.length - keepRecent);
+  const toolIndices = priorMessages
+    .map((m, i) => (m.role === "tool" ? i : -1))
+    .filter((i) => i >= 0);
+  if (toolIndices.length > keepRecentToolMessages) {
+    const earliestToolIdx = toolIndices[toolIndices.length - keepRecentToolMessages];
+    startIdx = Math.min(startIdx, earliestToolIdx);
+  }
+  const recent = priorMessages.slice(startIdx);
   const now = Date.now();
   const userMsg: Message = {
     id: crypto.randomUUID(),
@@ -124,7 +134,7 @@ export async function runCompactionSummary(options: {
 
   const creds = resolveStreamCredentials({
     backend: target.backend,
-    apiKeys: options.settings.apiKeys,
+    apiKeys: await cloudApiKeysForStream(),
     ollamaEndpoint: options.settings.ollamaEndpoint,
     ollamaApiKey: options.settings.ollamaApiKey,
     llamacppEndpoint: options.settings.llamacppEndpoint,

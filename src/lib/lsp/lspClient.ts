@@ -19,7 +19,7 @@ import {
 import type {
   LspMessage, RequestMessage, NotificationMessage,
   ResponseMessage, Diagnostic, Hover, Position,
-  CompletionList,
+  CompletionList, Location, DocumentSymbol, SymbolInformation,
 } from "./lspProtocol";
 import { isResponse, isNotification } from "./lspProtocol";
 
@@ -135,6 +135,63 @@ export class LspClient {
     }
   }
 
+  async references(
+    uri: string,
+    position: Position,
+    includeDeclaration = false,
+    timeoutMs = 5000
+  ): Promise<Location[]> {
+    const result = await this.requestWithTimeout(
+      "textDocument/references",
+      {
+        textDocument: { uri },
+        position,
+        context: { includeDeclaration },
+      },
+      timeoutMs
+    );
+    return Array.isArray(result) ? (result as Location[]) : [];
+  }
+
+  async definition(
+    uri: string,
+    position: Position,
+    timeoutMs = 5000
+  ): Promise<Location | Location[] | null> {
+    const result = await this.requestWithTimeout(
+      "textDocument/definition",
+      { textDocument: { uri }, position },
+      timeoutMs
+    );
+    if (!result) return null;
+    if (Array.isArray(result)) return result as Location[];
+    return result as Location;
+  }
+
+  async documentSymbol(
+    uri: string,
+    timeoutMs = 3000
+  ): Promise<DocumentSymbol[] | SymbolInformation[]> {
+    const result = await this.requestWithTimeout(
+      "textDocument/documentSymbol",
+      { textDocument: { uri } },
+      timeoutMs
+    );
+    return Array.isArray(result) ? result : [];
+  }
+
+  async workspaceSymbol(
+    query: string,
+    timeoutMs = 8000
+  ): Promise<SymbolInformation[]> {
+    const result = await this.requestWithTimeout(
+      "workspace/symbol",
+      { query },
+      timeoutMs
+    );
+    return Array.isArray(result) ? (result as SymbolInformation[]) : [];
+  }
+
   // -------------------------------------------------------------------------
   // Internal
   // -------------------------------------------------------------------------
@@ -150,7 +207,7 @@ export class LspClient {
           hover: { contentFormat: ["markdown", "plaintext"] },
           completion: { completionItem: { documentationFormat: ["markdown", "plaintext"] } },
         },
-        workspace: { workspaceFolders: false },
+        workspace: { workspaceFolders: false, symbol: { dynamicRegistration: false } },
       },
       initializationOptions: null,
     });
@@ -164,6 +221,27 @@ export class LspClient {
       this.pending.set(id, { resolve, reject });
       this.sendRaw(msg);
     });
+  }
+
+  private async requestWithTimeout(
+    method: string,
+    params: unknown,
+    timeoutMs: number
+  ): Promise<unknown> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        this.request(method, params),
+        new Promise((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error(`LSP request timed out after ${timeoutMs}ms`)),
+            timeoutMs
+          );
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   private async notify(method: string, params: unknown): Promise<void> {

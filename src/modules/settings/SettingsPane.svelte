@@ -621,9 +621,10 @@
     closeToolEditor();
   }
 
-  function handleSave() {
-    settings.setApiKey("anthropic", anthropicKey);
-    settings.setApiKey("deepseek", deepseekKey);
+  async function handleSave() {
+    const { saveCloudApiKey } = await import("$lib/apiSecrets");
+    await saveCloudApiKey("anthropic", anthropicKey);
+    await saveCloudApiKey("deepseek", deepseekKey);
     settings.setApiKey("openai", openaiKey);
     settings.setOllamaEndpoint(ollamaEndpoint);
     settings.setOllamaApiKey(ollamaApiKey);

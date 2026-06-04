@@ -2,6 +2,7 @@
   import { lspServers, setLspServer } from "$lib/lsp/lspSettings";
   import { lspServerStatus } from "$lib/lsp/lspStore";
   import { LSP_BINARY_NAMES } from "$lib/lsp/lspProtocol";
+  import { isTauriAvailable } from "$lib/ipc";
 
   const DISPLAY_LANGS: { language: string; label: string; args: string[] }[] = [
     { language: "typescript", label: "TypeScript / JavaScript", args: ["--stdio"] },
@@ -21,20 +22,22 @@
     };
   }
 
-  function statusFor(lang: string): string {
+  function statusFor(lang: string, enabled: boolean): string {
+    if (!isTauriAvailable()) return "desktop only";
     const s = $lspServerStatus.get(lang);
-    if (!s || s === "stopped") return "";
     if (s === "starting") return "starting…";
     if (s === "running") return "running";
-    if (s === "error") return "error";
-    return "";
+    if (s === "error") return "failed to start";
+    if (enabled) return "enabled — open a file to start";
+    return "off";
   }
 
-  function statusClass(lang: string): string {
+  function statusClass(lang: string, enabled: boolean): string {
     const s = $lspServerStatus.get(lang);
     if (s === "running") return "status-dot status-dot--green";
     if (s === "error") return "status-dot status-dot--red";
     if (s === "starting") return "status-dot status-dot--yellow";
+    if (enabled && isTauriAvailable()) return "status-dot status-dot--blue";
     return "";
   }
 </script>
@@ -49,6 +52,9 @@
   <p class="note muted">
     Requires the Sidebar Editor desktop app. Servers are discovered on your
     <code class="inline-code">PATH</code> unless you specify a custom path.
+    <strong>Status</strong> shows whether the server process is running — it stays
+    <em>enabled — open a file to start</em> until you open a matching file in the editor
+    (e.g. a <code class="inline-code">.ts</code> file for TypeScript).
   </p>
 
   <table class="lsp-table">
@@ -63,7 +69,7 @@
     <tbody>
       {#each DISPLAY_LANGS as row (row.language)}
         {@const cfg = configFor(row.language)}
-        {@const status = statusFor(row.language)}
+        {@const status = statusFor(row.language, cfg.enabled)}
         <tr>
           <td class="lang-cell">
             <label class="checkbox-label">
@@ -97,7 +103,7 @@
           </td>
           <td class="status-cell">
             {#if status}
-              <span class={statusClass(row.language)}></span>
+              <span class={statusClass(row.language, cfg.enabled)}></span>
               <span class="status-text">{status}</span>
             {:else}
               <span class="status-text muted">—</span>
@@ -221,6 +227,7 @@
   .status-dot--green  { background: #3fb950; }
   .status-dot--yellow { background: #d29922; }
   .status-dot--red    { background: #f85149; }
+  .status-dot--blue   { background: #58a6ff; }
 
   .status-text { font-size: 11px; color: #888; }
   .status-text.muted { color: #444; }

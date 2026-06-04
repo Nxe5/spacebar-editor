@@ -71,6 +71,8 @@ This directory contains the detailed engineering specifications for Sidebar Edit
 | [34-context-overflow-warnings.md](34-context-overflow-warnings.md) | ✅ Complete | Amber/red context bar states, inline critical warning above composer |
 | [38-parallel-tool-execution.md](38-parallel-tool-execution.md) | ✅ Complete | Concurrent read-only tool execution, max concurrency setting |
 | [39-context-ui-enhancements.md](39-context-ui-enhancements.md) | ✅ Implemented | Segmented context bar, breakdown popover, compaction archive/restore UI |
+| [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) | 🔶 Partial | v0.1.1: keychain, shell patterns, write audit, limits, workspace notice; §5 steps deferred |
+| [41-lsp-agent-tools.md](41-lsp-agent-tools.md) | ✅ Complete | LSP agent tools + shell spill + compaction tool retention |
 
 ### Editor & Git
 
@@ -127,6 +129,7 @@ These were the specs added as part of the competitive enhancement program (`exte
 | [37](37-shortcut-rebinding.md) | Shortcut Rebinding | ✅ Complete |
 | [38](38-parallel-tool-execution.md) | Parallel Tool Execution | ✅ Complete |
 | [39](39-context-ui-enhancements.md) | Context UI Enhancements | ✅ Implemented |
+| [41](41-lsp-agent-tools.md) | LSP Agent Tools | ✅ Complete |
 
 ---
 

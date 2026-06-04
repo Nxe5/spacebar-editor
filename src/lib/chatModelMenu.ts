@@ -10,11 +10,12 @@ export function cloudApiKeyPresent(key: string): boolean {
 /** Cloud provider is listed in the chat model menu after a successful catalog sync. */
 export function cloudProviderMenuReady(
   apiKey: string,
+  keyStoredInKeychain: boolean,
   models: ModelConfig[],
   catalogFetched: boolean
 ): boolean {
   return (
-    cloudApiKeyPresent(apiKey) &&
+    (cloudApiKeyPresent(apiKey) || keyStoredInKeychain) &&
     catalogFetched &&
     modelsVisibleInPicker(models).length > 0
   );

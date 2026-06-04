@@ -4,6 +4,7 @@
   import { settings } from "$lib/stores/settings";
   import { files } from "$lib/stores/files";
   import { activeEditorFile, activeWorkbenchTab } from "$lib/stores/workbench";
+  import { cloudApiKeysForStream } from "$lib/apiSecrets";
   import { backendStatus, pollBackendHealth } from "$lib/stores/backendStatus";
   import { gitCurrentBranch, gitStatus, isTauriAvailable } from "$lib/ipc";
   import {
@@ -102,6 +103,7 @@
   }
 
   async function tick() {
+    const cloudKeys = await cloudApiKeysForStream();
     const line = await pollBackendHealth({
       chatBackend: $settings.chatBackend,
       selectedModel: $settings.selectedModel,
@@ -109,8 +111,8 @@
       ollamaApiKey: $settings.ollamaApiKey,
       llamacppEndpoint: $settings.llamacppEndpoint,
       llamacppApiKey: $settings.llamacppApiKey,
-      anthropicApiKey: $settings.apiKeys.anthropic,
-      deepseekApiKey: $settings.apiKeys.deepseek,
+      anthropicApiKey: cloudKeys.anthropic,
+      deepseekApiKey: cloudKeys.deepseek,
     });
     backendStatus.set(line);
   }
@@ -162,8 +164,8 @@
       $settings.ollamaApiKey,
       $settings.llamacppEndpoint,
       $settings.llamacppApiKey,
-      $settings.apiKeys.anthropic,
-      $settings.apiKeys.deepseek,
+      $settings.cloudApiKeyStored.anthropic,
+      $settings.cloudApiKeyStored.deepseek,
       $files.workspacePath,
     ];
     void tick();

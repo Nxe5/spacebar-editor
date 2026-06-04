@@ -24,11 +24,77 @@ const TOOL_NAME_ALIASES: Record<string, string> = {
   "git status": "get_git_status",
   "git diff": "get_git_diff",
   "git log": "get_git_log",
+  grep_file_content: "grep",
+  grep_files: "grep",
+  grep_content: "grep",
+  search_code: "grep",
+  search_files: "grep",
+  file_search: "find_file",
+  find_files: "find_file",
+  read: "read_file",
+  write: "write_file",
+  list_directory: "list_dir",
+  list_files: "list_dir",
+  ls: "list_dir",
+  dir: "list_dir",
+  ll: "list_dir",
+  run_command: "run_shell",
+  shell: "run_shell",
+  execute_command: "run_shell",
+  find_all_references: "lsp_find_references",
+  find_references: "lsp_find_references",
+  go_to_definition: "lsp_go_to_definition",
+  document_symbols: "lsp_document_symbols",
+  workspace_symbols: "lsp_workspace_symbols",
+  get_diagnostics: "lsp_get_diagnostics",
 };
+
+/** Map common hallucinated argument keys to our tool schemas. */
+export function normalizeToolArguments(
+  toolName: string,
+  args: Record<string, unknown>
+): Record<string, unknown> {
+  const out = { ...args };
+  if (toolName === "grep") {
+    if (out.pattern == null) {
+      const pattern =
+        out.search_string ?? out.query ?? out.search ?? out.text ?? out.term;
+      if (typeof pattern === "string" && pattern.trim()) {
+        out.pattern = pattern;
+      }
+    }
+    if (out.file_glob == null && typeof out.file_pattern === "string") {
+      out.file_glob = out.file_pattern;
+    }
+    if (out.file_glob == null && typeof out.glob === "string") {
+      out.file_glob = out.glob;
+    }
+  }
+  if (toolName === "read_file" && out.path == null && typeof out.file === "string") {
+    out.path = out.file;
+  }
+  if (toolName === "list_dir") {
+    if (out.path == null) {
+      const p = out.directory ?? out.dir ?? out.folder ?? out.pathname;
+      if (typeof p === "string" && p.trim()) out.path = p;
+      else if (Object.keys(out).length === 0) out.path = ".";
+    }
+  }
+  if (toolName === "find_file" && out.glob == null) {
+    const g = out.pattern ?? out.query ?? out.name;
+    if (typeof g === "string") out.glob = g;
+  }
+  if (toolName === "run_shell" && out.command == null) {
+    const cmd = out.cmd ?? out.script ?? out.shell_command;
+    if (typeof cmd === "string") out.command = cmd;
+  }
+  return out;
+}
 
 export function normalizeToolName(raw: string): string {
   const trimmed = raw.trim();
-  const alias = TOOL_NAME_ALIASES[trimmed.toLowerCase()];
+  const lower = trimmed.toLowerCase();
+  const alias = TOOL_NAME_ALIASES[lower] ?? TOOL_NAME_ALIASES[trimmed];
   return alias ?? trimmed;
 }
 
@@ -113,12 +179,14 @@ function toStoredToolCall(obj: Record<string, unknown>, allowedTools: Set<string
   const name = normalizeToolName(rawName);
   if (!allowedTools.has(name)) return null;
 
-  const args =
+  const argsRaw =
     obj.arguments && typeof obj.arguments === "object" && !Array.isArray(obj.arguments)
       ? (obj.arguments as Record<string, unknown>)
       : obj.args && typeof obj.args === "object" && !Array.isArray(obj.args)
         ? (obj.args as Record<string, unknown>)
         : {};
+
+  const args = normalizeToolArguments(name, argsRaw);
 
   return {
     id: `recovered-${crypto.randomUUID()}`,
@@ -170,16 +238,35 @@ export function parseDelimitedArgs(body: string): Record<string, unknown> {
   return args;
 }
 
+/** Extract `[call:]name{args}` or embedded JSON from a delimited chunk. */
+function parseDelimitedToolCallChunk(
+  chunk: string,
+  allowedTools: Set<string>
+): StoredToolCall | null {
+  const jsonStart = chunk.indexOf("{");
+  if (jsonStart >= 0) {
+    for (const { raw } of extractTopLevelJsonObjects(chunk.slice(jsonStart))) {
+      const obj = tryParseObject(raw);
+      if (obj) {
+        const tc = toStoredToolCall(obj, allowedTools);
+        if (tc) return tc;
+      }
+    }
+  }
+  return parseCallExpression(chunk, allowedTools);
+}
+
 /** Extract `[call:]name{args}` from a chunk; returns null if no allowed tool shape found. */
 function parseCallExpression(
   chunk: string,
   allowedTools: Set<string>
 ): StoredToolCall | null {
-  const m = chunk.match(/(?:call\s*[:=])?\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\{([\s\S]*)\})?/);
+  const m = chunk.match(/(?:call\d*\s*[:=])?\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\{([\s\S]*)\})?/);
   if (!m) return null;
   const name = normalizeToolName(m[1]);
   if (!allowedTools.has(name)) return null;
-  const args = m[2] != null ? parseDelimitedArgs(m[2]) : {};
+  const argsRaw = m[2] != null ? parseDelimitedArgs(m[2]) : {};
+  const args = normalizeToolArguments(name, argsRaw);
   return {
     id: `recovered-${crypto.randomUUID()}`,
     name,
@@ -200,7 +287,7 @@ export function extractDelimitedToolCalls(
   const consumed: Array<[number, number]> = [];
 
   for (const block of content.matchAll(DELIMITED_TOOL_CALL)) {
-    const call = parseCallExpression(block[1] ?? "", allowedTools);
+    const call = parseDelimitedToolCallChunk(block[1] ?? "", allowedTools);
     if (call) {
       out.push({ call, raw: block[0] });
       if (block.index != null) consumed.push([block.index, block.index + block[0].length]);

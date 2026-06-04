@@ -241,6 +241,7 @@
     explorerAppearance.init();
     chatAppearance.init();
     workbenchChrome.init();
+    void import("$lib/apiSecrets").then((m) => m.migrateCloudApiKeysFromSettings());
     initProjectStateAutosave();
     const onBeforeUnload = () => {
       void persistCurrentProjectState();

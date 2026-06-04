@@ -1,9 +1,11 @@
 import { readFile, isTauriAvailable } from "./ipc";
+import { normalizeShellRules, type ShellRules } from "./shellPolicy";
 import type { CustomToolEntry, ToolPolicyState, ToolRule } from "./toolPolicy";
 import { EMPTY_PARAMETERS_JSON } from "./toolSchema";
 
 export type ProjectToolsFile = {
   toolRules?: Record<string, ToolRule>;
+  shellRules?: ShellRules;
   customTools?: Array<{
     name: string;
     description: string;
@@ -56,6 +58,9 @@ export function mergeProjectToolsLayer(
   return {
     ...global,
     toolRules: { ...global.toolRules, ...(project.toolRules ?? {}) },
+    shellRules: project.shellRules
+      ? normalizeShellRules(project.shellRules)
+      : global.shellRules,
     customTools,
   };
 }

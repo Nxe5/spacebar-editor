@@ -27,6 +27,7 @@ export type CompactionSettingsSlice = {
   anthropicModels: ModelConfig[];
   deepseekModels: ModelConfig[];
   apiKeys: { anthropic: string; deepseek: string };
+  cloudApiKeyStored?: { anthropic: boolean; deepseek: boolean };
 };
 
 const BACKENDS: StreamChatBackend[] = ["ollama", "llamacpp", "anthropic", "deepseek"];
@@ -157,10 +158,14 @@ export function resolveCompactionTarget(settings: CompactionSettingsSlice): Comp
 }
 
 export function assertCompactionCredentials(settings: CompactionSettingsSlice, backend: StreamChatBackend): void {
-  if (backend === "anthropic" && !settings.apiKeys.anthropic.trim()) {
+  const anthropicOk =
+    settings.apiKeys.anthropic.trim().length > 0 || settings.cloudApiKeyStored?.anthropic === true;
+  const deepseekOk =
+    settings.apiKeys.deepseek.trim().length > 0 || settings.cloudApiKeyStored?.deepseek === true;
+  if (backend === "anthropic" && !anthropicOk) {
     throw new Error("Anthropic API key required for the selected compaction model.");
   }
-  if (backend === "deepseek" && !settings.apiKeys.deepseek.trim()) {
+  if (backend === "deepseek" && !deepseekOk) {
     throw new Error("DeepSeek API key required for the selected compaction model.");
   }
 }
