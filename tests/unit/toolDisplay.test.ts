@@ -21,7 +21,7 @@ describe("toolDisplay", () => {
 
   it("file line resolves workspace-relative path", () => {
     expect(
-      toolFileLine("write_file", { path: "three-little-pigs.md" }, "/mnt/data/git/tiny-llama")
+      toolFileLine("write_file", { path: "three-little-pigs.md" }, "/home/user/my-project")
     ).toBe("three-little-pigs.md");
   });
 
@@ -33,23 +33,23 @@ describe("toolDisplay", () => {
     const paths = pathsFromToolInput(
       "write_file",
       { path: "src/main.ts" },
-      "/mnt/data/git/tiny-llama"
+      "/home/user/my-project"
     );
-    expect(paths).toEqual(["/mnt/data/git/tiny-llama/src/main.ts"]);
+    expect(paths).toEqual(["/home/user/my-project/src/main.ts"]);
   });
 
   it("returns openable paths for successful write", () => {
     const paths = openableFilePaths(
       "write_file",
       { path: "testing.txt" },
-      "/mnt/data/git/tiny-llama",
+      "/home/user/my-project",
       true
     );
-    expect(paths).toEqual(["/mnt/data/git/tiny-llama/testing.txt"]);
+    expect(paths).toEqual(["/home/user/my-project/testing.txt"]);
   });
 
   it("shows workspace-relative labels", () => {
-    expect(workspaceRelativePath("/mnt/data/git/tiny-llama", "/mnt/data/git/tiny-llama/testing.txt")).toBe(
+    expect(workspaceRelativePath("/home/user/my-project", "/home/user/my-project/testing.txt")).toBe(
       "testing.txt"
     );
   });

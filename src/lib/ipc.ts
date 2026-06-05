@@ -32,9 +32,9 @@ function ensureTauriApi(): Promise<void> {
   return apiLoad;
 }
 
-export async function listDir(path: string): Promise<FileEntry[]> {
+export async function listDir(workspaceRoot: string | null, path: string): Promise<FileEntry[]> {
   await ensureTauriApi();
-  return invoke<FileEntry[]>("list_dir", { path });
+  return invoke<FileEntry[]>("list_dir", { workspaceRoot: workspaceRoot ?? null, path });
 }
 
 export interface ReadFileResult {
@@ -46,19 +46,21 @@ export interface ReadFileResult {
   hard_capped: boolean;
 }
 
-export async function readFile(path: string): Promise<string> {
+export async function readFile(workspaceRoot: string | null, path: string): Promise<string> {
   await ensureTauriApi();
-  const result = await invoke<ReadFileResult>("read_file", { path });
+  const result = await invoke<ReadFileResult>("read_file", { workspaceRoot: workspaceRoot ?? null, path });
   return result.content;
 }
 
 export async function readFileRanged(
+  workspaceRoot: string | null,
   path: string,
   startLine?: number,
   maxLines?: number
 ): Promise<ReadFileResult> {
   await ensureTauriApi();
   return invoke<ReadFileResult>("read_file", {
+    workspaceRoot: workspaceRoot ?? null,
     path,
     startLine: startLine ?? null,
     maxLines: maxLines ?? null,
@@ -66,14 +68,14 @@ export async function readFileRanged(
 }
 
 /** Returns an optional audit prefix (e.g. created parent directories) before the write. */
-export async function writeFile(path: string, contents: string): Promise<string> {
+export async function writeFile(workspaceRoot: string | null, path: string, contents: string): Promise<string> {
   await ensureTauriApi();
-  return invoke<string>("write_file", { path, contents });
+  return invoke<string>("write_file", { workspaceRoot: workspaceRoot ?? null, path, contents });
 }
 
-export async function createDir(path: string): Promise<void> {
+export async function createDir(workspaceRoot: string | null, path: string): Promise<void> {
   await ensureTauriApi();
-  await invoke<void>("create_dir", { path });
+  await invoke<void>("create_dir", { workspaceRoot: workspaceRoot ?? null, path });
 }
 
 export async function getWorkspacePath(): Promise<string> {
@@ -175,9 +177,9 @@ export async function gitDiff(repoPath: string, path?: string): Promise<string> 
   return invoke<string>("git_diff", { repoPath, path: path ?? null });
 }
 
-export async function pathExists(path: string): Promise<boolean> {
+export async function pathExists(workspaceRoot: string | null, path: string): Promise<boolean> {
   await ensureTauriApi();
-  return invoke<boolean>("path_exists", { path });
+  return invoke<boolean>("path_exists", { workspaceRoot: workspaceRoot ?? null, path });
 }
 
 export async function gitStage(repoPath: string, path: string): Promise<void> {
@@ -228,14 +230,14 @@ export async function gitIsRepo(repoPath: string): Promise<boolean> {
   return invoke<boolean>("git_is_repo", { repoPath });
 }
 
-export async function renameEntry(from: string, to: string): Promise<void> {
+export async function renameEntry(workspaceRoot: string | null, from: string, to: string): Promise<void> {
   await ensureTauriApi();
-  return invoke<void>("rename_entry", { from, to });
+  return invoke<void>("rename_entry", { workspaceRoot: workspaceRoot ?? null, from, to });
 }
 
-export async function deleteEntry(path: string): Promise<void> {
+export async function deleteEntry(workspaceRoot: string | null, path: string): Promise<void> {
   await ensureTauriApi();
-  return invoke<void>("delete_entry", { path });
+  return invoke<void>("delete_entry", { workspaceRoot: workspaceRoot ?? null, path });
 }
 
 export async function closeAuxiliaryWebviewWindows(): Promise<void> {
@@ -416,12 +418,14 @@ export async function findFiles(
 }
 
 export async function listDirTree(
+  workspaceRoot: string | null,
   path: string,
   maxDepth?: number,
   maxEntries?: number
 ): Promise<FileEntry[]> {
   await ensureTauriApi();
   return invoke<FileEntry[]>("list_dir_tree", {
+    workspaceRoot: workspaceRoot ?? null,
     path,
     maxDepth: maxDepth ?? null,
     maxEntries: maxEntries ?? null,

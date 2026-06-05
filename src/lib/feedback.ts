@@ -22,7 +22,7 @@ export function buildFeedbackMailto(options: {
   body: string;
   appVersion?: string;
 }): string {
-  const subject = `[Sidebar Editor] ${KIND_SUBJECT[options.kind]}`;
+  const subject = `[Spacebar Editor] ${KIND_SUBJECT[options.kind]}`;
   const footer = options.appVersion ? `\n\n—\nApp version: ${options.appVersion}` : "";
   const body = `${options.body.trim()}${footer}`;
   const params = new URLSearchParams({

@@ -65,7 +65,7 @@
 
 <div class="welcome">
   <div class="welcome-card">
-    <h1 class="welcome-title">Sidebar Editor</h1>
+    <h1 class="welcome-title">Spacebar Editor</h1>
     <p class="welcome-subtitle">Local-first AI coding assistant</p>
 
     <div class="action-row">

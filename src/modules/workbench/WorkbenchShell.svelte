@@ -399,7 +399,7 @@
       class="workbench-titlebar__drag"
       data-tauri-drag-region
     >
-      <span class="workbench-titlebar__title" data-tauri-drag-region>Sidebar Editor</span>
+      <span class="workbench-titlebar__title" data-tauri-drag-region>Spacebar Editor</span>
     </div>
     <WindowControls />
   </header>

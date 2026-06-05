@@ -50,7 +50,7 @@
     Changes take effect when you next open a file of that type.
   </p>
   <p class="note muted">
-    Requires the Sidebar Editor desktop app. Servers are discovered on your
+    Requires the Spacebar Editor desktop app. Servers are discovered on your
     <code class="inline-code">PATH</code> unless you specify a custom path.
     <strong>Status</strong> shows whether the server process is running — it stays
     <em>enabled — open a file to start</em> until you open a matching file in the editor

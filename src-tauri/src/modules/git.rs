@@ -128,7 +128,7 @@ pub fn git_commit(repo_path: &str, message: &str) -> Result<String, String> {
     let tree = repo.find_tree(tree_id).map_err(|e| e.to_string())?;
     let sig = repo
         .signature()
-        .or_else(|_| Signature::now("Sidebar Editor", "sidebar@localhost"))
+        .or_else(|_| Signature::now("Spacebar Editor", "spacebar@localhost"))
         .map_err(|e| e.to_string())?;
     let parent = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
     let oid = if let Some(p) = parent {
@@ -227,7 +227,7 @@ pub fn git_create_checkpoint(repo_path: &str, ref_suffix: &str) -> Result<String
     let tree = repo.find_tree(tree_id).map_err(|e| e.to_string())?;
     let sig = repo
         .signature()
-        .or_else(|_| Signature::now("Sidebar Editor", "sidebar@localhost"))
+        .or_else(|_| Signature::now("Spacebar Editor", "spacebar@localhost"))
         .map_err(|e| e.to_string())?;
 
     let oid = repo

@@ -46,8 +46,8 @@ export default defineConfig(({ mode }) => {
   /** Svelte `pre` before Tailwind `pre` so `*.svelte?lang.css` is extracted CSS, not raw SFC source. */
   plugins: [...preSvelte(), sveltePhosphorOptimize(), ...tailwindcss()],
   define: {
-    __TINYLLAMA_ENV_DEEPSEEK_API_KEY__: JSON.stringify(deepseekApiKey),
-    __TINYLLAMA_ENV_ANTHROPIC_API_KEY__: JSON.stringify(anthropicApiKey),
+    __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__: JSON.stringify(deepseekApiKey),
+    __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__: JSON.stringify(anthropicApiKey),
   },
   clearScreen: false,
   resolve: {

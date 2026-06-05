@@ -26,7 +26,7 @@ export type PromptsWorkspaceSnapshot = {
 
 async function readConfigFile(workspacePath: string): Promise<SystemPromptsConfig | null> {
   try {
-    const raw = await readFile(promptsConfigPath(workspacePath));
+    const raw = await readFile(workspacePath, promptsConfigPath(workspacePath));
     return normalizePromptsConfig(JSON.parse(raw));
   } catch {
     return null;
@@ -35,7 +35,7 @@ async function readConfigFile(workspacePath: string): Promise<SystemPromptsConfi
 
 async function writeConfigFile(workspacePath: string, config: SystemPromptsConfig): Promise<void> {
   await ensureSystemPromptsLayout(workspacePath);
-  await writeFile(promptsConfigPath(workspacePath), `${JSON.stringify(config, null, 2)}\n`);
+  await writeFile(workspacePath, promptsConfigPath(workspacePath), `${JSON.stringify(config, null, 2)}\n`);
 }
 
 async function writePromptFile(
@@ -44,7 +44,7 @@ async function writePromptFile(
   content: string
 ): Promise<void> {
   await ensureSystemPromptsLayout(workspacePath);
-  await writeFile(promptFilePath(workspacePath, entry.filename), content);
+  await writeFile(workspacePath, promptFilePath(workspacePath, entry.filename), content);
 }
 
 function configIsInitialized(
@@ -70,7 +70,7 @@ export async function readPromptsWorkspace(workspacePath: string): Promise<Promp
   const contents: Record<string, string> = {};
   for (const entry of config.prompts) {
     try {
-      contents[entry.filename] = await readFile(promptFilePath(workspacePath, entry.filename));
+      contents[entry.filename] = await readFile(workspacePath, promptFilePath(workspacePath, entry.filename));
     } catch {
       /* missing file */
     }
@@ -110,7 +110,7 @@ export async function initializePromptFiles(workspacePath: string): Promise<Prom
       entry.enabled = true;
     }
     try {
-      await readFile(promptFilePath(workspacePath, entry.filename));
+      await readFile(workspacePath, promptFilePath(workspacePath, entry.filename));
     } catch {
       await writePromptFile(workspacePath, entry, content);
     }
@@ -166,7 +166,7 @@ export async function savePromptFileContent(
 export async function deletePromptFile(workspacePath: string, entry: SystemPromptEntry): Promise<void> {
   const path = promptFilePath(workspacePath, entry.filename);
   try {
-    await deleteEntry(path);
+    await deleteEntry(workspacePath, path);
   } catch {
     /* ignore missing */
   }

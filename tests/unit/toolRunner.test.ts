@@ -86,6 +86,7 @@ describe("toolRunner", () => {
         const result = await executeTool("read_file", { path: "src/file.ts" }, workspacePath);
         expect(result.success).toBe(true);
         expect(mockReadFileRanged).toHaveBeenCalledWith(
+          workspacePath,
           "/test/workspace/src/file.ts",
           1,
           500
@@ -101,33 +102,33 @@ describe("toolRunner", () => {
 
     describe("write_file", () => {
       it("writes file with content", async () => {
-        mockWriteFile.mockResolvedValue(undefined);
+        mockWriteFile.mockResolvedValue("");
         const result = await executeTool(
           "write_file",
           { path: "output.txt", content: "hello" },
           workspacePath
         );
         expect(result.success).toBe(true);
-        expect(mockWriteFile).toHaveBeenCalledWith("/test/workspace/output.txt", "hello");
+        expect(mockWriteFile).toHaveBeenCalledWith(workspacePath, "/test/workspace/output.txt", "hello");
       });
     });
 
     describe("create_file", () => {
       it("maps /filename to workspace root (LLM mistake)", async () => {
         mockPathExists.mockResolvedValue(false);
-        mockWriteFile.mockResolvedValue(undefined);
+        mockWriteFile.mockResolvedValue("");
         const result = await executeTool(
           "create_file",
           { path: "/output.txt", content: "hi" },
           workspacePath
         );
         expect(result.success).toBe(true);
-        expect(mockWriteFile).toHaveBeenCalledWith("/test/workspace/output.txt", "hi");
+        expect(mockWriteFile).toHaveBeenCalledWith(workspacePath, "/test/workspace/output.txt", "hi");
       });
 
       it("creates file when it does not exist", async () => {
         mockPathExists.mockResolvedValue(false);
-        mockWriteFile.mockResolvedValue(undefined);
+        mockWriteFile.mockResolvedValue("");
         const result = await executeTool(
           "create_file",
           { path: "new.txt", content: "data" },
@@ -155,7 +156,7 @@ describe("toolRunner", () => {
         mockDeleteEntry.mockResolvedValue(undefined);
         const result = await executeTool("delete_file", { path: "old.txt" }, workspacePath);
         expect(result.success).toBe(true);
-        expect(mockDeleteEntry).toHaveBeenCalledWith("/test/workspace/old.txt");
+        expect(mockDeleteEntry).toHaveBeenCalledWith(workspacePath, "/test/workspace/old.txt");
       });
     });
 
@@ -169,6 +170,7 @@ describe("toolRunner", () => {
         );
         expect(result.success).toBe(true);
         expect(mockRenameEntry).toHaveBeenCalledWith(
+          workspacePath,
           "/test/workspace/a.txt",
           "/test/workspace/b.txt"
         );

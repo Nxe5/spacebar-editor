@@ -390,7 +390,7 @@
         await formatActiveBuffer();
       }
       const content = editorView.state.doc.toString();
-      await writeFile(activeFile.path, content);
+      await writeFile(null, activeFile.path, content);
       files.markSaved(activeFile.path);
       window.dispatchEvent(new CustomEvent("sidebar:editor-saved"));
     } catch (e) {

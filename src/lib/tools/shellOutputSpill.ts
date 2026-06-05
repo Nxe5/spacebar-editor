@@ -44,7 +44,7 @@ export function truncateUtf8Logic(text: string, maxBytes: number) {
 
 async function readIndex(workspacePath: string): Promise<RunIndexEntry[]> {
   try {
-    const raw = await readFile(joinPath(workspacePath, INDEX_REL));
+    const raw = await readFile(workspacePath, joinPath(workspacePath, INDEX_REL));
     const parsed = JSON.parse(raw) as RunIndexEntry[];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -56,7 +56,7 @@ async function appendIndex(workspacePath: string, entry: RunIndexEntry): Promise
   const list = await readIndex(workspacePath);
   list.push(entry);
   const trimmed = list.slice(-MAX_INDEX_ENTRIES);
-  await writeFile(joinPath(workspacePath, INDEX_REL), `${JSON.stringify(trimmed, null, 2)}\n`);
+  await writeFile(workspacePath, joinPath(workspacePath, INDEX_REL), `${JSON.stringify(trimmed, null, 2)}\n`);
 }
 
 /**
@@ -73,7 +73,7 @@ export async function capShellToolOutput(
   const id = crypto.randomUUID();
   const logRel = `${RUNS_DIR}/${id}.log`;
   const logAbs = joinPath(workspacePath, logRel);
-  await writeFile(logAbs, fullOutput);
+  await writeFile(workspacePath, logAbs, fullOutput);
   await appendIndex(workspacePath, {
     id,
     tool: "run_shell",

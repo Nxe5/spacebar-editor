@@ -1,4 +1,4 @@
-# Sidebar Editor
+# Spacebar Editor
 
 A local-first desktop AI coding assistant built with **Tauri 2**, **Svelte 5**, and **CodeMirror 6**. Your code stays on your machine. You pick the model. Nothing phones home.
 
@@ -28,7 +28,7 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | Workspace text search (ripgrep, `Cmd+Shift+F`) | Shipped |
 | Filesystem watcher (explorer + git refresh) | Shipped |
 | Editor line wrap + Prettier format / format-on-save | Shipped |
-| Workbench themes (9 presets incl. Rosé Pine) | Shipped |
+| Workbench themes (7 presets incl. Spacebar default) | Shipped |
 | Editor + syntax colors (Appearance settings) | Shipped |
 | Interactive theme preview + workbench-chrome customization | Shipped |
 | Theme → editor/syntax sync on theme change | Shipped |
@@ -39,9 +39,11 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | System prompts manager (`.sidebar/prompts/`) | Shipped |
 | Per-project skills (CRUD UI + variable interpolation) | Shipped |
 | Bundled skill starter pack + global/shared skills registry | Planned |
-| Rust path sandbox (defense in depth) | Planned — TS layer enforces today |
+| Rust path sandbox (defense in depth) | Shipped — TS layer + Rust `canonicalize_workspace_path` |
+| Agent turn undo (↩ Undo last turn) | Shipped — git checkpoint restore |
+| OS keychain for API keys | Shipped — keys never stored in `localStorage` |
+| Production CSP (Tauri `tauri.conf.json`) | Shipped |
 | Cmd+K inline edit | Planned |
-| OS keychain for API keys | Planned |
 
 ---
 
@@ -99,7 +101,7 @@ All providers stream tokens into the chat pane in real time. Local providers (Ol
 | **Shell** | `run_shell`, `run_tests`, `run_script` |
 | **Network** | `web_fetch` (hostname allowlist enforced) |
 
-All tools run inside the opened workspace. Paths are sandboxed by `pathUtils.ts` — `..` traversal and paths outside the project root are rejected before reaching Rust. `write_file` and `create_file` create missing parent directories automatically, so an agent can write `pkg/sub/file.py` in one step.
+All tools run inside the opened workspace. Paths are sandboxed at two layers: `pathUtils.ts` (TypeScript, fast-fail) and `canonicalize_workspace_path` (Rust, resolves symlinks). `..` traversal, absolute paths outside the workspace, and symlink escapes are all rejected before any filesystem operation. `write_file` and `create_file` create missing parent directories automatically, so an agent can write `pkg/sub/file.py` in one step.
 
 Read-only tools (`read_file`, `list_dir`, `find_file`, `get_file_tree`, `grep`, git reads) can run in parallel when **Settings → Tools → Parallel execution** is enabled.
 
@@ -167,7 +169,7 @@ Three independent color systems:
 | **Syntax tokens** | Settings → Appearance → Theme → Syntax |
 | **File icons** | Settings → Appearance → Icons (Seti, VS Code Icons, Codicons, custom pack) |
 
-**Presets:** VS Code Dark (default), Cursor Dark, Catppuccin Mocha, Tokyo Night, One Dark Pro, Sidebar, Dracula, GitHub Dark, **Rosé Pine** (VS Code Dark workbench + Rosé Pine editor/syntax).
+**Presets:** Spacebar (default), Dark Bubblegum, Cursor Dark, Light Paper, Light Cloud, Pink Studio, Blue Nova.
 
 The Appearance → Theme page has an **interactive mini-workbench preview**: click a region (workbench chrome, editor, or syntax) to jump to its color pickers and see edits live. Changing the workbench theme updates the editor surface and syntax colors automatically (clears stale inline overrides). **Sync from theme** repopulates the pickers from the active preset, and **Reset to defaults** clears your overrides.
 
@@ -206,7 +208,7 @@ The git panel is the primary surface for reviewing what the agent changed:
 
 Agent tools that mutate files (`write_file`, `create_file`, `delete_file`, `move_file`) trigger an automatic git panel refresh. Git tools (`get_git_status`, `get_git_log`, `get_git_diff`) are read-only and available in Plan and Agent modes.
 
-**Chat rewind:** before sending a message, the app can snapshot the git tree (checkpoint). Rewinding a message restores the workspace to that checkpoint and truncates chat history from that point.
+**Chat rewind & agent turn undo:** before sending a message the app snapshots the git tree (checkpoint). You can undo the entire last exchange with the **↩ Undo last turn** button that appears above the composer after a turn completes — it restores files to the checkpoint and puts your message back in the composer for editing. You can also click any past user message to edit and resend it.
 
 ---
 
@@ -216,7 +218,8 @@ Agent tools that mutate files (`write_file`, `create_file`, `delete_file`, `move
 
 Stored in `localStorage` under `sidebar.settings.v4` (migrates from v1–v3):
 
-- Provider endpoints, API keys, model lists with per-model context window and tool call settings
+- Provider endpoints, model lists with per-model context window and tool call settings
+- **API keys** are stored in the **OS keychain** (Keychain on macOS, libsecret on Linux, Credential Manager on Windows) — never in `localStorage`. The settings file stores only a `cloudApiKeyStored` flag per provider.
 - Workbench theme, icon theme, editor/syntax/chat/explorer appearance
 - Tool policy defaults, agent limits, parallel execution, web fetch hostname allowlist
 - Compaction settings, model role assignments
@@ -239,7 +242,7 @@ Optional environment variable fallbacks: see `.env.example`.
 | `.sidebar/skills/<id>/` | Project-scoped skills (`skill.json` manifest + `skill.md` body) |
 | `.sidebar/prompt.md` | Legacy single prompt — auto-migrated to `prompts/agent.md` |
 
-Secrets stay in local settings or environment variables — not committed to the repo. See [Security spec](docs/specs/14-security.md).
+API keys stay in the OS keychain — never in the project files or environment variables. See [Security spec](docs/specs/14-security.md).
 
 ---
 
@@ -332,12 +335,12 @@ What is not built yet, in rough priority order:
 
 | Area | Status | Spec |
 |------|--------|------|
+| MLX provider (Apple Silicon `mlx_lm.server`) | Planned — v0.1.3 | [42](docs/specs/42-mlx-provider.md) |
+| Agent activity step grouping | Planned — v0.1.3 | [40](docs/specs/40-product-hardening-and-agent-ux.md) §5 |
 | Skills: bundled starter pack + global/shared registry | Planned (per-project skills shipped) | [29](docs/specs/29-skills-registry.md) · [30](docs/specs/30-agent-context-and-model-settings.md) |
-| Rust path enforcement (symlink escape hardening) | Planned | [33](docs/specs/33-rust-path-enforcement.md) |
 | File-backed planning system (`plans/`) | Planned | [19](docs/specs/19-planning-system.md) |
 | Inline edit / Cmd+K | Planned | [28](docs/specs/28-inline-edit-autocomplete.md) |
 | LSP Phase 2 (go-to-def, rename, more languages) | Planned | [25](docs/specs/25-lsp-diagnostics.md) |
-| OS keychain for API keys | Planned | [14](docs/specs/14-security.md) |
 
 Full roadmap with phasing: [docs/specs/17-roadmap.md](docs/specs/17-roadmap.md).
 

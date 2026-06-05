@@ -94,7 +94,7 @@ async function main() {
 
   await fs.mkdir(EVAL_CONFIG.resultsDir, { recursive: true });
 
-  console.log("\n🦙 Tiny Llama LLM Eval Harness");
+  console.log("\n🦙 Spacebar Editor LLM Eval Harness");
   console.log(`Run ID: ${runId}`);
   if (EVAL_CONFIG.profileLabel) console.log(`Profile: ${EVAL_CONFIG.profileLabel}`);
   console.log(`Model: ${EVAL_CONFIG.model}`);

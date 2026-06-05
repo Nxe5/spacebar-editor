@@ -17,7 +17,7 @@
     if (open) return;
 
     let cancelled = false;
-    void readFile(key)
+    void readFile(null, key)
       .then((content) => {
         if (cancelled) return;
         workbench.openEditorFile({

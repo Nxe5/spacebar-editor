@@ -1,6 +1,6 @@
 import type { LLMSuite } from "../types";
 
-/** Simulates local multi-file project work — the primary use case for Sidebar + Gemma. */
+/** Simulates local multi-file project work — the primary use case for Spacebar Editor + Gemma. */
 export const suite: LLMSuite = {
   id: "17-gemma-local-project",
   title: "Gemma: Local Project Work",

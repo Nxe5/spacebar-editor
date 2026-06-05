@@ -1,4 +1,5 @@
 use crate::modules::filesystem::{
+    canonicalize_workspace_path,
     create_directory, delete_path, find_files as find_files_inner, list_dir_tree as list_dir_tree_inner,
     list_directory, path_exists as path_exists_inner, read_file_ranged,
     rename_path, web_fetch as web_fetch_inner, write_file_contents, FileEntry, ReadFileResult,
@@ -21,43 +22,65 @@ use std::process::Command;
 use std::time::Duration;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
+/// Resolve path with optional workspace enforcement.
+/// When `workspace_root` is `Some` and non-empty, the path must stay inside it.
+/// When `None` or empty, the path is passed through unchanged (non-agent system reads).
+fn resolve_path(workspace_root: Option<&str>, path: &str) -> Result<String, String> {
+    match workspace_root {
+        Some(root) if !root.is_empty() => {
+            let safe = canonicalize_workspace_path(Path::new(root), Path::new(path))?;
+            Ok(safe.to_string_lossy().into_owned())
+        }
+        _ => Ok(path.to_owned()),
+    }
+}
+
 #[tauri::command]
-pub fn list_dir(path: &str) -> Result<Vec<FileEntry>, String> {
-    list_directory(path)
+pub fn list_dir(workspace_root: Option<String>, path: String) -> Result<Vec<FileEntry>, String> {
+    let safe = resolve_path(workspace_root.as_deref(), &path)?;
+    list_directory(&safe)
 }
 
 #[tauri::command]
 pub fn read_file(
-    path: &str,
+    workspace_root: Option<String>,
+    path: String,
     start_line: Option<u32>,
     max_lines: Option<u32>,
 ) -> Result<ReadFileResult, String> {
-    read_file_ranged(path, start_line, max_lines)
+    let safe = resolve_path(workspace_root.as_deref(), &path)?;
+    read_file_ranged(&safe, start_line, max_lines)
 }
 
 #[tauri::command]
-pub fn write_file(path: &str, contents: &str) -> Result<String, String> {
-    write_file_contents(path, contents)
+pub fn write_file(workspace_root: Option<String>, path: String, contents: String) -> Result<String, String> {
+    let safe = resolve_path(workspace_root.as_deref(), &path)?;
+    write_file_contents(&safe, &contents)
 }
 
 #[tauri::command]
-pub fn create_dir(path: String) -> Result<(), String> {
-    create_directory(&path)
+pub fn create_dir(workspace_root: Option<String>, path: String) -> Result<(), String> {
+    let safe = resolve_path(workspace_root.as_deref(), &path)?;
+    create_directory(&safe)
 }
 
 #[tauri::command]
-pub fn rename_entry(from: String, to: String) -> Result<(), String> {
-    rename_path(&from, &to)
+pub fn rename_entry(workspace_root: Option<String>, from: String, to: String) -> Result<(), String> {
+    let safe_from = resolve_path(workspace_root.as_deref(), &from)?;
+    let safe_to = resolve_path(workspace_root.as_deref(), &to)?;
+    rename_path(&safe_from, &safe_to)
 }
 
 #[tauri::command]
-pub fn delete_entry(path: String) -> Result<(), String> {
-    delete_path(&path)
+pub fn delete_entry(workspace_root: Option<String>, path: String) -> Result<(), String> {
+    let safe = resolve_path(workspace_root.as_deref(), &path)?;
+    delete_path(&safe)
 }
 
 #[tauri::command]
-pub fn path_exists(path: String) -> Result<bool, String> {
-    path_exists_inner(&path)
+pub fn path_exists(workspace_root: Option<String>, path: String) -> Result<bool, String> {
+    let safe = resolve_path(workspace_root.as_deref(), &path)?;
+    path_exists_inner(&safe)
 }
 
 #[tauri::command]
@@ -71,11 +94,13 @@ pub fn find_files(
 
 #[tauri::command]
 pub fn list_dir_tree(
+    workspace_root: Option<String>,
     path: String,
     max_depth: Option<usize>,
     max_entries: Option<usize>,
 ) -> Result<Vec<FileEntry>, String> {
-    list_dir_tree_inner(&path, max_depth.unwrap_or(3), max_entries.unwrap_or(500))
+    let safe = resolve_path(workspace_root.as_deref(), &path)?;
+    list_dir_tree_inner(&safe, max_depth.unwrap_or(3), max_entries.unwrap_or(500))
 }
 
 #[tauri::command]
@@ -298,7 +323,7 @@ pub fn open_settings_window(app: AppHandle) -> Result<(), String> {
     }
 
     let _win = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("settings.html".into()))
-        .title("Settings — Sidebar Editor")
+        .title("Settings — Spacebar Editor")
         .inner_size(900.0, 700.0)
         .decorations(false)
         .build()

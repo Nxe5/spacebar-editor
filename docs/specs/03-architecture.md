@@ -6,7 +6,7 @@
 
 ## Agent runtime model (current)
 
-Sidebar Editor does **not** spawn a separate Node process for chat, tools, or provider streaming. That was an earlier design; it is **not** in the repo today (no `sidecar/` package, no harness Tauri commands).
+Spacebar Editor does **not** spawn a separate Node process for chat, tools, or provider streaming. That was an earlier design; it is **not** in the repo today (no `sidecar/` package, no harness Tauri commands).
 
 | Responsibility | Runtime | Key modules |
 |----------------|---------|-------------|

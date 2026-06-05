@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Sidebar Editor",
-  "identifier": "dev.sidebar.editor",
-  "version": "0.1.0",
+  "productName": "Spacebar Editor",
+  "identifier": "dev.spacebar.editor",
+  "version": "0.1.2",
   "build": {
     "beforeDevCommand": "pnpm dev:web",
     "devUrl": "http://127.0.0.1:14200",
@@ -28,7 +28,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Sidebar Editor",
+        "title": "Spacebar Editor",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
@@ -39,7 +39,16 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": {
+        "default-src": "'self' tauri: asset:",
+        "script-src": "'self' 'unsafe-inline' 'unsafe-eval' tauri: asset:",
+        "style-src": "'self' 'unsafe-inline' tauri: asset:",
+        "img-src": "'self' data: tauri: asset: blob:",
+        "font-src": "'self' tauri: asset: data:",
+        "connect-src": "'self' tauri: asset: https://api.anthropic.com https://api.deepseek.com http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
+        "media-src": "'self' tauri: asset: blob:",
+        "worker-src": "'self' blob:"
+      },
       "assetProtocol": {
         "enable": true,
         "scope": ["$DATA/**", "$HOME/**"]

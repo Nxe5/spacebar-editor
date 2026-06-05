@@ -25,7 +25,7 @@ export async function loadProjectToolsFile(
   if (!isTauriAvailable() || !workspacePath) return null;
   const path = projectToolsPath(workspacePath);
   try {
-    const raw = await readFile(path);
+    const raw = await readFile(workspacePath, path);
     const parsed = JSON.parse(raw) as ProjectToolsFile;
     return parsed && typeof parsed === "object" ? parsed : null;
   } catch {

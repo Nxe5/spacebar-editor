@@ -11,7 +11,7 @@ describe("feedback", () => {
     expect(url.startsWith(`mailto:${FEEDBACK_CONTACT_EMAIL}?`)).toBe(true);
     const query = url.split("?")[1] ?? "";
     const params = new URLSearchParams(query);
-    expect(params.get("subject")).toBe("[Sidebar Editor] Bug report");
+    expect(params.get("subject")).toBe("[Spacebar Editor] Bug report");
     expect(params.get("body")).toContain("The chat footer jumps.");
     expect(params.get("body")).toContain("0.1.0");
   });

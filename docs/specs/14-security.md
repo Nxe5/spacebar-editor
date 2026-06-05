@@ -10,10 +10,10 @@ See also: `docs/SECRETS.md` (if exists) · Hardening detail in [Enhancement Adde
 
 | Topic | Current Implementation | Status |
 |-------|------------------------|--------|
-| API keys | `localStorage` `sidebar.settings.v4` | 🔶 **P0** — migrate per [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) §3 |
-| LLM HTTP | Webview `fetch` | ✅ Working |
-| CSP | `null` in `tauri.conf.json` | 🔶 Permissive |
-| Path sandbox | TS tools only (`pathUtils.ts`) | 🔶 Partial |
+| API keys | OS keychain (`keyring`) — `localStorage` cleared after migration | ✅ Complete — [40](40-product-hardening-and-agent-ux.md) §3 |
+| LLM HTTP | Webview `fetch` (keys retrieved from Rust per-request) | ✅ Working |
+| CSP | Strict allowlist in `tauri.conf.json` (Anthropic, DeepSeek, localhost) | ✅ Complete |
+| Path sandbox | TS layer (`pathUtils.ts`) + Rust `canonicalize_workspace_path` | ✅ Complete — [33](33-rust-path-enforcement.md) |
 | Chat XSS | Plain text messages (no markdown HTML) | ✅ Safe |
 
 ---

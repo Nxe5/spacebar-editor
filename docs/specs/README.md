@@ -1,8 +1,8 @@
-# Sidebar Editor — Specifications
+# Spacebar Editor — Specifications
 
-> **Last aligned with codebase:** 2026-06-04 — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
+> **Last aligned with codebase:** 2026-06-05 — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
 
-This directory contains the detailed engineering specifications for Sidebar Editor, organized by domain.
+This directory contains the detailed engineering specifications for Spacebar Editor, organized by domain.
 
 ---
 
@@ -12,7 +12,7 @@ This directory contains the detailed engineering specifications for Sidebar Edit
 |-------|--------|-------------|
 | **Core Features** | ✅ Complete | Workbench, editor, terminal, chat, agent loop |
 | **Git Integration** | ✅ Complete | Status, stage, commit, diff, discard |
-| **Providers** | ✅ Complete | Anthropic, Ollama, llama.cpp, DeepSeek |
+| **Providers** | 🔶 Partial | Anthropic, Ollama, llama.cpp, DeepSeek ✅ · MLX ❌ — [42](42-mlx-provider.md) |
 | **Tools** | ✅ Complete | 16 built-in tools with policy system |
 | **Persistence** | ✅ Complete | Per-project state, global settings |
 | **Context UI** | ✅ Complete | Segmented bar, breakdown popover, compaction archive/restore — [39](39-context-ui-enhancements.md) |
@@ -23,7 +23,7 @@ This directory contains the detailed engineering specifications for Sidebar Edit
 | **Enhancement Program (32–38)** | ✅ Mostly complete | Error recovery, overflow warnings, workspace lock, onboarding, shortcuts, parallel tools — see table below |
 | **LSP** | 🔶 Partial | Rust transport + TS client; diagnostics + hover — [25](25-lsp-diagnostics.md) |
 | **Stall / Error Detection** | 🔶 Partial | `stallDetection.ts` done, wire-up done — [22](22-llm-file-interaction.md) |
-| **Security Hardening** | 🔶 Partial | TS sandbox; Rust path enforcement pending — [14](14-security.md), [33](33-rust-path-enforcement.md) |
+| **Security Hardening** | ✅ Complete | Rust path enforcement, OS keychain, production CSP — [14](14-security.md), [33](33-rust-path-enforcement.md), [40](40-product-hardening-and-agent-ux.md) §3 |
 | **Skills** | ✅ Complete (per-project) | CRUD UI + injection + variable interpolation; bundled pack/registry pending — [30](30-agent-context-and-model-settings.md) |
 | **Planning System** | ❌ Not started | `plans/` files, picker UI — [19](19-planning-system.md) |
 | **Inline edit (Cmd+K)** | ❌ Not started | [28](28-inline-edit-autocomplete.md) |
@@ -63,6 +63,7 @@ This directory contains the detailed engineering specifications for Sidebar Edit
 | [22-llm-file-interaction.md](22-llm-file-interaction.md) | ✅ Phase 0 | `.gitignore` tree filter · `read_file` cap · tool trimming · parse/stall handling |
 | [23-skills-system.md](23-skills-system.md) | ⚠️ Superseded by [30](30-agent-context-and-model-settings.md) | Original skills design (kept for history) |
 | [27-local-model-ux.md](27-local-model-ux.md) | 🔶 Partial | Ollama pull UI current; §2–3 folded into [30](30-agent-context-and-model-settings.md) |
+| [42-mlx-provider.md](42-mlx-provider.md) | ❌ Not started | MLX provider (Apple Silicon) — `mlx_lm.server` OpenAI-compat backend |
 | [28-inline-edit-autocomplete.md](28-inline-edit-autocomplete.md) | ❌ Spec ready | Cmd+K inline edit + ghost-text autocomplete |
 | [29-skills-registry.md](29-skills-registry.md) | ❌ Deferred (P3) | Share/install skills; format-stability obligations now |
 | [30-agent-context-and-model-settings.md](30-agent-context-and-model-settings.md) | ✅ Core complete | Agent Context settings, prompts relocation, per-model settings, assembly preview, **per-project skills CRUD + interpolation** · bundled pack/registry pending |

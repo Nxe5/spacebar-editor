@@ -41,7 +41,7 @@ describe("filesystemSync", () => {
   it("refreshes explorer after create_file", async () => {
     await syncUiAfterFilesystemTool(workspace, "create_file", { path: "new.txt", content: "x" }, true);
 
-    expect(mockListDir).toHaveBeenCalledWith(workspace);
+    expect(mockListDir).toHaveBeenCalledWith(null, workspace);
     const tree = get(files).tree[0]?.children ?? [];
     expect(tree.some((e) => e.name === "new.txt")).toBe(true);
   });
@@ -49,7 +49,7 @@ describe("filesystemSync", () => {
   it("opens new file in editor after create_file", async () => {
     await syncUiAfterFilesystemTool(workspace, "create_file", { path: "new.txt", content: "x" }, true);
 
-    expect(mockReadFile).toHaveBeenCalledWith("/proj/new.txt");
+    expect(mockReadFile).toHaveBeenCalledWith(null, "/proj/new.txt");
     expect(get(files).openFiles.some((f) => f.path === "/proj/new.txt")).toBe(true);
     expect(get(workbench).activeTabId).toBe("editor:/proj/new.txt");
   });

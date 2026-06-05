@@ -48,7 +48,7 @@ function createSystemPromptsStore() {
 
   async function reloadEntryContent(workspacePath: string, filename: string): Promise<void> {
     try {
-      const content = await readFile(promptFilePath(workspacePath, filename));
+      const content = await readFile(workspacePath, promptFilePath(workspacePath, filename));
       update((s) => ({
         ...s,
         contents: { ...s.contents, [filename]: content },

@@ -6,7 +6,7 @@
 
 ## Color Systems Overview
 
-Sidebar Editor has **three independent color systems**:
+Spacebar Editor has **three independent color systems**:
 
 | System | Scope | Customizable | Status |
 |--------|-------|--------------|--------|
@@ -34,17 +34,15 @@ The Appearance → Theme page renders an **interactive mini-workbench preview** 
 
 | Theme ID | Status |
 |----------|--------|
-| `vscode-dark` (default) | ✅ |
+| `spacebar` (default) | ✅ |
+| `dark-bubblegum` | ✅ |
 | `cursor-dark` | ✅ |
-| `catppuccin-mocha` | ✅ |
-| `tokyo-night` | ✅ |
-| `one-dark-pro` | ✅ |
-| `sidebar-editor` | ✅ |
-| `dracula` | ✅ |
-| `github-dark` | ✅ |
-| `rose-pine` | ✅ |
+| `light-paper` | ✅ |
+| `light-cloud` | ✅ |
+| `pink-studio` | ✅ |
+| `blue-nova` | ✅ |
 
-**Rosé Pine** uses VS Code Dark workbench chrome (`--background` `#1e1e1e`) with Rosé Pine editor surface, syntax tokens, and terminal ANSI (from [rose-pine/vscode](https://github.com/rose-pine/vscode)).
+Legacy theme ids (e.g. `vscode-dark`, `rose-pine`, `nxe5`) migrate to `spacebar` via `LEGACY_THEME_ALIASES` in `workbench-theme.ts`.
 
 ### Application Mechanism
 

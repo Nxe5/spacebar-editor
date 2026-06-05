@@ -212,13 +212,13 @@ async function applyLoadedState(state: PersistedProjectState): Promise<void> {
   workbench.replaceProjectState(state.workbench);
 
   if (isTauriAvailable()) {
-    await workbench.hydrateEditorTabs(readFile);
+    await workbench.hydrateEditorTabs((path) => readFile(null, path));
   }
 }
 
 async function loadWorkspaceTree(workspacePath: string): Promise<void> {
   const normalized = normalizeFilePath(workspacePath.trim());
-  const raw = await listDir(normalized);
+  const raw = await listDir(null, normalized);
   const children = raw.map((x) => normalizeFileEntry(x as FileEntry & { isDir?: boolean }));
   files.setTree(buildWorkspaceTree(normalized, children, true));
 }

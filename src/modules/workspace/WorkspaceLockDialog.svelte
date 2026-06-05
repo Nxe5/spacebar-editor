@@ -23,7 +23,7 @@
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="lock-dialog-title" tabindex="-1">
       <h2 id="lock-dialog-title" class="title">Folder already open</h2>
       <p class="body">
-        This folder is already open in another Sidebar Editor window
+        This folder is already open in another Spacebar Editor window
         (PID {info.pid}, opened {minutesAgo(info.timestamp)}).
       </p>
       <p class="body warn">

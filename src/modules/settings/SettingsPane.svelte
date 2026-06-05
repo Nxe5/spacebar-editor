@@ -144,6 +144,8 @@
 
   let anthropicKey = $state("");
   let deepseekKey = $state("");
+  let anthropicKeyFromKeychain = $state(false);
+  let deepseekKeyFromKeychain = $state(false);
   let anthropicModels = $state<ModelConfig[]>([]);
   let deepseekModels = $state<ModelConfig[]>([]);
   let loadingAnthropicCatalog = $state(false);
@@ -168,7 +170,7 @@
   let ollamaContextChoice = $state(8192);
   let llamacppContextChoice = $state(8192);
   let ollamaServerTemplate = $state<OllamaServerTemplate>({
-    modelsPath: "/mnt/data/ollama/models",
+    modelsPath: "~/.ollama/models",
     contextLength: 8192,
     numThreads: 6,
     keepAlive: -1,
@@ -181,7 +183,7 @@
   });
   let llamacppServerTemplate = $state<LlamacppServerTemplate>({
     serviceName: "llamacpp",
-    modelPath: "/mnt/data/llamacpp-models/Qwen2.5-1.5B-Instruct-Q5_K_M.gguf",
+    modelPath: "/path/to/model.gguf",
     host: "127.0.0.1",
     port: 8080,
     context: 8192,
@@ -193,7 +195,7 @@
     flashAttn: true,
     mlock: true,
     jinja: true,
-    user: "Nxe5",
+    user: "user",
   });
   let workbenchTheme = $state<WorkbenchThemeId>("spacebar");
   let webFetchAllowedHostsText = $state("");
@@ -268,6 +270,8 @@
 
     anthropicKey = $settings.apiKeys.anthropic;
     deepseekKey = $settings.apiKeys.deepseek;
+    anthropicKeyFromKeychain = false;
+    deepseekKeyFromKeychain = false;
     openaiKey = $settings.apiKeys.openai;
     ollamaEndpoint = $settings.ollamaEndpoint;
     ollamaApiKey = $settings.ollamaApiKey;
@@ -295,7 +299,25 @@
     activeSection = "general";
     void connectOllama();
     void connectLlamacpp();
+    void loadKeychainKeys();
   });
+
+  async function loadKeychainKeys() {
+    const { getCloudApiKey } = await import("$lib/apiSecrets");
+    const st = get(settings);
+    if (st.cloudApiKeyStored?.anthropic && !anthropicKey.trim()) {
+      try {
+        const k = await getCloudApiKey("anthropic");
+        if (k) { anthropicKey = k; anthropicKeyFromKeychain = true; }
+      } catch { /* keychain unavailable */ }
+    }
+    if (st.cloudApiKeyStored?.deepseek && !deepseekKey.trim()) {
+      try {
+        const k = await getCloudApiKey("deepseek");
+        if (k) { deepseekKey = k; deepseekKeyFromKeychain = true; }
+      } catch { /* keychain unavailable */ }
+    }
+  }
 
   function setAsChatProvider(backend: ChatBackend) {
     chatBackend = backend;
@@ -1177,10 +1199,15 @@
 
             <label class="field">
               <span class="name">API Key</span>
-              <span class="hint">Required for Claude models</span>
+              {#if anthropicKeyFromKeychain}
+                <span class="hint hint-keychain">Stored in system keychain</span>
+              {:else}
+                <span class="hint">Required for Claude models</span>
+              {/if}
               <input
                 type="password"
                 bind:value={anthropicKey}
+                oninput={() => { anthropicKeyFromKeychain = false; }}
                 placeholder="sk-ant-…"
                 class="input"
                 autocomplete="off"
@@ -1251,10 +1278,15 @@
 
             <label class="field">
               <span class="name">API Key</span>
-              <span class="hint">Required for DeepSeek Chat and Reasoner</span>
+              {#if deepseekKeyFromKeychain}
+                <span class="hint hint-keychain">Stored in system keychain</span>
+              {:else}
+                <span class="hint">Required for DeepSeek Chat and Reasoner</span>
+              {/if}
               <input
                 type="password"
                 bind:value={deepseekKey}
+                oninput={() => { deepseekKeyFromKeychain = false; }}
                 placeholder="sk-…"
                 class="input"
                 autocomplete="off"
@@ -1825,6 +1857,10 @@
   .hint {
     font-size: 11px;
     color: #666;
+  }
+
+  .hint-keychain {
+    color: #4ade80;
   }
 
   .input {

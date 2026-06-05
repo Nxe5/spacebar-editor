@@ -128,7 +128,7 @@
       const existing = findEntry(get(files).tree, prefix);
       if (existing?.expanded && existing.children) continue;
       try {
-        const raw = await listDir(prefix);
+        const raw = await listDir(null, prefix);
         const children = raw.map((c) => normalizeFileEntry(c as FileEntry & { isDir?: boolean }));
         files.setChildren(prefix, children);
       } catch {
@@ -160,7 +160,7 @@
     if (!e || e.is_dir || !desktopAvailable) return;
     if (!confirm(`Delete “${e.name}”? This cannot be undone.`)) return;
     try {
-      await deleteEntry(e.path);
+      await deleteEntry(null, e.path);
       await reloadWorkspaceTree();
       bumpGitRefresh();
     } catch (err) {
@@ -177,7 +177,7 @@
     const parent = e.path.slice(0, -e.name.length).replace(/\/$/, "");
     const dest = parent ? `${parent}/${next}` : next;
     try {
-      await renameEntry(e.path, dest);
+      await renameEntry(null, e.path, dest);
       await reloadWorkspaceTree();
       bumpGitRefresh();
     } catch (err) {
@@ -203,7 +203,7 @@
         const filePath = launch.path;
         const parentDir = filePath.split("/").slice(0, -1).join("/") || "/";
         await applyWorkspaceFolder(parentDir);
-        const content = await readFile(filePath);
+        const content = await readFile(null, filePath);
         workbench.openEditorFile({
           path: filePath,
           name: filePath.split("/").pop() ?? filePath,
@@ -246,7 +246,7 @@
       files.toggleExpanded(entry.path);
     } else {
       try {
-        const raw = await listDir(entry.path);
+        const raw = await listDir(null, entry.path);
         const children = raw.map((c) => normalizeFileEntry(c as FileEntry & { isDir?: boolean }));
         files.setChildren(entry.path, children);
       } catch (e) {
@@ -277,7 +277,7 @@
       if (ws && rel && hasChanges) {
         await openGitDiffFile(ws, rel);
       } else {
-        const content = await readFile(entry.path);
+        const content = await readFile(null, entry.path);
         workbench.openEditorFile({
           path: entry.path,
           name: entry.name,
@@ -325,7 +325,7 @@
       if (!entry?.is_dir) return;
       if (!entry.expanded || !entry.children?.length) {
         try {
-          const raw = await listDir(dirPath);
+          const raw = await listDir(null, dirPath);
           const children = raw.map((c) => normalizeFileEntry(c as FileEntry & { isDir?: boolean }));
           files.setChildren(dirPath, children);
         } catch (e) {
@@ -350,7 +350,7 @@
 
     if (!root.expanded || !root.children?.length) {
       try {
-        const raw = await listDir(rootPath);
+        const raw = await listDir(null, rootPath);
         const children = raw.map((c) => normalizeFileEntry(c as FileEntry & { isDir?: boolean }));
         files.setChildren(rootPath, children);
       } catch (e) {
@@ -387,7 +387,7 @@
     const path = `${prompt.parent}/${name}`;
     try {
       if (prompt.kind === "file") {
-        await writeFile(path, "");
+        await writeFile(null, path, "");
         await refreshDirectoryInTree(prompt.parent);
         bumpGitRefresh();
         selectedPath = normalizeFilePath(path);
@@ -400,7 +400,7 @@
           language: getLanguageFromPath(path),
         });
       } else {
-        await createDir(path);
+        await createDir(null, path);
         await refreshDirectoryInTree(prompt.parent);
         bumpGitRefresh();
         selectedPath = normalizeFilePath(path);

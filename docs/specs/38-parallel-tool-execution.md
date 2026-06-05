@@ -9,7 +9,7 @@
 
 ## 1. Problem Statement
 
-When a model emits multiple tool calls in a single turn (e.g. three `read_file` calls on independent files), Sidebar Editor currently executes them sequentially via `executeToolCallsWithApproval` in `ChatPane.svelte`. Sequential execution is safe but slow — each call waits for the previous one to complete before starting, even when there is no dependency between them.
+When a model emits multiple tool calls in a single turn (e.g. three `read_file` calls on independent files), Spacebar Editor currently executes them sequentially via `executeToolCallsWithApproval` in `ChatPane.svelte`. Sequential execution is safe but slow — each call waits for the previous one to complete before starting, even when there is no dependency between them.
 
 For read-heavy agent runs (code review, multi-file analysis), parallelizing independent reads can cut tool execution time significantly.
 

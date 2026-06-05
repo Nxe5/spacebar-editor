@@ -2,7 +2,7 @@
 
 use keyring::Entry;
 
-const SERVICE: &str = "sidebar-editor";
+const SERVICE: &str = "spacebar-editor";
 
 fn account_id(provider: &str) -> Result<String, String> {
     match provider {

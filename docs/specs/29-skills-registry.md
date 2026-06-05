@@ -35,7 +35,7 @@ The registry must preserve the local-first ethos: installing a skill drops files
 | Model | Pros | Cons |
 |-------|------|------|
 | **GitHub-based** (skills are repos / a monorepo) | Zero infra; familiar; reviewable via PRs | Discovery weaker; rate limits |
-| **Hosted registry** (`registry.sidebar-editor.dev`) | Search, versioning, curation | Infra + moderation cost; central point |
+| **Hosted registry** (`registry.spacebar-editor.dev`) | Search, versioning, curation | Infra + moderation cost; central point |
 | **Hybrid** | GitHub source of truth + thin index for search | More moving parts |
 
 Recommendation: start **GitHub-based** in Phase 3; a hosted index is optional later. "Install" = clone/copy a skill directory into `.sidebar/skills/`.

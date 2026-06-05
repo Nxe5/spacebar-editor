@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Sidebar Editor is a **minimal Cursor-like IDE** for **desktop** use:
+Spacebar Editor is a **minimal Cursor-like IDE** for **desktop** use:
 
 - Multi-tab **CodeMirror 6** editor with syntax highlighting and git diff view
 - **File explorer** with icon themes (Seti, VS Code icons, codicons, custom packs)
@@ -21,7 +21,7 @@ Sidebar Editor is a **minimal Cursor-like IDE** for **desktop** use:
 
 | Principle | Description |
 |-----------|-------------|
-| **Local-first / BYOM** | Run models on your machine or bring your own API keys; no Sidebar Editor cloud |
+| **Local-first / BYOM** | Run models on your machine or bring your own API keys; no Spacebar Editor cloud |
 | **Trust through git** | Agent file changes appear in the Git **Changes** list; review with diff highlighting and **Discard** |
 | **Hackable** | Small Svelte + Rust codebase; tools and prompts are project-local under `.sidebar/` |
 

@@ -11,7 +11,7 @@
 
 ## 1. Overview
 
-Sidebar Editor runs language servers for the editor (diagnostics, hover — [25](25-lsp-diagnostics.md)). This spec exposes LSP capabilities as **agent-facing tools** so the AI can reason about code structure before and during edits.
+Spacebar Editor runs language servers for the editor (diagnostics, hover — [25](25-lsp-diagnostics.md)). This spec exposes LSP capabilities as **agent-facing tools** so the AI can reason about code structure before and during edits.
 
 ### Design philosophy
 

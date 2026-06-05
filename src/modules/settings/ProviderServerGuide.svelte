@@ -95,7 +95,7 @@
   {#if kind === "ollama" && ollamaTemplate}
     {#if compact}
       <details class="guide-panel" open>
-        <summary class="guide-panel-summary">Via API (Sidebar Editor)</summary>
+        <summary class="guide-panel-summary">Via API (Spacebar Editor)</summary>
         <div class="guide-panel-body">
           <div class="api-table-wrap">
             <table class="api-table api-table--readable">
@@ -152,7 +152,7 @@
         </details>
       {/if}
     {:else}
-      <p class="group-label">Via API (Sidebar Editor controls these)</p>
+      <p class="group-label">Via API (Spacebar Editor controls these)</p>
       <div class="api-table-wrap">
         <table class="api-table">
           <thead>
@@ -256,7 +256,7 @@
         </div>
       </details>
     {:else}
-      <p class="group-label">Via API (Sidebar Editor)</p>
+      <p class="group-label">Via API (Spacebar Editor)</p>
       <p class="note muted">Model id and endpoint only. Context for llama.cpp is set at server launch (<code class="inline-code">-c</code>).</p>
 
       <p class="group-label">llama-server flags (your working setup)</p>

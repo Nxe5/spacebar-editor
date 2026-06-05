@@ -51,7 +51,7 @@
       title="Title bar, tab strip, status bar, panel shells"
       onclick={() => onSelect("workbench-chrome")}
     >
-      <span class="mini-workbench__title">Sidebar Editor</span>
+      <span class="mini-workbench__title">Spacebar Editor</span>
       <span class="mini-workbench__window-dots" aria-hidden="true">
         <span></span><span></span><span></span>
       </span>

@@ -11,7 +11,7 @@
 
 ## 1. Overview
 
-The LLM eval harness is a comprehensive, long-running test suite that exercises Sidebar Editor's three operating modes — **Chat**, **Plan**, and **Agent** — against a real Ollama model. It runs outside the Tauri desktop shell, talking to Ollama through Sidebar Editor's existing provider layer (`streamOneTurn` → `openaiCompat`), and writes structured results to `tests/llm/results/` for post-run review.
+The LLM eval harness is a comprehensive, long-running test suite that exercises Spacebar Editor's three operating modes — **Chat**, **Plan**, and **Agent** — against a real Ollama model. It runs outside the Tauri desktop shell, talking to Ollama through Spacebar Editor's existing provider layer (`streamOneTurn` → `openaiCompat`), and writes structured results to `tests/llm/results/` for post-run review.
 
 The harness is designed for slow, generous timeouts. A full run against `qwen3.6-27B-GGUF:UD-Q2_K_XL` may take 30–90 minutes. Results are streamed to disk as each test completes so partial runs are always reviewable.
 
@@ -21,7 +21,7 @@ The harness is designed for slow, generous timeouts. A full run against `qwen3.6
 - Test file operations, code generation, multi-turn conversations, and tool use
 - Run each prompt class multiple times to surface non-determinism
 - Produce human-readable markdown reports and machine-readable JSON
-- Use Sidebar Editor's actual provider layer — not a raw Ollama-only client — so results reflect real streaming behavior
+- Use Spacebar Editor's actual provider layer — not a raw Ollama-only client — so results reflect real streaming behavior
 - Support re-running individual test suites or single tests without a full run
 
 ### Non-Goals

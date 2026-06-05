@@ -86,7 +86,7 @@ async function getClientForFile(
   const openKey = `${serverLang}:${uri}`;
   if (!openDocs.has(openKey)) {
     try {
-      const text = await readFile(absPath);
+      const text = await readFile(workspacePath, absPath);
       await client.didOpen(uri, text, languageId, 1);
       openDocs.add(openKey);
     } catch (e) {

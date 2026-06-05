@@ -4,13 +4,22 @@
 
 ---
 
+## Release Targets
+
+| Version | Target | Status | Scope |
+|---------|--------|--------|-------|
+| **v0.1.2** | Public beta | ✅ **Shipped** (2026-06-05) | Keychain, Rust path enforcement, CSP, agent turn undo |
+| **v0.1.3** | Post-beta | ❌ Planned | MLX provider, agent activity step grouping |
+
+---
+
 ## Phase Overview
 
 | Phase | Focus | Status |
 |-------|-------|--------|
 | **Phase A** | Dogfooding | ✅ Mostly complete |
-| **Phase B** | Trust and reliability | 🚧 Planning |
-| **Phase C** | Security | ❌ Not started |
+| **Phase B** | Trust and reliability | ✅ Mostly complete (v0.1.2) |
+| **Phase C** | Security | ✅ Complete (v0.1.2) |
 | **Phase D** | v1.0 parity | ❌ Not started |
 
 ---
@@ -45,25 +54,26 @@
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Rust workspace path enforcement | ❌ Not started | All path-taking FS IPC — [33](33-rust-path-enforcement.md) |
+| Rust workspace path enforcement | ✅ Done | All path-taking FS IPC — [33](33-rust-path-enforcement.md) |
 | Agent error recovery | ✅ Done | [32-agent-error-recovery.md](32-agent-error-recovery.md) |
 | Workspace lock | ✅ Done | [35-workspace-lock.md](35-workspace-lock.md) |
 | File watcher → UI | ✅ Done | [24-filesystem-watcher.md](24-filesystem-watcher.md) |
 | Shortcut rebinding | ✅ Done | [37-shortcut-rebinding.md](37-shortcut-rebinding.md) |
-| Agent turn undo | ❌ Not started | Snapshot or git-based batch discard |
+| Agent turn undo | ✅ Done | "↩ Undo last turn" button — git checkpoint restore |
+| **MLX provider** (Apple Silicon) | ❌ Planned (v0.1.3) | `mlx_lm.server` OpenAI-compat backend — [42](42-mlx-provider.md) |
 | **Context compaction** | ✅ Done | [21-context-compaction.md](21-context-compaction.md) — experimental in Settings |
 
 ---
 
-## Phase C — Security (Before External Users)
+## Phase C — Security (Complete — v0.1.2)
 
 > Full program: [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md)
 
 | Item | Status | Notes |
 |------|--------|-------|
-| OS keychain / keyring | ❌ Not started | **P0** — [40](40-product-hardening-and-agent-ux.md) §3; keys never in `localStorage` |
-| LLM calls in Rust | ❌ Not started | `reqwest` + stream events |
-| Production CSP | ❌ Not started | `tauri.conf.json` |
+| OS keychain / keyring | ✅ Done | [40](40-product-hardening-and-agent-ux.md) §3; keys never in `localStorage`, "Stored in system keychain" UI hint |
+| LLM calls in Rust | ❌ Deferred | `reqwest` + stream events — keys retrieved from keychain per-request in JS is sufficient |
+| Production CSP | ✅ Done | `tauri.conf.json` — Anthropic, DeepSeek, localhost allowlist |
 
 ---
 
@@ -155,6 +165,7 @@ Compound value through community and extensibility.
 
 | Date | Item |
 |------|------|
+| 2026-06-05 | **v0.1.2 public beta** — OS keychain, Rust path enforcement (Spec 33), production CSP, agent turn undo |
 | 2026-05 | Git checkpoint infrastructure (Rust backend) |
 | 2026-05 | Provider server config templates |
 | 2026-05 | Chat appearance customization |

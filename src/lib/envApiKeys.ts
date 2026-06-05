@@ -1,7 +1,7 @@
 /** Optional dev API keys from project `.env` (see vite.config.ts `define`). */
 
-declare const __TINYLLAMA_ENV_ANTHROPIC_API_KEY__: string | undefined;
-declare const __TINYLLAMA_ENV_DEEPSEEK_API_KEY__: string | undefined;
+declare const __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__: string | undefined;
+declare const __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__: string | undefined;
 
 export type EnvApiKeySlot = "anthropic" | "deepseek";
 
@@ -9,11 +9,11 @@ function injectedKey(slot: EnvApiKeySlot): string {
   if (!import.meta.env.DEV) return "";
   const raw =
     slot === "anthropic"
-      ? typeof __TINYLLAMA_ENV_ANTHROPIC_API_KEY__ !== "undefined"
-        ? __TINYLLAMA_ENV_ANTHROPIC_API_KEY__
+      ? typeof __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__ !== "undefined"
+        ? __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__
         : ""
-      : typeof __TINYLLAMA_ENV_DEEPSEEK_API_KEY__ !== "undefined"
-        ? __TINYLLAMA_ENV_DEEPSEEK_API_KEY__
+      : typeof __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__ !== "undefined"
+        ? __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__
         : "";
   return typeof raw === "string" ? raw.trim() : "";
 }

@@ -142,7 +142,7 @@ export async function applyWorkspaceFolder(path: string): Promise<boolean> {
 /** Refresh children under the workspace root, preserving expanded subfolder states. */
 export async function refreshWorkspaceTree(workspacePath: string): Promise<void> {
   const normalized = normalizeFilePath(workspacePath.trim());
-  const raw = await listDir(normalized);
+  const raw = await listDir(null, normalized);
   const children = raw.map((x) => normalizeFileEntry(x as FileEntry & { isDir?: boolean }));
   const root = get(files).tree.find((e) => normalizeFilePath(e.path) === normalized);
   if (root) {

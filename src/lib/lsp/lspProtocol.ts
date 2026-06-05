@@ -1,4 +1,4 @@
-/** Subset of LSP types used by Sidebar Editor (spec 25). */
+/** Subset of LSP types used by Spacebar Editor (spec 25). */
 
 export interface Position {
   line: number;       // 0-based

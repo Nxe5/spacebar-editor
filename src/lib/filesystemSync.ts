@@ -33,7 +33,7 @@ export async function refreshDirectoryInTree(dirPath: string): Promise<void> {
   const canon = normalizeFilePath(dirPath);
   const tree = get(files).tree;
   if (!findEntry(tree, canon)) return;
-  const raw = await listDir(canon);
+  const raw = await listDir(null, canon);
   const children = raw.map((c) => normalizeFileEntry(c as FileEntry & { isDir?: boolean }));
   files.setChildren(canon, children);
 }
@@ -139,7 +139,7 @@ async function reloadOpenFileIfVisible(path: string): Promise<void> {
   const open = get(files).openFiles.find((f) => normalizeFilePath(f.path) === canon);
   if (!open) return;
   try {
-    const content = await readFile(canon);
+    const content = await readFile(null, canon);
     files.openFile({
       ...open,
       content,
@@ -160,7 +160,7 @@ export async function openWorkspaceFile(path: string): Promise<void> {
 async function openFileFromDisk(path: string): Promise<void> {
   const canon = normalizeFilePath(path);
   try {
-    const content = await readFile(canon);
+    const content = await readFile(null, canon);
     const name = canon.split("/").pop() ?? canon;
     workbench.openEditorFile({
       path: canon,

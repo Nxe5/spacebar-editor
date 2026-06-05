@@ -9,7 +9,7 @@
 
 ## 1. Design Approach
 
-Sidebar Editor has no onboarding wizard or modal walkthrough. Empty states are the onboarding. Every state where the user cannot yet use the app has a single clear call-to-action that unblocks them. This keeps the UI clean for users who know what they are doing and still guides new users.
+Spacebar Editor has no onboarding wizard or modal walkthrough. Empty states are the onboarding. Every state where the user cannot yet use the app has a single clear call-to-action that unblocks them. This keeps the UI clean for users who know what they are doing and still guides new users.
 
 Three empty states map to three sequential blockers:
 

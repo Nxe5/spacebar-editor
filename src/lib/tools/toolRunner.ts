@@ -136,7 +136,7 @@ async function runReadFile(
     typeof args.max_lines === "number" && args.max_lines > 0
       ? Math.floor(args.max_lines)
       : ctx?.readFileMaxLines ?? 500;
-  const result = await readFileRanged(resolved, startLine, maxLines);
+  const result = await readFileRanged(workspacePath, resolved, startLine, maxLines);
   let output = result.content;
   if (result.truncated) {
     output += `\n\n[File truncated: showing lines ${result.start_line}–${result.end_line} of ${result.total_lines}. Call read_file again with start_line: ${result.end_line + 1} to continue.]`;
@@ -157,7 +157,7 @@ async function runWriteFile(
     return fail("Missing required parameter: content");
   }
   const resolved = resolveWorkspacePath(workspacePath, path);
-  const audit = (await writeFile(resolved, String(args.content))).trim();
+  const audit = (await writeFile(workspacePath, resolved, String(args.content))).trim();
   const prefix = audit ? `${audit}\n` : "";
   return ok(`${prefix}Successfully wrote to ${path}`);
 }
@@ -172,10 +172,10 @@ async function runCreateFile(
     return fail("Missing required parameter: content");
   }
   const resolved = resolveWorkspacePath(workspacePath, path);
-  if (await pathExists(resolved)) {
+  if (await pathExists(workspacePath, resolved)) {
     return fail(`File already exists: ${path}. Use write_file to overwrite.`);
   }
-  const audit = (await writeFile(resolved, String(args.content))).trim();
+  const audit = (await writeFile(workspacePath, resolved, String(args.content))).trim();
   const prefix = audit ? `${audit}\n` : "";
   return ok(`${prefix}Successfully created ${path}`);
 }
@@ -187,7 +187,7 @@ async function runDeleteFile(
   const path = requireString(args, "path");
   if (typeof path !== "string") return path;
   const resolved = resolveWorkspacePath(workspacePath, path);
-  await deleteEntry(resolved);
+  await deleteEntry(workspacePath, resolved);
   return ok(`Successfully deleted ${path}`);
 }
 
@@ -201,7 +201,7 @@ async function runMoveFile(
   if (typeof to !== "string") return to;
   const resolvedFrom = resolveWorkspacePath(workspacePath, from);
   const resolvedTo = resolveWorkspacePath(workspacePath, to);
-  await renameEntry(resolvedFrom, resolvedTo);
+  await renameEntry(workspacePath, resolvedFrom, resolvedTo);
   return ok(`Successfully moved ${from} → ${to}`);
 }
 
@@ -212,7 +212,7 @@ async function runListDir(
   const path = requireString(args, "path");
   if (typeof path !== "string") return path;
   const resolved = resolveWorkspacePath(workspacePath, path, { allowWorkspaceRoot: true });
-  const entries = await listDir(resolved);
+  const entries = await listDir(workspacePath, resolved);
   const output = entries
     .map((e) => `${e.is_dir ? "[dir]" : "[file]"} ${e.name}`)
     .join("\n");
@@ -299,21 +299,21 @@ async function runGetFileTree(
   if (typeof path !== "string") return path;
   const maxDepth = typeof args.max_depth === "number" ? args.max_depth : 3;
   const resolved = resolveWorkspacePath(workspacePath, path, { allowWorkspaceRoot: true });
-  const tree = await listDirTree(resolved, maxDepth);
+  const tree = await listDirTree(workspacePath, resolved, maxDepth);
   return ok(formatFileTree(tree) || "(empty)");
 }
 
 async function detectTestCommand(workspacePath: string): Promise<string> {
-  if (await pathExists(joinPath(workspacePath, "Cargo.toml"))) return "cargo test";
-  if (await pathExists(joinPath(workspacePath, "package.json"))) {
-    if (await pathExists(joinPath(workspacePath, "pnpm-lock.yaml"))) return "pnpm test";
-    if (await pathExists(joinPath(workspacePath, "bun.lockb"))) return "bun test";
-    if (await pathExists(joinPath(workspacePath, "yarn.lock"))) return "yarn test";
+  if (await pathExists(workspacePath, joinPath(workspacePath, "Cargo.toml"))) return "cargo test";
+  if (await pathExists(workspacePath, joinPath(workspacePath, "package.json"))) {
+    if (await pathExists(workspacePath, joinPath(workspacePath, "pnpm-lock.yaml"))) return "pnpm test";
+    if (await pathExists(workspacePath, joinPath(workspacePath, "bun.lockb"))) return "bun test";
+    if (await pathExists(workspacePath, joinPath(workspacePath, "yarn.lock"))) return "yarn test";
     return "npm test";
   }
   if (
-    (await pathExists(joinPath(workspacePath, "pyproject.toml"))) ||
-    (await pathExists(joinPath(workspacePath, "pytest.ini")))
+    (await pathExists(workspacePath, joinPath(workspacePath, "pyproject.toml"))) ||
+    (await pathExists(workspacePath, joinPath(workspacePath, "pytest.ini")))
   ) {
     return "pytest";
   }
@@ -338,7 +338,7 @@ async function runScript(
   const script = requireString(args, "script");
   if (typeof script !== "string") return script;
   const resolved = resolveWorkspacePath(workspacePath, script);
-  if (!(await pathExists(resolved))) {
+  if (!(await pathExists(workspacePath, resolved))) {
     return fail(`Script not found: ${script}`);
   }
   const extra = typeof args.args === "string" ? args.args.trim() : "";
@@ -437,9 +437,9 @@ async function maybeRepairEchoRedirectFile(
   if (!REPAIRABLE_EXT.test(rel)) return;
   try {
     const resolved = resolveWorkspacePath(workspacePath, rel);
-    const raw = await readFile(resolved);
+    const raw = await readFile(workspacePath, resolved);
     const fixed = unescapeLiteralEscapes(raw);
-    if (fixed !== raw) await writeFile(resolved, fixed);
+    if (fixed !== raw) await writeFile(workspacePath, resolved, fixed);
   } catch {
     /* ignore missing paths or read errors */
   }

@@ -36,7 +36,7 @@ EVAL_PROFILE=gemma-12b pnpm eval -- --test gemma-tool-01
 | `18-gemma-weakness-probe` | Plan mode, shell, anti-hallucination, reasoning |
 | `01–15` (optional full run) | Baseline comparison with other models |
 
-## Recommended Sidebar settings
+## Recommended Spacebar Editor settings
 
 Apply in **Settings → Provider defaults (Ollama)** and per-model overrides:
 
@@ -66,7 +66,7 @@ These would help weaker local models if exposed in Settings:
 
 ## Project build eval (suite 19)
 
-Tests end-to-end project creation — the closest match to “build me a landing page” in Sidebar:
+Tests end-to-end project creation — the closest match to “build me a landing page” in Spacebar Editor:
 
 | Test | Task |
 |------|------|
@@ -92,7 +92,7 @@ pnpm eval:gemma-build      # hours — run overnight
 - Correct tool *calls* but wrong file content or logic
 - Repeated wrong tool names despite aliases
 
-**App improvement** (Sidebar tuning):
+**App improvement** (Spacebar Editor tuning):
 
 - Timeouts → increase timeouts or reduce steps
 - High `textToolRecoveries` with passes → text fallback working; keep Detailed on

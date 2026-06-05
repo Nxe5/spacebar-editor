@@ -1,6 +1,6 @@
 # VS Code Icons (default file icon pack)
 
-Tiny Llama ships the **Icons – Maintained** icon set as the default explorer file/folder theme.
+Spacebar Editor ships the **Icons – Maintained** icon set as the default explorer file/folder theme.
 
 | | |
 |---|---|

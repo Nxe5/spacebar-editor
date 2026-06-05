@@ -2,7 +2,75 @@ use ignore::overrides::OverrideBuilder;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+// ---------------------------------------------------------------------------
+// Workspace path enforcement (Spec 33)
+// ---------------------------------------------------------------------------
+
+/// Resolves `path` against `workspace_root` and verifies the result stays
+/// inside the workspace, including through symlinks. Returns the resolved
+/// absolute path. On Windows uses `dunce::canonicalize` to avoid UNC paths.
+pub fn canonicalize_workspace_path(
+    workspace_root: &Path,
+    path: &Path,
+) -> Result<PathBuf, String> {
+    let root = canon(workspace_root)
+        .map_err(|e| format!("Cannot resolve workspace root: {e}"))?;
+
+    let candidate = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        root.join(path)
+    };
+
+    let resolved = if candidate.exists() {
+        canon(&candidate).map_err(|e| format!("Cannot resolve path: {e}"))?
+    } else {
+        // Path doesn't exist yet (e.g. create_file target).
+        // Canonicalize the deepest existing ancestor, then re-append the rest.
+        let mut existing = candidate.clone();
+        let mut suffix = PathBuf::new();
+        loop {
+            if existing.exists() {
+                break;
+            }
+            if let Some(name) = existing.file_name() {
+                suffix = PathBuf::from(name).join(&suffix);
+            }
+            match existing.parent() {
+                Some(p) => existing = p.to_path_buf(),
+                None => break,
+            }
+        }
+        let base = if existing.exists() {
+            canon(&existing).map_err(|e| format!("Cannot resolve parent: {e}"))?
+        } else {
+            root.clone()
+        };
+        base.join(suffix)
+    };
+
+    if !resolved.starts_with(&root) {
+        return Err(format!(
+            "workspace_escape: '{}' is outside the workspace root '{}'",
+            resolved.display(),
+            root.display()
+        ));
+    }
+
+    Ok(resolved)
+}
+
+#[cfg(target_os = "windows")]
+fn canon(p: &Path) -> std::io::Result<PathBuf> {
+    dunce::canonicalize(p)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn canon(p: &Path) -> std::io::Result<PathBuf> {
+    p.canonicalize()
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {

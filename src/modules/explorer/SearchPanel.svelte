@@ -137,7 +137,7 @@
 
   async function openResult(absPath: string, line: number) {
     try {
-      const content = await readFile(absPath);
+      const content = await readFile(null, absPath);
       const name = fileNameOf(normalizeFilePath(absPath));
       workbench.openEditorFile({
         path: absPath,

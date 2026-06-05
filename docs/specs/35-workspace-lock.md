@@ -9,13 +9,13 @@
 
 ## 1. Problem Statement
 
-Sidebar Editor persists per-project state to `.sidebar/state.json` (autosaved on every change). If two Sidebar Editor windows open the same project folder simultaneously, they will both read and write this file, causing:
+Spacebar Editor persists per-project state to `.sidebar/state.json` (autosaved on every change). If two Spacebar Editor windows open the same project folder simultaneously, they will both read and write this file, causing:
 
 - State overwrites — whichever window saves last wins; the other's changes are silently lost
 - Corrupt JSON — interleaved partial writes from concurrent saves
 - Diverged chat history — the two windows accumulate separate histories that cannot be reconciled
 
-There is currently no lock mechanism. This spec adds a **PID-based lock file** so at most one writable Sidebar Editor instance owns a given workspace at a time.
+There is currently no lock mechanism. This spec adds a **PID-based lock file** so at most one writable Spacebar Editor instance owns a given workspace at a time.
 
 ---
 
@@ -37,7 +37,7 @@ JSON content:
 }
 ```
 
-- `pid`: the OS process ID of the owning Sidebar Editor window process
+- `pid`: the OS process ID of the owning Spacebar Editor window process
 - `timestamp`: ISO 8601, wall clock when the lock was acquired
 - `hostname`: `gethostname()` — used only for display in the conflict dialog; not used in stale detection
 
@@ -162,7 +162,7 @@ When `acquire_workspace_lock` returns `ConflictLive`, the frontend shows a modal
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  This folder is already open in another Sidebar Editor      │
+│  This folder is already open in another Spacebar Editor      │
 │  window (PID 12345, opened 10 minutes ago).             │
 │                                                         │
 │  Opening the same folder in two windows can corrupt     │
@@ -175,7 +175,7 @@ When `acquire_workspace_lock` returns `ConflictLive`, the frontend shows a modal
 - **Open read-only**: proceeds to open the workspace in read-only mode (§6). The lock file is not modified.
 - **Cancel**: closes the dialog; the folder is not opened.
 
-Note: there is no "Switch to that window" option because Sidebar Editor windows are not addressable by the frontend (Tauri does not expose cross-window focus control in the webview layer without custom Rust commands). This can be added in a future iteration.
+Note: there is no "Switch to that window" option because Spacebar Editor windows are not addressable by the frontend (Tauri does not expose cross-window focus control in the webview layer without custom Rust commands). This can be added in a future iteration.
 
 ---
 

@@ -92,7 +92,7 @@ export async function restoreWorkspaceAfterRewind(workspacePath: string): Promis
   const state = get(files);
   for (const open of state.openFiles) {
     try {
-      const content = await readFile(open.path);
+      const content = await readFile(null, open.path);
       files.openFile({
         path: open.path,
         name: open.name,

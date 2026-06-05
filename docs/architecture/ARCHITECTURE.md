@@ -1,10 +1,10 @@
-# Sidebar Editor — Architecture Reference
+# Spacebar Editor — Architecture Reference
 
 > **Status:** ✅ **COMPLETE** — This document reflects the current implementation.
 >
 > See also: [Overview](../overview/OVERVIEW.md) · [Specifications](../specs/README.md) · [README](../../README.md)
 
-This document describes how **Sidebar Editor** works end-to-end: UI layout, state management, AI agent loop, tool calling, theming, and Rust backend.
+This document describes how **Spacebar Editor** works end-to-end: UI layout, state management, AI agent loop, tool calling, theming, and Rust backend.
 
 ---
 
@@ -69,9 +69,15 @@ This document describes how **Sidebar Editor** works end-to-end: UI layout, stat
 5. Filesystem mutations trigger `filesystemSync.ts` to refresh explorer and editor tabs; `fs:changed` events from `watcher.rs` do the same for external edits
 6. Optional LSP: `EditorSurface` notifies language servers; diagnostics flow back via `lsp:*` Tauri events
 
+### Security
+
+- **API keys** stored in the OS keychain via the `keyring` crate (`secrets.rs`). Settings JSON holds only a boolean flag; keys are retrieved from Rust on demand and never persisted to `localStorage`.
+- **Content Security Policy** enforced in `tauri.conf.json`: allows `api.anthropic.com`, `api.deepseek.com`, and `localhost:*` / `127.0.0.1:*` (local providers); blocks all other origins.
+- **Filesystem sandbox**: double-enforced — TypeScript `pathUtils.ts` (fast-fail) + Rust `canonicalize_workspace_path()` in `filesystem.rs` (symlink-resolving, authoritative). See [Spec 33](../specs/33-rust-path-enforcement.md).
+
 ### No Node sidecar
 
-Sidebar Editor **does not** run a separate Node process for the agent. An earlier design used `sidecar/dist/index.js` with harness Tauri IPC; that path was **removed**. Today:
+Spacebar Editor **does not** run a separate Node process for the agent. An earlier design used `sidecar/dist/index.js` with harness Tauri IPC; that path was **removed**. Today:
 
 - **Agent loop, streaming, tool policy, and provider `fetch()`** live in the Svelte webview (`ChatPane`, `streamTurn.ts`, `lib/providers/*`).
 - **Filesystem, git, terminal, grep, shell, HTTP fetch** live in Rust (`src-tauri/src/modules/*`).
@@ -151,7 +157,7 @@ See [specs/03-architecture.md](../specs/03-architecture.md#agent-runtime-model-c
 
 > **Status:** ✅ Complete
 
-Sidebar Editor uses **Svelte writable/derived stores** (not a global Redux-like framework).
+Spacebar Editor uses **Svelte writable/derived stores** (not a global Redux-like framework).
 
 ### Key Stores
 
@@ -174,13 +180,13 @@ Sidebar Editor uses **Svelte writable/derived stores** (not a global Redux-like 
 
 | Field | Description |
 |-------|-------------|
-| `apiKeys.anthropic`, `apiKeys.openai`, `apiKeys.deepseek` | API keys |
+| `cloudApiKeyStored.anthropic`, `cloudApiKeyStored.deepseek` | Boolean flag — actual key is in OS keychain (`keyring` crate), never in `localStorage` |
 | `chatBackend` | `"anthropic"` \| `"ollama"` \| `"llamacpp"` \| `"deepseek"` |
 | `ollamaEndpoint`, `llamacppEndpoint`, `llamacppApiKey` | Local server URLs |
 | `selectedModel`, `ollamaModels`, `llamacppModels`, … | Active model + discovered lists |
 | `anthropicExtendedThinking` | Claude extended thinking stream |
 | `anthropicContextBudget` | Optional cap (`null` = full model window) |
-| `workbenchTheme` | Theme id (9 presets) |
+| `workbenchTheme` | Theme id (7 presets) |
 | `editor` | `wordWrap`, `formatOnSave`, tab width |
 | `webFetchAllowedHosts` | Hostname allowlist for `web_fetch` |
 | `agentLimits` | Steps, tool caps, `parallelExecution`, `maxConcurrentTools` |
@@ -280,6 +286,10 @@ User message
 | `maxToolCallsPerRun` | 0 (unlimited) | Total tool executions per message |
 | `maxToolsPerTurn` | 0 (unlimited) | Tool calls per model response |
 
+### Agent Turn Undo
+
+Before each user message the app creates a git checkpoint (`git_create_checkpoint`). After a turn completes the **↩ Undo last turn** button appears above the composer. Clicking it calls `applyFilesystemRewind` (restores files from the checkpoint or falls back to per-file `git discard`) then truncates chat history back to before that user message and restores the user's text to the composer.
+
 ---
 
 ## 7. Tool System
@@ -317,12 +327,16 @@ Model stream → StoredToolCall { id, name, arguments }
     → appendToolResults → next streamOneTurn
 ```
 
-### Path Sandboxing
+### Path Sandboxing (two-layer, Spec 33)
 
-Paths resolved via `src/lib/tools/pathUtils.ts`:
-- Workspace sandbox: blocks `..` traversal
-- Absolute paths outside workspace rejected
-- `/file.txt` treated as workspace-relative
+Paths resolved at two independent layers:
+
+| Layer | Location | What it catches |
+|-------|----------|-----------------|
+| **TypeScript** | `src/lib/tools/pathUtils.ts` | `..` traversal, absolute paths outside workspace — fast-fail before IPC |
+| **Rust** | `filesystem.rs` `canonicalize_workspace_path()` | Symlink escapes, OS-level path resolution — authoritative enforcement |
+
+All seven Rust FS commands (`read_file`, `write_file`, `create_dir`, `rename_entry`, `delete_entry`, `path_exists`, `list_dir_tree`) accept an optional `workspace_root` parameter. When provided by agent tool calls it enforces bounds; UI-layer reads that have no workspace context (e.g. icon packs in user-chosen directories) pass `null` to skip enforcement — the TS layer covers those.
 
 Writes (`write_file`, `create_file`) create missing parent directories in the Rust backend (`write_file_contents`), so nested paths succeed without a separate mkdir step.
 
@@ -345,6 +359,7 @@ Entry: `src-tauri/src/main.rs`
 | `icon_pack.rs` | Resolve bundled/custom icon pack directories |
 | `watcher.rs` | File system watching → debounced `fs:changed` events (drives explorer + git refresh) |
 | `lsp.rs` | Spawn language servers; JSON-RPC over stdio bridged to `lsp:*` Tauri events |
+| `secrets.rs` | OS keychain via `keyring` crate — `save_cloud_api_key`, `get_cloud_api_key`, `has_cloud_api_key`, `delete_cloud_api_key` |
 
 ### IPC Commands
 
@@ -362,6 +377,7 @@ Entry: `src-tauri/src/main.rs`
 | LSP | `spawn_lsp`, `lsp_send`, `lsp_stop` |
 | Workspace lock | `acquire_workspace_lock`, `read_workspace_lock`, `release_workspace_lock` |
 | Recent / launch | `get_recent_projects`, `add_recent_project`, `get_launch_args`, `get_workspace_path` |
+| Secrets | `save_cloud_api_key`, `get_cloud_api_key`, `has_cloud_api_key`, `delete_cloud_api_key` |
 | Window | `pick_workspace_folder`, `pick_icon_pack_folder`, `open_settings_window` |
 | Icons | `icon_pack_get_dir`, `icon_pack_refresh_bundled` |
 
@@ -377,7 +393,7 @@ Four customizable color layers (workbench theme + three appearance overrides):
 
 - Token sources: `globals.css`, `workbench-themes.css`
 - Applied via `data-workbench-theme` attribute on `<html>`
-- Presets: `vscode-dark` (default), `cursor-dark`, `catppuccin-mocha`, `tokyo-night`, `one-dark-pro`, `sidebar-editor`, `dracula`, `github-dark`, `rose-pine`
+- Presets: `spacebar` (default), `dark-bubblegum`, `cursor-dark`, `light-paper`, `light-cloud`, `pink-studio`, `blue-nova`
 - Default `--editor-bg` matches `--background` (`#1e1e1e`); changing preset syncs editor + syntax colors from theme CSS
 
 ### Appearance overrides (Settings → Appearance → Theme)
@@ -483,7 +499,7 @@ Custom highlight via `syntaxTheme.ts` + `--syntax-*` CSS variables (Settings →
 ## 14. Directory Map
 
 ```
-sidebar-editor/
+spacebar-editor/
 ├── docs/
 │   ├── architecture/ARCHITECTURE.md  ← this document
 │   ├── overview/OVERVIEW.md
@@ -526,4 +542,4 @@ sidebar-editor/
 
 ---
 
-*Last updated: 2026-06-04. For implementation status, see [Specifications](../specs/README.md).*
+*Last updated: 2026-06-05 · v0.1.2 public beta. For implementation status, see [Specifications](../specs/README.md).*

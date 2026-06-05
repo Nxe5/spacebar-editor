@@ -27,7 +27,7 @@ The §2–3 prompt/capability material is part of the "implement LAST / discuss 
 
 ## 1. Overview
 
-Local models in the 7B–14B range are the product's core audience but the weakest link in agent quality. Sidebar Editor cannot win on raw model intelligence; it must win on **how well it drives weaker models**. This spec covers three improvements:
+Local models in the 7B–14B range are the product's core audience but the weakest link in agent quality. Spacebar Editor cannot win on raw model intelligence; it must win on **how well it drives weaker models**. This spec covers three improvements:
 
 1. **Enhanced tool-use instructions** tuned for weak models (worked examples, explicit one-tool-at-a-time guidance).
 2. **Model capability flags** that adapt prompting and behavior per model.

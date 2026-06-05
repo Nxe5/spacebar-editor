@@ -1,4 +1,4 @@
-# Sidebar Editor — Application Overview
+# Spacebar Editor — Application Overview
 
 > **Status:** ✅ **COMPLETE** — Current product snapshot (summary).
 >
@@ -6,7 +6,7 @@
 >
 > See also: [Architecture](../architecture/ARCHITECTURE.md) · [Specifications](../specs/README.md)
 
-**Sidebar Editor** is a minimal, local-first desktop IDE with an integrated AI coding agent. It targets developers who want a hackable Cursor-like shell without cloud lock-in: bring your own model (Ollama, llama.cpp, Anthropic, DeepSeek), keep code on disk, and control tool policy per project.
+**Spacebar Editor** is a minimal, local-first desktop IDE with an integrated AI coding agent. It targets developers who want a hackable Cursor-like shell without cloud lock-in: bring your own model (Ollama, llama.cpp, Anthropic, DeepSeek), keep code on disk, and control tool policy per project.
 
 **Platform:** Tauri 2 desktop only (Linux, macOS, Windows). Web-only `pnpm dev:web` is supported for UI work but cannot run tools, git, or PTY.
 
@@ -19,7 +19,7 @@
 | Workbench UI | ✅ Complete | Chat, editor, terminal, preview, explorer, git, search |
 | Welcome / recent projects | ✅ Complete | No-workspace screen — [36](specs/36-first-run-onboarding.md) |
 | AI Backends | ✅ Complete | Ollama, llama.cpp, Anthropic, DeepSeek |
-| Agent Loop | ✅ Complete | Multi-turn tool chains, parallel read-only tools |
+| Agent Loop | ✅ Complete | Multi-turn tool chains, parallel read-only tools, agent turn undo |
 | Context compaction | 🔶 Experimental | Manual + auto; Settings → Compaction — [21](specs/21-context-compaction.md) |
 | Context overflow UI | ✅ Complete | Amber/red bar — [34](specs/34-context-overflow-warnings.md) |
 | Tools (16) | ✅ Complete | Filesystem, git, grep, shell, web fetch |
@@ -32,7 +32,7 @@
 | Persistence | ✅ Complete | Per-project `.sidebar/state.json` |
 | Planning (`plans/`) | ❌ Not started | Plan mode is read-only + chat-only — [19](specs/19-planning-system.md) |
 | Skills | ✅ Complete (per-project) | CRUD UI + variable interpolation; Settings → Agent Context → Skills — [30](specs/30-agent-context-and-model-settings.md). Bundled pack/registry still planned. |
-| Security | 🔶 Partial | TS path sandbox; API keys in localStorage |
+| Security | ✅ Complete | OS keychain, Rust path enforcement, production CSP — [33](specs/33-rust-path-enforcement.md), [14](specs/14-security.md) |
 | Agent runtime | ✅ Complete | Webview agent loop + Rust IPC — **no Node sidecar** |
 
 ---
@@ -127,6 +127,8 @@ There is **no Node sidecar**. The agent loop runs in the webview; OS integration
 
 | Feature | Status |
 |---------|--------|
+| MLX provider (Apple Silicon) | ❌ Planned — v0.1.3 |
+| Agent activity step grouping | ❌ Planned — v0.1.3 |
 | Persistent plans (`plans/`) | ❌ Not started |
 | Cmd+K inline edit | ❌ Not started |
 | LSP go-to-def / rename (Phase 2) | ❌ Not started |
@@ -134,9 +136,7 @@ There is **no Node sidecar**. The agent loop runs in the webview; OS integration
 | Skills registry (global / share / install) | ❌ Not started |
 | Multi-root workspaces | ❌ Not planned |
 | Cloud sync | ❌ Not planned |
-| OS keychain for secrets | ❌ Not started |
-| LLM calls in Rust | ❌ Not started |
-| Rust path canonicalization | ❌ Not started |
+| LLM calls in Rust | ❌ Deferred (keys already in OS keychain) |
 | Node sidecar / Pi harness | ❌ **Removed** |
 
 ---
@@ -176,4 +176,4 @@ Dev server default port: **14200**. No Node sidecar build step.
 
 ---
 
-*Last updated: 2026-06-04*
+*Last updated: 2026-06-05 · v0.1.2 public beta*

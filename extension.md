@@ -1,4 +1,4 @@
-# Tiny Llama — Enhancement Spec & Competitive Assessment
+# Spacebar Editor — Enhancement Spec & Competitive Assessment
 
 > **Version:** 1.0 — May 2026  
 > **Scope:** Finishing incomplete features, hardening local-model experience, skills system, and competitive positioning analysis.
@@ -32,25 +32,25 @@
 | **GitHub Copilot** | OpenAI/Azure | No | $10/mo | No | No |
 | **Continue.dev** | BYOM | Yes | Free | Yes | Yes |
 | **Aider** | BYOM | Yes | Free | Yes | Yes |
-| **Tiny Llama** | BYOM | Yes | Free | TBD | **Yes** |
+| **Spacebar Editor** | BYOM | Yes | Free | TBD | **Yes** |
 
-### 1.2 Where Tiny Llama Can Win
+### 1.2 Where Spacebar Editor Can Win
 
-**The privacy moat is real.** Every Cursor/Windsurf/Copilot competitor sends your code to a cloud endpoint. For regulated industries (fintech, healthcare, defense, legal), enterprise security teams, and developers working under NDA, this is a hard blocker. Tiny Llama is the only tool in this list that is meaningfully *air-gap capable* — code never leaves the machine. This is a genuine differentiator that money cannot easily replicate; Cursor cannot offer it without gutting their business model.
+**The privacy moat is real.** Every Cursor/Windsurf/Copilot competitor sends your code to a cloud endpoint. For regulated industries (fintech, healthcare, defense, legal), enterprise security teams, and developers working under NDA, this is a hard blocker. Spacebar Editor is the only tool in this list that is meaningfully *air-gap capable* — code never leaves the machine. This is a genuine differentiator that money cannot easily replicate; Cursor cannot offer it without gutting their business model.
 
-**The hackability angle.** Cursor is a black box. Tiny Llama's `.tinyllama/` directory convention, tool policy layer, and multi-file prompt system give developers direct, readable control over agent behavior. This maps well to a power-user segment that is underserved: developers who want to *understand and modify* their AI tooling.
+**The hackability angle.** Cursor is a black box. Spacebar Editor's `.sidebar/` directory convention, tool policy layer, and multi-file prompt system give developers direct, readable control over agent behavior. This maps well to a power-user segment that is underserved: developers who want to *understand and modify* their AI tooling.
 
 **No subscription fatigue.** A meaningful cohort of developers is experiencing subscription exhaustion across their toolchain. A one-time or self-hosted model is increasingly attractive.
 
-### 1.3 Where Tiny Llama Is Currently Weak
+### 1.3 Where Spacebar Editor Is Currently Weak
 
 These are the gaps that would cause a developer evaluating against Cursor to walk away today:
 
 **No LSP** is the single biggest gap. Go-to-definition, inline errors, hover docs, and rename-across-files are table-stakes for a code editor in 2026. Without them, experienced developers feel the absence immediately. Cursor's editor experience is largely VS Code; competing without language intelligence is an uphill battle.
 
-**Local model quality ceiling.** Cursor's default models (claude-sonnet-class) are significantly more capable than most self-hosted models at the 7B–14B range accessible on consumer hardware. Tiny Llama needs to work around this with superior context management, better prompting, and smarter tool use to close the quality gap — it cannot compete on raw model intelligence without expensive hardware.
+**Local model quality ceiling.** Cursor's default models (claude-sonnet-class) are significantly more capable than most self-hosted models at the 7B–14B range accessible on consumer hardware. Spacebar Editor needs to work around this with superior context management, better prompting, and smarter tool use to close the quality gap — it cannot compete on raw model intelligence without expensive hardware.
 
-**No inline editing (Cmd+K equivalent).** This is one of Cursor's most-used features. The current architecture supports it but it is not started. Developers who use Cmd+K daily will find Tiny Llama's chat-only interaction model a significant regression.
+**No inline editing (Cmd+K equivalent).** This is one of Cursor's most-used features. The current architecture supports it but it is not started. Developers who use Cmd+K daily will find Spacebar Editor's chat-only interaction model a significant regression.
 
 **No autocomplete.** Settings UI exists but there is no inference hook. Copilot-style completions are now an expectation, not a differentiator.
 
@@ -58,7 +58,7 @@ These are the gaps that would cause a developer evaluating against Cursor to wal
 
 ### 1.4 The Realistic Competitive Position
 
-Tiny Llama's best-case positioning is **not** "Cursor but cheaper." That race leads to feature parity wars against well-funded competitors. The stronger position is:
+Spacebar Editor's best-case positioning is **not** "Cursor but cheaper." That race leads to feature parity wars against well-funded competitors. The stronger position is:
 
 > **"The IDE for developers who cannot or will not send their code to a cloud."**
 
@@ -150,7 +150,7 @@ In rough priority order:
 
 ## 3. Skills System (pi.dev-style)
 
-This is the highest-leverage feature for Tiny Llama's differentiation. The existing `.tinyllama/prompts/` system is the right foundation — it needs to be extended into a proper skills layer.
+This is the highest-leverage feature for Spacebar Editor's differentiation. The existing `.sidebar/prompts/` system is the right foundation — it needs to be extended into a proper skills layer.
 
 ### 3.1 Concept
 
@@ -162,7 +162,7 @@ A **skill** is a composable system prompt fragment that:
 
 ### 3.2 Skill Definition Format
 
-Introduce `.tinyllama/skills/` directory alongside the existing `prompts/` directory.
+Introduce `.sidebar/skills/` directory alongside the existing `prompts/` directory.
 
 **`skill.json` manifest per skill:**
 
@@ -273,7 +273,7 @@ Each bundled skill encodes: framework conventions, common file structure, sensib
 
 ### 3.7 Skills Registry (Phase 2)
 
-A future community registry at `registry.tinyllama.dev` (or GitHub-based) where developers can publish and install skills:
+A future community registry at `registry.spacebar-editor.dev` (or GitHub-based) where developers can publish and install skills:
 
 ```bash
 # Conceptual CLI (phase 2)
@@ -281,7 +281,7 @@ tlama skill install rust-embedded
 tlama skill publish my-org-conventions
 ```
 
-For now, "install" means: drop a directory into `.tinyllama/skills/`. The manifest format defined above should be stable from day one.
+For now, "install" means: drop a directory into `.sidebar/skills/`. The manifest format defined above should be stable from day one.
 
 ### 3.8 Skills vs Prompts — Coexistence
 
@@ -292,7 +292,7 @@ The existing `prompts/` system continues to work as-is. Skills are additive: the
 2. buildWorkspaceContextBlock()
 3. TOOL_USE_INSTRUCTION (if tools enabled)
 4. Active skills (ordered by priority, variables interpolated)
-5. activeSystemPromptText (existing .tinyllama/prompts/ entries)
+5. activeSystemPromptText (existing .sidebar/prompts/ entries)
 6. TOOL_SUMMARY_INSTRUCTION
 ```
 
@@ -603,4 +603,4 @@ Features that build a community and compound value over time:
 
 ---
 
-*This spec was produced from direct analysis of the Tiny Llama assessment document (May 2026) and competitive landscape as of the same date. Implementation details assume the current architecture described in `assessment.md` and are intended to be additive — no existing subsystems need to be rewritten to implement any feature in Phases 0–2.*
+*This spec was produced from direct analysis of the Spacebar Editor codebase (May 2026) and competitive landscape as of the same date. Implementation details assume the current architecture described in `docs/architecture/ARCHITECTURE.md` and are intended to be additive — no existing subsystems need to be rewritten to implement any feature in Phases 0–2.*

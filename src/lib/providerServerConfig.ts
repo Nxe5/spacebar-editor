@@ -32,7 +32,7 @@ export type LlamacppServerTemplate = {
 };
 
 export const DEFAULT_OLLAMA_SERVER_TEMPLATE: OllamaServerTemplate = {
-  modelsPath: "/mnt/data/ollama/models",
+  modelsPath: "~/.ollama/models",
   contextLength: 8192,
   numThreads: 6,
   keepAlive: -1,
@@ -46,7 +46,7 @@ export const DEFAULT_OLLAMA_SERVER_TEMPLATE: OllamaServerTemplate = {
 
 export const DEFAULT_LLAMACPP_SERVER_TEMPLATE: LlamacppServerTemplate = {
   serviceName: "llamacpp",
-  modelPath: "/mnt/data/llamacpp-models/Qwen2.5-1.5B-Instruct-Q5_K_M.gguf",
+  modelPath: "/path/to/model.gguf",
   host: "127.0.0.1",
   port: 8080,
   context: 8192,
@@ -58,7 +58,7 @@ export const DEFAULT_LLAMACPP_SERVER_TEMPLATE: LlamacppServerTemplate = {
   flashAttn: true,
   mlock: true,
   jinja: true,
-  user: "Nxe5",
+  user: "user",
 };
 
 export type LlamacppFlagDoc = {
@@ -70,7 +70,7 @@ export type LlamacppFlagDoc = {
 /** llama-server flags from the project's working systemd unit. */
 export const LLAMACPP_FLAG_DOCS: LlamacppFlagDoc[] = [
   { flag: "--host 127.0.0.1", meaning: "Bind address", restart: "server" },
-  { flag: "--port 8080", meaning: "HTTP port (Sidebar Editor default)", restart: "server" },
+  { flag: "--port 8080", meaning: "HTTP port (Spacebar Editor default)", restart: "server" },
   { flag: "-m /path/to/model.gguf", meaning: "GGUF model file to load", restart: "server" },
   { flag: "-ngl 99", meaning: "GPU layers (99 = all layers on ROCm/Vulkan)", restart: "server" },
   { flag: "-c 8192", meaning: "Context size (KV cache)", restart: "server" },
@@ -85,7 +85,7 @@ export const LLAMACPP_FLAG_DOCS: LlamacppFlagDoc[] = [
 
 export type OllamaApiDoc = {
   name: string;
-  via: "Sidebar Editor" | "API" | "Both";
+  via: "Spacebar Editor" | "API" | "Both";
   notes: string;
 };
 
@@ -93,7 +93,7 @@ export const OLLAMA_API_DOCS: OllamaApiDoc[] = [
   { name: "Model", via: "Both", notes: "Switch in model menu or ollama run — no service restart." },
   { name: "Context (num_ctx)", via: "Both", notes: "Per request; may reload model if size changes." },
   { name: "Threads (num_thread)", via: "Both", notes: "Per request; server default from OLLAMA_NUM_THREADS." },
-  { name: "Endpoint URL", via: "Sidebar Editor", notes: "Settings → Ollama URL." },
+  { name: "Endpoint URL", via: "Spacebar Editor", notes: "Settings → Ollama URL." },
   { name: "OLLAMA_KEEP_ALIVE", via: "API", notes: "ollama ps UNTIL column; -1 = keep loaded." },
 ];
 

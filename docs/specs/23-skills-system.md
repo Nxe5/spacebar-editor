@@ -27,7 +27,7 @@ The §4 auto-activation engine, §5 variables, §8 bundled-pack, §9 coexistence
 
 ## 1. Overview
 
-A **skill** is a composable, auto-activating system-prompt fragment that encodes conventions for a stack, framework, or organization. Skills are the **highest-leverage differentiator** for Sidebar Editor: they let teams capture internal knowledge as version-controlled, local-only artifacts that shape agent behavior without anything leaving the machine.
+A **skill** is a composable, auto-activating system-prompt fragment that encodes conventions for a stack, framework, or organization. Skills are the **highest-leverage differentiator** for Spacebar Editor: they let teams capture internal knowledge as version-controlled, local-only artifacts that shape agent behavior without anything leaving the machine.
 
 The existing `.sidebar/prompts/` multi-file prompt system is the right foundation. Skills extend it with three capabilities prompts lack:
 

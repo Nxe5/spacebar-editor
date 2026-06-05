@@ -11,7 +11,7 @@
 
 ## 1. Overview
 
-Sidebar Editor’s core loop (local models, `.sidebar/` project metadata, 16 tools, compaction, skills) is **shipped and usable**. This spec captures the next wave of improvements identified from dogfooding and security review: fixes that reduce silent failure modes, make agent sessions easier to audit, and close gaps between “prototype” and “desktop app you can trust.”
+Spacebar Editor’s core loop (local models, `.sidebar/` project metadata, 16 tools, compaction, skills) is **shipped and usable**. This spec captures the next wave of improvements identified from dogfooding and security review: fixes that reduce silent failure modes, make agent sessions easier to audit, and close gaps between “prototype” and “desktop app you can trust.”
 
 ### Product constraints (explicit)
 
@@ -68,13 +68,13 @@ Sidebar Editor’s core loop (local models, `.sidebar/` project metadata, 16 too
 | DeepSeek API key | Same | Never |
 | Non-secret settings | `localStorage` `sidebar.settings.v4` | Yes |
 
-Use Tauri’s **keyring** plugin (or Stronghold if unified secret store is preferred). Service name: e.g. `sidebar-editor`.
+Use Tauri’s **keyring** plugin (or Stronghold if unified secret store is preferred). Service name: e.g. `spacebar-editor`.
 
 ### 3.2 Migration
 
 1. On upgrade, if `settings.apiKeys.*` is non-empty in `localStorage`, write to keychain and **clear** from persisted JSON.
 2. Settings UI: password-style fields; “stored in system keychain” hint; test connection still works.
-3. Dev: `__TINYLLAMA_ENV_*__` injection unchanged for local dev only.
+3. Dev: `__SPACEBAR_EDITOR_ENV_*__` injection unchanged for local dev only.
 
 ### 3.3 LLM HTTP (follow-on)
 
@@ -116,7 +116,7 @@ The user opened `~/my-app` but the real work lands in `~/my-app/tester/minimal-a
 | W1 | System prompt (Agent + detailed verbosity): **prefer mutating and creating files under the workspace root** unless the user explicitly asks for a subfolder or new package path. |
 | W2 | When the model creates a **new top-level directory** (depth 1 under workspace) containing `package.json`, `Cargo.toml`, or `.git` after `run_shell`, show a **non-blocking notice** in chat: “Agent created a nested project at `tester/` — open that folder if it should be the workspace root.” |
 | W3 | **Never** create `.sidebar/` outside the workspace root; `ensure_sidebar_dir` only runs for the active `workspacePath`. |
-| W4 | Document in [07-workspace.md](07-workspace.md): one folder = one project; monorepos use the repo root and paths like `packages/foo` inside it — not a second Sidebar workspace. |
+| W4 | Document in [07-workspace.md](07-workspace.md): one folder = one project; monorepos use the repo root and paths like `packages/foo` inside it — not a second Spacebar Editor workspace. |
 
 ### 4.3 Optional tools (Phase 1b)
 

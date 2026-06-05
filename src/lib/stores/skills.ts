@@ -94,7 +94,7 @@ function createSkillsStore() {
 
   async function load(workspacePath: string): Promise<void> {
     const skillsDir = `${workspacePath}/${SKILLS_SUBDIR}`;
-    const exists = await pathExists(skillsDir).catch(() => false);
+    const exists = await pathExists(workspacePath, skillsDir).catch(() => false);
     if (!exists) {
       set({ entries: [], contents: {}, initialized: false });
       return;
@@ -102,7 +102,7 @@ function createSkillsStore() {
 
     let dirs: Awaited<ReturnType<typeof listDir>> = [];
     try {
-      dirs = await listDir(skillsDir);
+      dirs = await listDir(workspacePath, skillsDir);
     } catch {
       set({ entries: [], contents: {}, initialized: false });
       return;
@@ -118,14 +118,14 @@ function createSkillsStore() {
       const mdPath = skillMdPath(workspacePath, id);
 
       try {
-        const raw = await readFile(jsonPath);
+        const raw = await readFile(workspacePath, jsonPath);
         entries.push(parseManifest(raw, id));
       } catch {
         continue;
       }
 
       try {
-        contents[id] = await readFile(mdPath);
+        contents[id] = await readFile(workspacePath, mdPath);
       } catch {
         contents[id] = "";
       }
@@ -137,10 +137,10 @@ function createSkillsStore() {
 
   async function initialize(workspacePath: string): Promise<void> {
     const skillsDir = `${workspacePath}/${SKILLS_SUBDIR}`;
-    const exists = await pathExists(skillsDir).catch(() => false);
+    const exists = await pathExists(workspacePath, skillsDir).catch(() => false);
     if (!exists) {
       await ensureSkillDir(workspacePath, "__init__").catch(() => {});
-      await deleteEntry(`${skillsDir}/__init__`).catch(() => {});
+      await deleteEntry(workspacePath, `${skillsDir}/__init__`).catch(() => {});
     }
     await load(workspacePath);
     update((s) => ({ ...s, initialized: true }));
@@ -164,8 +164,8 @@ function createSkillsStore() {
     await ensureSkillDir(workspacePath, id);
 
     const entry: SkillEntry = { id, title, description, enabled: true, modes, version: "1.0.0" };
-    await writeFile(skillJsonPath(workspacePath, id), serializeManifest(entry));
-    await writeFile(skillMdPath(workspacePath, id), content);
+    await writeFile(workspacePath, skillJsonPath(workspacePath, id), serializeManifest(entry));
+    await writeFile(workspacePath, skillMdPath(workspacePath, id), content);
 
     update((s) => ({
       ...s,
@@ -176,7 +176,7 @@ function createSkillsStore() {
   }
 
   async function removeSkill(workspacePath: string, id: string): Promise<void> {
-    await deleteEntry(`${workspacePath}/${SKILLS_SUBDIR}/${id}`);
+    await deleteEntry(workspacePath, `${workspacePath}/${SKILLS_SUBDIR}/${id}`);
     update((s) => ({
       ...s,
       entries: s.entries.filter((e) => e.id !== id),
@@ -185,12 +185,12 @@ function createSkillsStore() {
   }
 
   async function saveContent(workspacePath: string, id: string, content: string): Promise<void> {
-    await writeFile(skillMdPath(workspacePath, id), content);
+    await writeFile(workspacePath, skillMdPath(workspacePath, id), content);
     update((s) => ({ ...s, contents: { ...s.contents, [id]: content } }));
   }
 
   async function updateMeta(workspacePath: string, updated: SkillEntry): Promise<void> {
-    await writeFile(skillJsonPath(workspacePath, updated.id), serializeManifest(updated));
+    await writeFile(workspacePath, skillJsonPath(workspacePath, updated.id), serializeManifest(updated));
     update((s) => ({
       ...s,
       entries: s.entries

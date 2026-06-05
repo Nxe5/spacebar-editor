@@ -173,7 +173,7 @@ export async function writeAnalysisReport(
 
   if (analysis.recommendedSettings) {
     const s = analysis.recommendedSettings;
-    lines.push("", "## Recommended Sidebar settings", "");
+    lines.push("", "## Recommended Spacebar Editor settings", "");
     lines.push(`- **Tool format:** ${s.toolCallFormat}`);
     lines.push(`- **Prompt verbosity:** ${s.promptVerbosity}`);
     lines.push(`- **Parallel tool calls:** ${s.parallelToolCalls ? "on" : "off"}`);

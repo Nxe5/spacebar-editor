@@ -183,6 +183,7 @@ import {
   let compactionNotice = $state<string | null>(null);
   /** Set when the agent loop hits maxAgentSteps; cleared on Continue or Stop here. */
   let stepLimitNotice = $state<{ limit: number } | null>(null);
+  let undoingLastTurn = $state(false);
   let compactionNoticeTimer: ReturnType<typeof setTimeout> | null = null;
   let compacting = $state(false);
   let messagesContainer: HTMLDivElement;
@@ -567,6 +568,21 @@ import {
   });
 
   let footerProfile = $derived(() => chatFooterProfile($settings.chatBackend));
+
+  /** The last user message id that can be undone (only when agent is idle and chat has responses). */
+  let lastUndoableUserMessageId = $derived(() => {
+    if ($chat.isStreaming || editingUserMessageId) return null;
+    const msgs = $activeSession?.messages ?? [];
+    // Find the last user message that has at least one subsequent message
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i]?.role === "user") {
+        // There must be something after it (assistant/tool response)
+        if (i < msgs.length - 1) return msgs[i]!.id;
+        break;
+      }
+    }
+    return null;
+  });
 
   let monthlyUsageLabel = $derived(() => {
     const profile = footerProfile();
@@ -1046,7 +1062,7 @@ import {
       if (!dir || notified.has(dir)) return;
       const flagged = await shouldFlagNestedScaffold(workspacePath, dir, async (p) => {
         try {
-          return await pathExists(p);
+          return await pathExists(workspacePath, p);
         } catch {
           return false;
         }
@@ -1800,6 +1816,17 @@ import {
     chat.setStreaming(false);
   }
 
+  async function undoLastTurn() {
+    const id = lastUndoableUserMessageId();
+    if (!id || undoingLastTurn) return;
+    undoingLastTurn = true;
+    try {
+      await revertToUserMessage(id);
+    } finally {
+      undoingLastTurn = false;
+    }
+  }
+
   async function revertToUserMessage(messageId: string, composerText?: string) {
     if ($chat.isStreaming) await cancelChatRequest();
 
@@ -2227,6 +2254,19 @@ import {
   {/if}
   {#if rewindNotice || compactionNotice}
     <p class="rewind-notice" role="status">{rewindNotice ?? compactionNotice}</p>
+  {/if}
+  {#if lastUndoableUserMessageId() && !editingUserMessageId}
+    <div class="undo-turn-row">
+      <button
+        type="button"
+        class="btn ghost undo-turn-btn"
+        disabled={undoingLastTurn}
+        onclick={undoLastTurn}
+        title="Undo last turn — restores files and puts your message back in the composer"
+      >
+        {undoingLastTurn ? "Undoing…" : "↩ Undo last turn"}
+      </button>
+    </div>
   {/if}
   {#if stepLimitNotice && !$chat.isStreaming}
     <div class="step-limit-notice" role="status">
@@ -3486,6 +3526,27 @@ import {
 
   .rewind-notice {
     color: var(--warning, #e0a060);
+  }
+
+  .undo-turn-row {
+    display: flex;
+    justify-content: flex-start;
+    padding: 4px 10px 0;
+    flex-shrink: 0;
+  }
+
+  .undo-turn-btn {
+    font-size: 11px;
+    color: var(--muted-foreground);
+    padding: 2px 6px;
+    border-radius: 4px;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+
+  .undo-turn-btn:hover:not(:disabled) {
+    opacity: 1;
+    color: var(--foreground);
   }
 
   .input-area.composer-form {

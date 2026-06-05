@@ -85,7 +85,7 @@ async function packHasIcons(dir: string): Promise<boolean> {
   const base = dir.replace(/\/$/, "");
   if (isTauriAvailable()) {
     try {
-      await readFile(`${base}/icons/folder.svg`);
+      await readFile(null, `${base}/icons/folder.svg`);
       return true;
     } catch {
       return false;
@@ -102,7 +102,7 @@ async function readManifestFromDir(dir: string): Promise<VscodeIconManifest> {
   if (isTauriAvailable()) {
     for (const file of candidates) {
       try {
-        const raw = await readFile(`${base}/${file}`);
+        const raw = await readFile(null, `${base}/${file}`);
         return JSON.parse(raw) as VscodeIconManifest;
       } catch {
         /* try next */

@@ -49,12 +49,15 @@ export function nestedScaffoldNoticeMessage(dirName: string): string {
   return `Agent created a nested project folder \`${dirName}/\`. If that should be the workspace root, open that folder with **File → Open folder**.`;
 }
 
-export function shouldFlagNestedScaffold(
+export async function shouldFlagNestedScaffold(
   workspacePath: string,
   dirName: string,
-  markerFileExists: (absPath: string) => boolean
-): boolean {
+  markerFileExists: (absPath: string) => boolean | Promise<boolean>
+): Promise<boolean> {
   if (!dirName || dirName === ".sidebar") return false;
   const base = `${workspacePath.replace(/\/$/, "")}/${dirName}`;
-  return PROJECT_MARKERS.some((name) => markerFileExists(`${base}/${name}`));
+  for (const name of PROJECT_MARKERS) {
+    if (await markerFileExists(`${base}/${name}`)) return true;
+  }
+  return false;
 }

@@ -28,7 +28,7 @@ describe("providerServerConfig", () => {
 
   it("builds llama.cpp exec from real template defaults", () => {
     const line = buildLlamacppExecStart(DEFAULT_LLAMACPP_SERVER_TEMPLATE);
-    expect(line).toContain("-m /mnt/data/llamacpp-models/Qwen2.5-1.5B-Instruct-Q5_K_M.gguf");
+    expect(line).toContain("-m /path/to/model.gguf");
     expect(line).toContain("-c 8192");
     expect(line).toContain("-ngl 99");
   });

@@ -12,7 +12,7 @@ export function gitPathToAbsolute(workspacePath: string, relPath: string): strin
 export async function openGitDiffFile(workspacePath: string, relPath: string): Promise<void> {
   if (relPath.endsWith("/")) return; // directory entry (untracked dir / submodule)
   const abs = gitPathToAbsolute(workspacePath, relPath);
-  const content = await readFile(abs);
+  const content = await readFile(null, abs);
   const head = await gitFileAtHead(workspacePath, relPath);
   const name = abs.split("/").pop() ?? relPath;
   workbench.openEditorFile({
@@ -29,7 +29,7 @@ export async function openGitDiffFile(workspacePath: string, relPath: string): P
 export async function openGitFileNormal(workspacePath: string, relPath: string): Promise<void> {
   if (relPath.endsWith("/")) return;
   const abs = gitPathToAbsolute(workspacePath, relPath);
-  const content = await readFile(abs);
+  const content = await readFile(null, abs);
   const name = abs.split("/").pop() ?? relPath;
   workbench.openEditorFile({
     path: abs,

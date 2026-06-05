@@ -21,7 +21,7 @@ export type EvalProfile = {
   maxAgentSteps: number;
   /** Suite IDs included in --smoke for this profile. */
   smokeSuiteIds: string[];
-  /** Recommended Sidebar app settings for this model (documentation + analysis output). */
+  /** Recommended Spacebar Editor app settings for this model (documentation + analysis output). */
   recommendedAppSettings: {
     toolCallFormat: "native" | "text_fallback";
     promptVerbosity: "standard" | "detailed";
