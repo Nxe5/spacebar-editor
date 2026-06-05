@@ -246,6 +246,18 @@ API keys stay in the OS keychain — never in the project files or environment v
 
 ---
 
+## Installing on Arch Linux
+
+The easiest way — install from AUR (no FUSE required, managed by pacman):
+
+```bash
+yay -S spacebar-editor-bin   # or: paru -S spacebar-editor-bin
+```
+
+The PKGBUILD extracts the AppImage to `/opt/spacebar-editor` and installs a `/usr/bin/spacebar-editor` symlink. No `fuse2` needed at runtime.
+
+---
+
 ## Development quick start
 
 ### Prerequisites
@@ -258,8 +270,10 @@ API keys stay in the OS keychain — never in the project files or environment v
 **Linux (Arch):**
 
 ```bash
-sudo pacman -S webkit2gtk-4.1 base-devel curl wget openssl gtk3 libayatana-appindicator librsvg libvips
+sudo pacman -S webkit2gtk-4.1 gtk3 libayatana-appindicator librsvg openssl patchelf base-devel
 ```
+
+> **AppImage note:** Arch ships `fuse3` by default. The bundled `.desktop` entry sets `APPIMAGE_EXTRACT_AND_RUN=1` automatically so the app runs without needing `fuse2`. If you're running the raw `.AppImage` from a terminal, prepend the variable yourself: `APPIMAGE_EXTRACT_AND_RUN=1 ./Spacebar\ Editor_*.AppImage`.
 
 ### Running
 

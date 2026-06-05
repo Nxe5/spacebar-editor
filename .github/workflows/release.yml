@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  # ── Stage 1: Create the draft release via GitHub API (no build) ─────────
+  # ── Stage 1: Create the draft release via GitHub API (no build step) ────
   create-release:
     runs-on: ubuntu-latest
     permissions:
@@ -43,9 +43,10 @@ jobs:
                 '',
                 '| Platform | File |',
                 '|----------|------|',
-                '| Linux | `.AppImage` (portable) or `.deb` (Debian/Ubuntu) |',
-                '| macOS | `.dmg` (universal — Apple Silicon + Intel) |',
-                '| Windows | `.msi` installer |',
+                '| **Linux (Arch)** | Install via [AUR](https://aur.archlinux.org/packages/spacebar-editor-bin): `yay -S spacebar-editor-bin` |',
+                '| **Linux (other)** | `.AppImage` (portable) or `.deb` (Debian/Ubuntu) |',
+                '| **macOS** | `.dmg` (universal — Apple Silicon + Intel) |',
+                '| **Windows** | `.msi` installer |',
                 '',
                 '> Project data is stored in `.sidebar/` inside your workspace. API keys go in the OS keychain — never committed to disk.',
               ].join('\n'),
@@ -94,13 +95,17 @@ jobs:
         with:
           workspaces: src-tauri
 
-      # pnpm/action-setup sets the shell PATH but tauri-action spawns a
-      # subprocess on Windows that doesn't inherit it. Installing globally
-      # puts pnpm on the system PATH for all child processes.
-      - name: Make pnpm available system-wide (Windows)
+      # pnpm/action-setup sets the shell PATH, but tauri-action spawns a
+      # child Node process that reads PATH from the OS environment at spawn
+      # time. On Windows this doesn't inherit the shell-level PATH update.
+      # Writing to GITHUB_PATH makes the directory visible to ALL subsequent
+      # steps AND their child processes.
+      - name: Make pnpm available to child processes (Windows)
         if: matrix.platform == 'windows-latest'
-        run: npm install -g pnpm
         shell: pwsh
+        run: |
+          npm install -g pnpm@10.33.4
+          "$((npm prefix -g))\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -120,8 +125,11 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      # Use @v0 (not @v0.5 — that floating tag is unreliable).
+      # FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 is intentionally absent from this
+      # file so tauri-action runs on its declared Node version.
       - name: Build & upload artifacts
-        uses: tauri-apps/tauri-action@v0.5
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

@@ -21,7 +21,12 @@
     ],
     "category": "DeveloperTool",
     "shortDescription": "Local-first AI coding assistant",
-    "longDescription": "A privacy-first desktop AI coding assistant. Run local models via Ollama or llama.cpp, or connect your own cloud API key. Your code never leaves your machine."
+    "longDescription": "A privacy-first desktop AI coding assistant. Run local models via Ollama or llama.cpp, or connect your own cloud API key. Your code never leaves your machine.",
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
   },
   "app": {
     "withGlobalTauri": true,

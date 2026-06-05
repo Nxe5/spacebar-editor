@@ -1,0 +1,74 @@
+# Maintainer: your-name <your-email>
+# shellcheck disable=SC2034,SC2154
+
+pkgname=spacebar-editor-bin
+pkgver=0.1.2
+pkgrel=1
+pkgdesc="Local-first AI coding assistant (Tauri + Svelte)"
+arch=('x86_64')
+url="https://github.com/Jiguey/spacebar-editor"
+license=('MIT')
+
+# Runtime deps — webkit2gtk-4.1 is the critical one (Tauri WebView)
+depends=(
+  'webkit2gtk-4.1'
+  'gtk3'
+  'libayatana-appindicator'
+  'librsvg'
+  'openssl'
+)
+optdepends=(
+  'fuse2: only needed if running the .AppImage directly outside this package'
+)
+
+provides=('spacebar-editor')
+conflicts=('spacebar-editor')
+
+# Update sha256sum after each release:
+#   sha256sum "Spacebar Editor_${pkgver}_amd64.AppImage"
+source_x86_64=("spacebar-editor-${pkgver}.AppImage::${url}/releases/download/v${pkgver}/Spacebar%20Editor_${pkgver}_amd64.AppImage")
+sha256sums_x86_64=('SKIP')
+
+options=('!strip')
+
+prepare() {
+  chmod +x "spacebar-editor-${pkgver}.AppImage"
+  # Extract AppImage — avoids FUSE requirement at install and runtime.
+  # fuse2 (from AUR) is NOT needed with this approach.
+  APPIMAGE_EXTRACT_AND_RUN=1 \
+    "./${pkgname%-bin}-${pkgver}.AppImage" --appimage-extract 2>/dev/null || \
+    "./spacebar-editor-${pkgver}.AppImage" --appimage-extract
+}
+
+package() {
+  # Install extracted contents to /opt
+  install -dm755 "${pkgdir}/opt/spacebar-editor"
+  cp -a squashfs-root/. "${pkgdir}/opt/spacebar-editor/"
+
+  # Main executable symlink
+  install -dm755 "${pkgdir}/usr/bin"
+  ln -sf /opt/spacebar-editor/AppRun "${pkgdir}/usr/bin/spacebar-editor"
+
+  # Desktop entry — use the one shipped in the AppImage
+  local desktop_src
+  desktop_src="$(find squashfs-root/usr/share/applications -name '*.desktop' | head -1)"
+  if [[ -f "$desktop_src" ]]; then
+    install -Dm644 "$desktop_src" \
+      "${pkgdir}/usr/share/applications/spacebar-editor.desktop"
+  fi
+
+  # Icons — install all sizes present in the AppImage
+  find squashfs-root/usr/share/icons -type f \( -name '*.png' -o -name '*.svg' \) \
+    | while read -r icon; do
+        rel="${icon#squashfs-root/}"
+        install -Dm644 "$icon" "${pkgdir}/usr/share/${rel#usr/share/}"
+      done
+
+  # Fallback icon from AppImage root
+  local root_icon
+  root_icon="$(find squashfs-root -maxdepth 1 -name '*.png' | head -1)"
+  if [[ -f "$root_icon" ]]; then
+    install -Dm644 "$root_icon" \
+      "${pkgdir}/usr/share/pixmaps/spacebar-editor.png"
+  fi
+}
