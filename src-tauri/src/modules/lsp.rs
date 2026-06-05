@@ -3,7 +3,7 @@
 //! Spawns language server child processes, bridges their stdio to the webview
 //! via Tauri events, and manages server lifetimes.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};

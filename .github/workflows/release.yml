@@ -9,8 +9,54 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  release:
-    name: Build & publish — ${{ matrix.platform }}
+  # ── Stage 1: Create the draft release once (avoids race condition) ──────
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.create.outputs.releaseId }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: tauri-apps/tauri-action@v0
+        id: create
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "Spacebar Editor ${{ github.ref_name }}"
+          releaseBody: |
+            ## Spacebar Editor ${{ github.ref_name }} — Public Beta
+
+            Local-first AI coding assistant. Run models on your machine (Ollama, llama.cpp) or bring your own API key (Anthropic, DeepSeek). Your code never leaves your machine.
+
+            ### What's new in v0.1.2
+            - **Spacebar app icon** — new icon across all platforms
+            - **API keys in OS keychain** — keys stored in Keychain / libsecret / Credential Manager, never in app storage
+            - **Rust workspace path enforcement** — double-layer sandbox (TypeScript + Rust `canonicalize`) blocks symlink escapes
+            - **Production CSP** — strict Content Security Policy; only known API origins allowed
+            - **Agent turn undo** — ↩ button above composer restores files from git checkpoint and puts your message back
+
+            ### Install
+
+            | Platform | File |
+            |----------|------|
+            | Linux | `.AppImage` (portable) or `.deb` (Debian/Ubuntu) |
+            | macOS | `.dmg` (universal — Apple Silicon + Intel) |
+            | Windows | `.msi` installer |
+
+            ### First run
+            Open a project folder, pick a model provider in Settings, and start chatting in Agent mode.
+
+            > Project data is stored in `.sidebar/` inside your workspace. API keys go in the OS keychain — never committed to disk.
+          releaseDraft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  # ── Stage 2: Build on each platform and upload artifacts ───────────────
+  build:
+    needs: create-release
     permissions:
       contents: write
     strategy:
@@ -47,6 +93,14 @@ jobs:
         with:
           workspaces: src-tauri
 
+      # pnpm/action-setup adds pnpm to the shell PATH but tauri-action spawns
+      # a subprocess that may not inherit it on Windows. Installing globally
+      # ensures pnpm is on the system PATH for all child processes.
+      - name: Make pnpm available system-wide (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: npm install -g pnpm
+        shell: pwsh
+
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -65,37 +119,28 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Build & publish release
+      - name: Build & upload artifacts
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Spacebar Editor ${{ github.ref_name }}"
-          releaseBody: |
-            ## Spacebar Editor ${{ github.ref_name }} — Public Beta
-
-            Local-first AI coding assistant. Run models on your machine (Ollama, llama.cpp) or bring your own API key (Anthropic, DeepSeek). Your code never leaves your machine.
-
-            ### What's new in v0.1.2
-            - **API keys in OS keychain** — keys stored in Keychain / libsecret / Credential Manager, never in app storage
-            - **Rust workspace path enforcement** — double-layer sandbox (TypeScript + Rust `canonicalize`) blocks symlink escapes
-            - **Production CSP** — strict Content Security Policy; only known API origins allowed
-            - **Agent turn undo** — ↩ button above composer restores files from git checkpoint and puts your message back
-            - **Spacebar app icon** — new icon across all platforms
-
-            ### Install
-
-            | Platform | File |
-            |----------|------|
-            | Linux | `.AppImage` (portable) or `.deb` (Debian/Ubuntu) |
-            | macOS | `.dmg` (universal — Apple Silicon + Intel) |
-            | Windows | `.msi` installer |
-
-            ### First run
-            Open a project folder, pick a model provider in Settings, and start chatting in Agent mode.
-
-            > Project data is stored in `.sidebar/` inside your workspace. API keys go in the OS keychain — never committed to disk.
-          releaseDraft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
+
+  # ── Stage 3: Publish the draft once all platform builds succeed ─────────
+  publish-release:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }},
+              draft: false
+            });

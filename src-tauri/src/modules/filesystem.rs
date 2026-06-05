@@ -165,10 +165,6 @@ fn sort_entries(entries: &mut [FileEntry]) {
     });
 }
 
-pub fn read_file_contents(path: &str) -> Result<String, String> {
-    read_file_ranged(path, None, None).map(|r| r.content)
-}
-
 const READ_FILE_HARD_CHAR_CAP: usize = 50_000;
 
 #[derive(Debug, Serialize, Deserialize)]
