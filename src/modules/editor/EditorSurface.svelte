@@ -429,7 +429,7 @@
   $effect(() => {
     if (!resizeObserver || !editorContainer) return;
     resizeObserver.observe(editorContainer);
-    return () => resizeObserver?.unobserve(editorContainer);
+    return () => resizeObserver?.unobserve(editorContainer!);
   });
 
   onDestroy(() => {

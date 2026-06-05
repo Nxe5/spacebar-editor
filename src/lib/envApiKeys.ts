@@ -32,6 +32,9 @@ export function mergeApiKeysFromEnv(apiKeys: {
   };
 }
 
+// These functions run in Node/test context only — declare process to satisfy browser-targeting svelte-check.
+declare const process: { env: Record<string, string | undefined> };
+
 /** Node/tests: read DeepSeek key from process.env (supports `deepseek_api_key` in `.env`). */
 export function deepseekApiKeyFromProcessEnv(): string {
   const raw =

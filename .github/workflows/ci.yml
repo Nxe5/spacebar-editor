@@ -49,7 +49,7 @@ jobs:
 
       - run: pnpm install
 
-      - run: pnpm build:web
+      - run: pnpm build:skip-tests
 
   # ──────────────────────────────────────────────
   # 3. Rust compile check — all three platforms

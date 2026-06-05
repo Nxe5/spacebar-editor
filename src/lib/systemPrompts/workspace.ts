@@ -7,6 +7,7 @@ import {
   ensureSystemPromptsLayout,
 } from "../ipc";
 import {
+  defaultPromptContentForEntry,
   defaultPromptTemplate,
   defaultPromptsConfig,
   normalizePromptsConfig,

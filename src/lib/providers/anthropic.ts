@@ -64,7 +64,7 @@ function convertMessagesToAnthropic(messages: Message[]): AnthropicMessage[] {
         (lastMsg.content as Array<{ type: string; tool_use_id?: string; content?: string; text?: string }>).push({
           type: "tool_result",
           tool_use_id: msg.tool_call_id ?? "",
-          content: msg.content,
+          content: msg.content ?? "",
         });
       } else {
         result.push({
@@ -104,7 +104,8 @@ function convertMessagesToAnthropic(messages: Message[]): AnthropicMessage[] {
             input,
           });
         }
-        result.push({ role: "assistant", content: blocks });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        result.push({ role: "assistant", content: blocks as any });
       } else {
         result.push({ role: "assistant", content: msg.content ?? "" });
       }

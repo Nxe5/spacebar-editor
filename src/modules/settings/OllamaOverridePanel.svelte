@@ -51,7 +51,7 @@
               <input
                 type="checkbox"
                 class="checkbox"
-                bind:checked={template[field.templateKey]}
+                bind:checked={template[field.templateKey] as boolean}
               />
               <span class="toggle-label">{template[field.templateKey] ? "On" : "Off"}</span>
             </label>
