@@ -10,10 +10,12 @@ if (process.platform === "linux") {
   env.WEBKIT_DISABLE_COMPOSITING_MODE = "1";
 }
 
+// On Windows, pnpm is a .cmd shim — spawn requires shell:true or the .cmd suffix.
+const isWindows = process.platform === "win32";
 const child = spawn("pnpm", ["exec", "tauri", ...process.argv.slice(2)], {
   stdio: "inherit",
   env,
-  shell: false,
+  shell: isWindows,
 });
 
 child.on("exit", (code, signal) => {

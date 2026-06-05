@@ -95,17 +95,6 @@ jobs:
         with:
           workspaces: src-tauri
 
-      # pnpm/action-setup sets the shell PATH, but tauri-action spawns a
-      # child Node process that reads PATH from the OS environment at spawn
-      # time. On Windows this doesn't inherit the shell-level PATH update.
-      # Writing to GITHUB_PATH makes the directory visible to ALL subsequent
-      # steps AND their child processes.
-      - name: Make pnpm available to child processes (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          npm install -g pnpm@10.33.4
-          "$((npm prefix -g))\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
