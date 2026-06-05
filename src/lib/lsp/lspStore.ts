@@ -9,7 +9,7 @@ import type { Diagnostic } from "./lspProtocol";
 import { LspClient } from "./lspClient";
 import { setEditorErrorCounts } from "../stores/editorDiagnostics";
 import { normalizeFilePath } from "../fsPath";
-import { LSP_BINARY_NAMES } from "./lspProtocol";
+import { LSP_BINARY_NAMES, LSP_INSTALL_HINTS } from "./lspProtocol";
 
 // ---------------------------------------------------------------------------
 // Public stores
@@ -22,11 +22,42 @@ export const lspDiagnostics = writable<Map<string, Diagnostic[]>>(new Map());
 export type LspStatus = "stopped" | "starting" | "running" | "error";
 export const lspServerStatus = writable<Map<string, LspStatus>>(new Map());
 
+/** Last spawn error per language (for Settings UI). */
+export const lspServerErrors = writable<Map<string, string>>(new Map());
+
 // ---------------------------------------------------------------------------
 // Active clients
 // ---------------------------------------------------------------------------
 
 const clients = new Map<string, LspClient>();
+/** Languages that failed to start — skip retries until settings change. */
+const failedStarts = new Set<string>();
+
+/** Clear cached failure so the next file open retries spawn. */
+export function clearLspFailure(language: string): void {
+  failedStarts.delete(language);
+  lspServerErrors.update((m) => {
+    const next = new Map(m);
+    next.delete(language);
+    return next;
+  });
+  lspServerStatus.update((m) => {
+    const next = new Map(m);
+    if (next.get(language) === "error") next.set(language, "stopped");
+    return next;
+  });
+}
+
+function formatSpawnError(language: string, cmd: string, err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/no such file|not found|enoent/i.test(msg)) {
+    const hint = LSP_INSTALL_HINTS[language];
+    return hint
+      ? `'${cmd}' not found on PATH. Install: ${hint}`
+      : `'${cmd}' not found on PATH. Install the server or set a custom path in Settings → LSP.`;
+  }
+  return msg;
+}
 
 // ---------------------------------------------------------------------------
 // Diagnostics path helpers
@@ -71,6 +102,7 @@ export async function ensureLspServer(
 ): Promise<LspClient | null> {
   const key = `${language}:${workspacePath}`;
   if (clients.has(key)) return clients.get(key)!;
+  if (failedStarts.has(language)) return null;
 
   const cmd = command ?? LSP_BINARY_NAMES[language];
   if (!cmd) return null;
@@ -101,7 +133,10 @@ export async function ensureLspServer(
     lspServerStatus.update((m) => new Map(m).set(language, "running"));
     return client;
   } catch (e) {
-    console.error(`[lsp] failed to start ${cmd}:`, e);
+    const message = formatSpawnError(language, cmd, e);
+    failedStarts.add(language);
+    console.warn(`[lsp] failed to start ${cmd}: ${message}`);
+    lspServerErrors.update((m) => new Map(m).set(language, message));
     lspServerStatus.update((m) => new Map(m).set(language, "error"));
     return null;
   }

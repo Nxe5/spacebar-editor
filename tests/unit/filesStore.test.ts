@@ -38,4 +38,56 @@ describe("files store setChildren", () => {
     expect(lib?.expanded).toBe(true);
     expect(lib?.children?.map((c) => c.name)).toEqual(["a.ts"]);
   });
+
+  it("collapseAll closes every expanded folder", () => {
+    files.setTree([
+      {
+        name: "proj",
+        path: "/proj",
+        is_dir: true,
+        expanded: true,
+        children: [
+          {
+            name: "src",
+            path: "/proj/src",
+            is_dir: true,
+            expanded: true,
+            children: [{ name: "a.ts", path: "/proj/src/a.ts", is_dir: false }],
+          },
+        ],
+      },
+    ]);
+
+    files.collapseAll();
+
+    const tree = get(files).tree;
+    expect(tree[0].expanded).toBe(false);
+    expect(tree[0].children?.[0].expanded).toBe(false);
+  });
+
+  it("collapseAllSubfolders keeps workspace root expanded", () => {
+    files.setTree([
+      {
+        name: "proj",
+        path: "/proj",
+        is_dir: true,
+        expanded: true,
+        children: [
+          {
+            name: "src",
+            path: "/proj/src",
+            is_dir: true,
+            expanded: true,
+            children: [{ name: "a.ts", path: "/proj/src/a.ts", is_dir: false }],
+          },
+        ],
+      },
+    ]);
+
+    files.collapseAllSubfolders("/proj");
+
+    const tree = get(files).tree;
+    expect(tree[0].expanded).toBe(true);
+    expect(tree[0].children?.[0].expanded).toBe(false);
+  });
 });

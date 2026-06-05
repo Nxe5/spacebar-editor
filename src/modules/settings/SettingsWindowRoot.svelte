@@ -2,13 +2,13 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { ModeWatcher } from "mode-watcher";
   import { settings } from "$lib/stores/settings";
-  import { applyWorkbenchTheme } from "$lib/workbench-theme";
+  import { applyWorkbenchTheme, normalizeWorkbenchTheme } from "$lib/workbench-theme";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
   import { editorChrome } from "$lib/stores/editorChrome";
   import { explorerAppearance } from "$lib/stores/explorerAppearance";
   import { chatAppearance } from "$lib/stores/chatAppearance";
+  import { contextAppearance } from "$lib/stores/contextAppearance";
   import { workbenchChrome } from "$lib/stores/workbenchChrome";
-  import { toggleMaximizeAppWindow } from "$lib/windowControls";
   import WindowControls from "../workbench/WindowControls.svelte";
   import SettingsPane from "./SettingsPane.svelte";
 
@@ -16,6 +16,11 @@
   editorChrome.init();
   explorerAppearance.init();
   chatAppearance.init();
+  try {
+    contextAppearance.init();
+  } catch (e) {
+    console.error("[settings-window] contextAppearance init failed:", e);
+  }
   workbenchChrome.init();
 
   function onClose() {
@@ -23,11 +28,11 @@
   }
 
   $effect(() => {
-    applyWorkbenchTheme($settings.workbenchTheme);
+    applyWorkbenchTheme(normalizeWorkbenchTheme($settings.workbenchTheme));
   });
 </script>
 
-<ModeWatcher />
+<ModeWatcher defaultMode="dark" darkClassNames={[]} lightClassNames={[]} />
 
 <div class="settings-window flex h-screen flex-col overflow-hidden bg-background text-foreground">
   <header class="settings-titlebar">
@@ -35,9 +40,8 @@
     <div
       class="settings-titlebar__drag"
       data-tauri-drag-region
-      ondblclick={() => void toggleMaximizeAppWindow()}
     >
-      <span class="settings-titlebar__title">Settings</span>
+      <span class="settings-titlebar__title" data-tauri-drag-region>Settings</span>
     </div>
     <WindowControls />
   </header>

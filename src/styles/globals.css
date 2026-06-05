@@ -62,6 +62,7 @@
   --editor-gutter-fg: #858585;
   --editor-line-hl: #2a2d2e;
   --editor-selection: #264f78;
+  --editor-selection-match: #264f78;
   --editor-cursor: #d4d4d4;
 
   --background: #1e1e1e;
@@ -123,6 +124,21 @@
   --terminal-ansi-magenta: #c586c0;
   --terminal-ansi-cyan: #4ec9b0;
   --terminal-ansi-white: #d4d4d4;
+
+  /* Context bar — token breakdown segments (VS Code Dark) */
+  --context-base-mode-prompt: #6796e6;
+  --context-workspace-context: #4ec9b0;
+  --context-system-prompts: #c586c0;
+  --context-tool-instructions: #dcdcaa;
+  --context-tool-summary-instruction: #808080;
+  --context-tool-schemas: #ce9178;
+  --context-chat-history: #569cd6;
+  --context-skill-accent-1: #4fc1ff;
+  --context-skill-accent-2: #b5cea8;
+  --context-skill-accent-3: #f7b731;
+  --context-skill-accent-4: #e4c97e;
+  --context-skill-accent-5: #d7ba7d;
+  --context-skill-accent-6: #a8d1e5;
 }
 
 .dark {
@@ -131,6 +147,7 @@
   --editor-gutter-fg: #858585;
   --editor-line-hl: #2a2d2e;
   --editor-selection: #264f78;
+  --editor-selection-match: #264f78;
   --editor-cursor: #d4d4d4;
 
   --background: #1e1e1e;
@@ -192,6 +209,21 @@
   --terminal-ansi-magenta: #c586c0;
   --terminal-ansi-cyan: #4ec9b0;
   --terminal-ansi-white: #d4d4d4;
+
+  /* Context bar — token breakdown segments (VS Code Dark) */
+  --context-base-mode-prompt: #6796e6;
+  --context-workspace-context: #4ec9b0;
+  --context-system-prompts: #c586c0;
+  --context-tool-instructions: #dcdcaa;
+  --context-tool-summary-instruction: #808080;
+  --context-tool-schemas: #ce9178;
+  --context-chat-history: #569cd6;
+  --context-skill-accent-1: #4fc1ff;
+  --context-skill-accent-2: #b5cea8;
+  --context-skill-accent-3: #f7b731;
+  --context-skill-accent-4: #e4c97e;
+  --context-skill-accent-5: #d7ba7d;
+  --context-skill-accent-6: #a8d1e5;
 }
 
 @theme inline {

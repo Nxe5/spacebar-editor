@@ -1,76 +1,107 @@
 /**
- * Workbench palettes (editor, explorer, activity bar, terminal ANSI).
- * Settings → Appearance → Theme, or `data-workbench-theme` on `<html class="dark">`.
- *
- * Default: VS Code Dark (globals.css). Presets below override when selected.
+ * Workbench theme presets — Settings → Appearance → Theme.
+ * Applied via `data-workbench-theme` on `<html>`; light themes also remove the `dark` class.
  */
 
-/** Linux Cursor IDE dark (darker than VS Code; was the former default). */
-.dark[data-workbench-theme="cursor-dark"] {
-  --editor-bg: #181818;
-  --editor-fg: #e4e4e4;
-  --editor-gutter-fg: #a0a0a0;
-  --editor-line-hl: #262626;
-  --editor-selection: #404040;
+/* ─── Spacebar (default dark) ─────────────────────────────────────────────── */
 
-  --background: #181818;
-  --foreground: #e4e4e4;
-  --card: #141414;
-  --card-foreground: #e4e4e4;
-  --popover: #141414;
-  --popover-foreground: #e4e4e4;
-  --primary: #88c0d0;
-  --primary-foreground: #141414;
-  --secondary: #262626;
-  --secondary-foreground: #e4e4e4;
-  --muted: #2a2a2a;
+.dark[data-workbench-theme="spacebar"] {
+  --background: #1e1e1e;
+  --foreground: #d4d4d4;
+  --card: #252526;
+  --card-foreground: #d4d4d4;
+  --popover: #252526;
+  --popover-foreground: #d4d4d4;
+  --primary: #007acc;
+  --primary-foreground: #ffffff;
+  --secondary: #2d2d30;
+  --secondary-foreground: #d4d4d4;
+  --muted: #3c3c3c;
   --muted-foreground: #a0a0a0;
-  --accent: #343434;
-  --accent-foreground: #e4e4e4;
-  --destructive: #e34671;
-  --border: #2a2a2a;
-  --input: #1e1e1e;
-  --ring: #88c0d0;
-  --chart-1: #88c0d0;
-  --chart-2: #3fa266;
-  --chart-3: #d2943e;
-  --chart-4: #b48ead;
-  --chart-5: #e394dc;
-  --sidebar: #141414;
-  --sidebar-foreground: #c8c8c8;
-  --sidebar-primary: #88c0d0;
-  --sidebar-primary-foreground: #141414;
-  --sidebar-accent: #262626;
-  --sidebar-accent-foreground: #e4e4e4;
-  --sidebar-border: #2a2a2a;
-  --sidebar-ring: #88c0d0;
-  --surface: #141414;
-  --surface-elevated: #262626;
-  --success: #3fa266;
-  --activity-bar-bg: #141414;
-  --activity-bar-fg: #a0a0a0;
-  --activity-bar-active: #e4e4e4;
-  --activity-bar-accent: #88c0d0;
-  --workbench-tab-active-indicator: #88c0d0;
-  --terminal-ansi-black: #242424;
-  --terminal-ansi-red: #fc6b83;
-  --terminal-ansi-green: #3fa266;
-  --terminal-ansi-yellow: #d2943e;
-  --terminal-ansi-blue: #81a1c1;
-  --terminal-ansi-magenta: #b48ead;
-  --terminal-ansi-cyan: #88c0d0;
-  --terminal-ansi-white: #e4e4e4;
+  --accent: #323235;
+  --accent-foreground: #d4d4d4;
+  --destructive: #f14c4c;
+  --border: #3c3c3c;
+  --input: #3c3c3c;
+  --ring: #007acc;
+  --sidebar: #252526;
+  --sidebar-foreground: #d4d4d4;
+  --sidebar-primary: #007acc;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2d2d30;
+  --sidebar-accent-foreground: #d4d4d4;
+  --sidebar-border: #3c3c3c;
+  --sidebar-ring: #007acc;
+  --surface: #252526;
+  --surface-elevated: #2d2d30;
+  --success: #89d185;
+  --activity-bar-bg: #333333;
+  --activity-bar-fg: #808080;
+  --activity-bar-active: #d4d4d4;
+  --activity-bar-accent: #007acc;
+  --workbench-tab-active-indicator: #007acc;
+
+  --editor-bg: #1e1e1e;
+  --editor-fg: #abb2bf;
+  --editor-gutter-fg: #636d83;
+  --editor-line-hl: #2c313c;
+  --editor-selection: #99c1f1;
+  --editor-selection-match: #dc8add;
+  --editor-cursor: #528bff;
+
+  --syntax-default: #abb2bf;
+  --syntax-keyword: #df78ff;
+  --syntax-function: #61afef;
+  --syntax-variable: #ff6b8b;
+  --syntax-number: #d19a66;
+  --syntax-string: #8ff0a4;
+  --syntax-type: #e5c07b;
+  --syntax-operator: #56b6c2;
+  --syntax-property: #abb2bf;
+  --syntax-comment: #5c6370;
+  --syntax-bool: #d19a66;
+  --syntax-class: #e5c07b;
+  --syntax-parameter: #ff6b8b;
+  --syntax-punctuation: #abb2bf;
+  --syntax-tag: #e06c75;
+  --syntax-attribute: #abb2bf;
+  --syntax-regexp: #56b6c2;
+  --syntax-meta: #5c6370;
+  --syntax-heading: #e5c07b;
+  --syntax-link: #61afef;
+  --syntax-invalid: #f44747;
+  --syntax-strong: #abb2bf;
+  --syntax-emphasis: #c678dd;
+
+  --context-base-mode-prompt: #99c1f1;
+  --context-workspace-context: #98c379;
+  --context-system-prompts: #c678dd;
+  --context-tool-instructions: #e5c07b;
+  --context-tool-summary-instruction: #5c6370;
+  --context-tool-schemas: #d19a66;
+  --context-chat-history: #ff6b8b;
+  --context-skill-accent-1: #e06c75;
+  --context-skill-accent-2: #56b6c2;
+  --context-skill-accent-3: #98c379;
+  --context-skill-accent-4: #e5c07b;
+  --context-skill-accent-5: #61afef;
+  --context-skill-accent-6: #c678dd;
+
+  --chat-message-box-bg: #1e1e1e;
+
+  --terminal-ansi-black: #3c3c3c;
+  --terminal-ansi-red: #f14c4c;
+  --terminal-ansi-green: #89d185;
+  --terminal-ansi-yellow: #dcdcaa;
+  --terminal-ansi-blue: #569cd6;
+  --terminal-ansi-magenta: #c586c0;
+  --terminal-ansi-cyan: #4ec9b0;
+  --terminal-ansi-white: #d4d4d4;
 }
 
-/** Cursor Dark chrome + bubblegum pastel syntax tokens. */
-.dark[data-workbench-theme="dark-bubblegum"] {
-  --editor-bg: #181818;
-  --editor-fg: #e6e6f0;
-  --editor-gutter-fg: #a0a0a0;
-  --editor-line-hl: #262626;
-  --editor-selection: #404040;
-  --editor-cursor: #e6e6f0;
+/* ─── Dark Bubblegum ─────────────────────────────────────────────────────── */
 
+.dark[data-workbench-theme="dark-bubblegum"] {
   --background: #181818;
   --foreground: #e6e6f0;
   --card: #141414;
@@ -89,11 +120,6 @@
   --border: #2a2a2a;
   --input: #1e1e1e;
   --ring: #88c0d0;
-  --chart-1: #88c0d0;
-  --chart-2: #a6ffcb;
-  --chart-3: #ffe38b;
-  --chart-4: #ff9ecb;
-  --chart-5: #ffb3d9;
   --sidebar: #141414;
   --sidebar-foreground: #c8c8c8;
   --sidebar-primary: #88c0d0;
@@ -110,6 +136,14 @@
   --activity-bar-active: #e6e6f0;
   --activity-bar-accent: #88c0d0;
   --workbench-tab-active-indicator: #88c0d0;
+
+  --editor-bg: #181818;
+  --editor-fg: #e6e6f0;
+  --editor-gutter-fg: #a0a0a0;
+  --editor-line-hl: #262626;
+  --editor-selection: #404040;
+  --editor-selection-match: #ff9ecb;
+  --editor-cursor: #e6e6f0;
 
   --syntax-default: #e6e6f0;
   --syntax-keyword: #ff6b8b;
@@ -135,6 +169,22 @@
   --syntax-strong: #e6e6f0;
   --syntax-emphasis: #ff8fa3;
 
+  --context-base-mode-prompt: #7de2ff;
+  --context-workspace-context: #a6ffcb;
+  --context-system-prompts: #ff9ecb;
+  --context-tool-instructions: #ffe38b;
+  --context-tool-summary-instruction: #a7a7c2;
+  --context-tool-schemas: #ffb3d9;
+  --context-chat-history: #88c0d0;
+  --context-skill-accent-1: #ff6b8b;
+  --context-skill-accent-2: #7de2ff;
+  --context-skill-accent-3: #a6ffcb;
+  --context-skill-accent-4: #ffb3d9;
+  --context-skill-accent-5: #ff9ecb;
+  --context-skill-accent-6: #f2c6ff;
+
+  --chat-message-box-bg: #181818;
+
   --terminal-ansi-black: #242424;
   --terminal-ansi-red: #ff4d6d;
   --terminal-ansi-green: #a6ffcb;
@@ -145,455 +195,486 @@
   --terminal-ansi-white: #e6e6f0;
 }
 
-/** Same as default globals; kept for explicit selection in Settings. */
-.dark[data-workbench-theme="vscode-dark"] {
-  --editor-bg: #1e1e1e;
-  --editor-fg: #d4d4d4;
-  --editor-gutter-fg: #858585;
-  --editor-line-hl: #2a2d2e;
-  --editor-selection: #264f78;
+/* ─── Cursor Dark ─────────────────────────────────────────────────────────── */
 
-  --background: #1e1e1e;
-  --foreground: #d4d4d4;
-  --card: #252526;
-  --card-foreground: #d4d4d4;
-  --popover: #252526;
-  --popover-foreground: #d4d4d4;
-  --primary: #007acc;
-  --primary-foreground: #ffffff;
-  --secondary: #2d2d30;
-  --secondary-foreground: #d4d4d4;
-  --muted: #3c3c3c;
+.dark[data-workbench-theme="cursor-dark"] {
+  --background: #181818;
+  --foreground: #e4e4e4;
+  --card: #141414;
+  --card-foreground: #e4e4e4;
+  --popover: #141414;
+  --popover-foreground: #e4e4e4;
+  --primary: #88c0d0;
+  --primary-foreground: #141414;
+  --secondary: #262626;
+  --secondary-foreground: #e4e4e4;
+  --muted: #2a2a2a;
   --muted-foreground: #a0a0a0;
-  --accent: #323235;
-  --accent-foreground: #d4d4d4;
-  --destructive: #f14c4c;
-  --border: #3c3c3c;
-  --input: #3c3c3c;
-  --ring: #007acc;
-  --sidebar: #252526;
-  --sidebar-foreground: #d4d4d4;
-  --sidebar-primary: #007acc;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #2d2d30;
-  --sidebar-accent-foreground: #d4d4d4;
-  --sidebar-border: #3c3c3c;
-  --sidebar-ring: #007acc;
-  --surface: #252526;
-  --surface-elevated: #2d2d30;
-  --success: #89d185;
-  --activity-bar-bg: #333333;
-  --activity-bar-fg: #808080;
-  --activity-bar-active: #d4d4d4;
-  --activity-bar-accent: #007acc;
-  --workbench-tab-active-indicator: #007acc;
-  --terminal-ansi-black: #3c3c3c;
-  --terminal-ansi-red: #f14c4c;
-  --terminal-ansi-green: #89d185;
-  --terminal-ansi-yellow: #dcdcaa;
-  --terminal-ansi-blue: #569cd6;
-  --terminal-ansi-magenta: #c586c0;
-  --terminal-ansi-cyan: #4ec9b0;
-  --terminal-ansi-white: #d4d4d4;
+  --accent: #343434;
+  --accent-foreground: #e4e4e4;
+  --destructive: #e34671;
+  --border: #2a2a2a;
+  --input: #1e1e1e;
+  --ring: #88c0d0;
+  --sidebar: #141414;
+  --sidebar-foreground: #c8c8c8;
+  --sidebar-primary: #88c0d0;
+  --sidebar-primary-foreground: #141414;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: #e4e4e4;
+  --sidebar-border: #2a2a2a;
+  --sidebar-ring: #88c0d0;
+  --surface: #141414;
+  --surface-elevated: #262626;
+  --success: #3fa266;
+  --activity-bar-bg: #141414;
+  --activity-bar-fg: #a0a0a0;
+  --activity-bar-active: #e4e4e4;
+  --activity-bar-accent: #88c0d0;
+  --workbench-tab-active-indicator: #88c0d0;
+
+  --editor-bg: #181818;
+  --editor-fg: #e4e4e4;
+  --editor-gutter-fg: #a0a0a0;
+  --editor-line-hl: #262626;
+  --editor-selection: #404040;
+  --editor-selection-match: #88c0d0;
+  --editor-cursor: #e4e4e4;
+
+  --syntax-default: #e4e4e4;
+  --syntax-keyword: #88c0d0;
+  --syntax-function: #a3be8c;
+  --syntax-variable: #e4e4e4;
+  --syntax-number: #b48ead;
+  --syntax-string: #a3be8c;
+  --syntax-type: #ebcb8b;
+  --syntax-operator: #81a1c1;
+  --syntax-property: #d8dee9;
+  --syntax-comment: #616e88;
+  --syntax-bool: #b48ead;
+  --syntax-class: #ebcb8b;
+  --syntax-parameter: #e4e4e4;
+  --syntax-punctuation: #d8dee9;
+  --syntax-tag: #bf616a;
+  --syntax-attribute: #d8dee9;
+  --syntax-regexp: #a3be8c;
+  --syntax-meta: #616e88;
+  --syntax-heading: #ebcb8b;
+  --syntax-link: #88c0d0;
+  --syntax-invalid: #bf616a;
+  --syntax-strong: #e4e4e4;
+  --syntax-emphasis: #88c0d0;
+
+  --context-base-mode-prompt: #88c0d0;
+  --context-workspace-context: #a3be8c;
+  --context-system-prompts: #b48ead;
+  --context-tool-instructions: #ebcb8b;
+  --context-tool-summary-instruction: #616e88;
+  --context-tool-schemas: #d08770;
+  --context-chat-history: #81a1c1;
+  --context-skill-accent-1: #bf616a;
+  --context-skill-accent-2: #81a1c1;
+  --context-skill-accent-3: #a3be8c;
+  --context-skill-accent-4: #ebcb8b;
+  --context-skill-accent-5: #88c0d0;
+  --context-skill-accent-6: #b48ead;
+
+  --chat-message-box-bg: #181818;
+
+  --terminal-ansi-black: #242424;
+  --terminal-ansi-red: #fc6b83;
+  --terminal-ansi-green: #3fa266;
+  --terminal-ansi-yellow: #d2943e;
+  --terminal-ansi-blue: #81a1c1;
+  --terminal-ansi-magenta: #b48ead;
+  --terminal-ansi-cyan: #88c0d0;
+  --terminal-ansi-white: #e4e4e4;
 }
 
-.dark[data-workbench-theme="catppuccin-mocha"] {
-  --editor-bg: #1e1e2e;
-  --editor-fg: #cdd6f4;
-  --editor-gutter-fg: #7f849c;
-  --editor-line-hl: #313244;
-  --editor-selection: rgba(137, 180, 250, 0.35);
+/* ─── Light Paper (clean white) ───────────────────────────────────────────── */
 
-  --background: #1e1e2e;
-  --foreground: #cdd6f4;
-  --card: #181825;
-  --card-foreground: #cdd6f4;
-  --popover: #181825;
-  --popover-foreground: #cdd6f4;
-  --primary: #89b4fa;
-  --primary-foreground: #1e1e2e;
-  --secondary: #313244;
-  --secondary-foreground: #cdd6f4;
-  --muted: #45475a;
-  --muted-foreground: #a6adc8;
-  --accent: #313244;
-  --accent-foreground: #cdd6f4;
-  --destructive: #f38ba8;
-  --border: #45475a;
-  --input: #45475a;
-  --ring: #89b4fa;
-  --sidebar: #181825;
-  --sidebar-foreground: #cdd6f4;
-  --sidebar-primary: #89b4fa;
-  --sidebar-primary-foreground: #1e1e2e;
-  --sidebar-accent: #313244;
-  --sidebar-accent-foreground: #cdd6f4;
-  --sidebar-border: #45475a;
-  --sidebar-ring: #89b4fa;
-  --surface: #181825;
-  --surface-elevated: #313244;
-  --success: #a6e3a1;
-  --activity-bar-bg: #11111b;
-  --activity-bar-fg: #7f849c;
-  --activity-bar-active: #cdd6f4;
-  --activity-bar-accent: #89b4fa;
+html[data-workbench-theme="light-paper"] {
+  color-scheme: light;
 
-  --terminal-ansi-black: #45475a;
-  --terminal-ansi-red: #f38ba8;
-  --terminal-ansi-green: #a6e3a1;
-  --terminal-ansi-yellow: #f9e2af;
-  --terminal-ansi-blue: #89b4fa;
-  --terminal-ansi-magenta: #cba6f7;
-  --terminal-ansi-cyan: #89dceb;
-  --terminal-ansi-white: #bac2de;
-}
-
-.dark[data-workbench-theme="tokyo-night"] {
-  --editor-bg: #1a1b26;
-  --editor-fg: #a9b1d6;
-  --editor-gutter-fg: #565f89;
-  --editor-line-hl: #292e42;
-  --editor-selection: rgba(122, 162, 247, 0.35);
-
-  --background: #1a1b26;
-  --foreground: #a9b1d6;
-  --card: #16161e;
-  --card-foreground: #a9b1d6;
-  --popover: #16161e;
-  --popover-foreground: #a9b1d6;
-  --primary: #7aa2f7;
-  --primary-foreground: #1a1b26;
-  --secondary: #292e42;
-  --secondary-foreground: #a9b1d6;
-  --muted: #3b4261;
-  --muted-foreground: #787c99;
-  --accent: #292e42;
-  --accent-foreground: #c0caf5;
-  --destructive: #f7768e;
-  --border: #292e42;
-  --input: #3b4261;
-  --ring: #7aa2f7;
-  --sidebar: #16161e;
-  --sidebar-foreground: #a9b1d6;
-  --sidebar-primary: #7aa2f7;
-  --sidebar-primary-foreground: #1a1b26;
-  --sidebar-accent: #292e42;
-  --sidebar-accent-foreground: #c0caf5;
-  --sidebar-border: #292e42;
-  --sidebar-ring: #7aa2f7;
-  --surface: #16161e;
-  --surface-elevated: #24283b;
-  --success: #9ece6a;
-  --activity-bar-bg: #101014;
-  --activity-bar-fg: #565f89;
-  --activity-bar-active: #c0caf5;
-  --activity-bar-accent: #7aa2f7;
-
-  --terminal-ansi-black: #414868;
-  --terminal-ansi-red: #f7768e;
-  --terminal-ansi-green: #9ece6a;
-  --terminal-ansi-yellow: #e0af68;
-  --terminal-ansi-blue: #7aa2f7;
-  --terminal-ansi-magenta: #bb9af7;
-  --terminal-ansi-cyan: #7dcfff;
-  --terminal-ansi-white: #a9b1d6;
-}
-
-.dark[data-workbench-theme="one-dark-pro"] {
-  --editor-bg: #282c34;
-  --editor-fg: #abb2bf;
-  --editor-gutter-fg: #4b5263;
-  --editor-line-hl: #2c313c;
-  --editor-selection: #3e4451;
-
-  --background: #282c34;
-  --foreground: #abb2bf;
-  --card: #21252b;
-  --card-foreground: #abb2bf;
-  --popover: #21252b;
-  --popover-foreground: #abb2bf;
-  --primary: #61afef;
-  --primary-foreground: #282c34;
-  --secondary: #2c313c;
-  --secondary-foreground: #abb2bf;
-  --muted: #3e4451;
-  --muted-foreground: #7d8799;
-  --accent: #2c313c;
-  --accent-foreground: #e6e6e6;
-  --destructive: #e06c75;
-  --border: #3e4451;
-  --input: #3e4451;
-  --ring: #61afef;
-  --sidebar: #21252b;
-  --sidebar-foreground: #abb2bf;
-  --sidebar-primary: #61afef;
-  --sidebar-primary-foreground: #282c34;
-  --sidebar-accent: #2c313c;
-  --sidebar-accent-foreground: #e6e6e6;
-  --sidebar-border: #3e4451;
-  --sidebar-ring: #61afef;
-  --surface: #21252b;
-  --surface-elevated: #2c313c;
-  --success: #98c379;
-  --activity-bar-bg: #1e222a;
-  --activity-bar-fg: #5c6370;
-  --activity-bar-active: #e6e6e6;
-  --activity-bar-accent: #61afef;
-
-  --terminal-ansi-black: #3e4451;
-  --terminal-ansi-red: #e06c75;
-  --terminal-ansi-green: #98c379;
-  --terminal-ansi-yellow: #e5c07b;
-  --terminal-ansi-blue: #61afef;
-  --terminal-ansi-magenta: #c678dd;
-  --terminal-ansi-cyan: #56b6c2;
-  --terminal-ansi-white: #abb2bf;
-}
-
-/**
- * Spacebar — same palette as [One Dark Pro](https://vscodethemes.com/e/zhuangtongfa.One-dark-pro/one-dark-pro)
- * (Atom-style): editor #282c34, accent #61afef. Active tabs use `--workbench-tab-active-indicator`.
- */
-.dark[data-workbench-theme="sidebar"] {
-  --editor-bg: #282c34;
-  --editor-fg: #abb2bf;
-  --editor-gutter-fg: #4b5263;
-  --editor-line-hl: #2c313c;
-  --editor-selection: #3e4451;
-
-  --background: #282c34;
-  --foreground: #abb2bf;
-  --card: #21252b;
-  --card-foreground: #abb2bf;
-  --popover: #21252b;
-  --popover-foreground: #abb2bf;
-  --primary: #61afef;
-  --primary-foreground: #282c34;
-  --secondary: #2c313c;
-  --secondary-foreground: #abb2bf;
-  --muted: #3e4451;
-  --muted-foreground: #7d8799;
-  --accent: #2c313c;
-  --accent-foreground: #e6e6e6;
-  --destructive: #e06c75;
-  --border: #3e4451;
-  --input: #3e4451;
-  --ring: #61afef;
-  --sidebar: #21252b;
-  --sidebar-foreground: #abb2bf;
-  --sidebar-primary: #61afef;
-  --sidebar-primary-foreground: #282c34;
-  --sidebar-accent: #2c313c;
-  --sidebar-accent-foreground: #e6e6e6;
-  --sidebar-border: #3e4451;
-  --sidebar-ring: #61afef;
-  --surface: #21252b;
-  --surface-elevated: #2c313c;
-  --success: #98c379;
-  --activity-bar-bg: #1e222a;
-  --activity-bar-fg: #5c6370;
-  --activity-bar-active: #e6e6e6;
-  --activity-bar-accent: #61afef;
-  --workbench-tab-active-indicator: #61afef;
-
-  --terminal-ansi-black: #3e4451;
-  --terminal-ansi-red: #e06c75;
-  --terminal-ansi-green: #98c379;
-  --terminal-ansi-yellow: #e5c07b;
-  --terminal-ansi-blue: #61afef;
-  --terminal-ansi-magenta: #c678dd;
-  --terminal-ansi-cyan: #56b6c2;
-  --terminal-ansi-white: #abb2bf;
-}
-
-.dark[data-workbench-theme="dracula"] {
-  --editor-bg: #282a36;
-  --editor-fg: #f8f8f2;
-  --editor-gutter-fg: #6272a4;
-  --editor-line-hl: #44475a;
-  --editor-selection: #44475a;
-
-  --background: #282a36;
-  --foreground: #f8f8f2;
-  --card: #21222c;
-  --card-foreground: #f8f8f2;
-  --popover: #21222c;
-  --popover-foreground: #f8f8f2;
-  --primary: #bd93f9;
-  --primary-foreground: #282a36;
-  --secondary: #44475a;
-  --secondary-foreground: #f8f8f2;
-  --muted: #44475a;
-  --muted-foreground: #6272a4;
-  --accent: #44475a;
-  --accent-foreground: #f8f8f2;
-  --destructive: #ff5555;
-  --border: #44475a;
-  --input: #44475a;
-  --ring: #bd93f9;
-  --sidebar: #21222c;
-  --sidebar-foreground: #f8f8f2;
-  --sidebar-primary: #bd93f9;
-  --sidebar-primary-foreground: #282a36;
-  --sidebar-accent: #44475a;
-  --sidebar-accent-foreground: #f8f8f2;
-  --sidebar-border: #44475a;
-  --sidebar-ring: #bd93f9;
-  --surface: #21222c;
-  --surface-elevated: #44475a;
-  --success: #50fa7b;
-  --activity-bar-bg: #191a21;
-  --activity-bar-fg: #6272a4;
-  --activity-bar-active: #f8f8f2;
-  --activity-bar-accent: #bd93f9;
-
-  --terminal-ansi-black: #44475a;
-  --terminal-ansi-red: #ff5555;
-  --terminal-ansi-green: #50fa7b;
-  --terminal-ansi-yellow: #f1fa8c;
-  --terminal-ansi-blue: #bd93f9;
-  --terminal-ansi-magenta: #ff79c6;
-  --terminal-ansi-cyan: #8be9fd;
-  --terminal-ansi-white: #f8f8f2;
-}
-
-.dark[data-workbench-theme="github-dark"] {
-  --editor-bg: #0d1117;
-  --editor-fg: #c9d1d9;
-  --editor-gutter-fg: #6e7681;
-  --editor-line-hl: #161b22;
-  --editor-selection: rgba(56, 139, 253, 0.28);
-
-  --background: #0d1117;
-  --foreground: #c9d1d9;
-  --card: #161b22;
-  --card-foreground: #c9d1d9;
-  --popover: #161b22;
-  --popover-foreground: #c9d1d9;
-  --primary: #58a6ff;
-  --primary-foreground: #0d1117;
-  --secondary: #21262d;
-  --secondary-foreground: #c9d1d9;
-  --muted: #21262d;
-  --muted-foreground: #8b949e;
-  --accent: #21262d;
-  --accent-foreground: #f0f6fc;
-  --destructive: #f85149;
-  --border: #30363d;
-  --input: #30363d;
-  --ring: #58a6ff;
-  --sidebar: #010409;
-  --sidebar-foreground: #c9d1d9;
-  --sidebar-primary: #58a6ff;
-  --sidebar-primary-foreground: #0d1117;
-  --sidebar-accent: #21262d;
-  --sidebar-accent-foreground: #f0f6fc;
-  --sidebar-border: #30363d;
-  --sidebar-ring: #58a6ff;
-  --surface: #161b22;
-  --surface-elevated: #21262d;
-  --success: #3fb950;
-  --activity-bar-bg: #010409;
-  --activity-bar-fg: #6e7681;
-  --activity-bar-active: #f0f6fc;
-  --activity-bar-accent: #58a6ff;
-
-  --terminal-ansi-black: #484f58;
-  --terminal-ansi-red: #ff7b72;
-  --terminal-ansi-green: #3fb950;
-  --terminal-ansi-yellow: #d29922;
-  --terminal-ansi-blue: #58a6ff;
-  --terminal-ansi-magenta: #bc8cff;
-  --terminal-ansi-cyan: #39c5cf;
-  --terminal-ansi-white: #b1bac4;
-}
-
-/**
- * Rosé Pine — VS Code Dark workbench chrome with Rosé Pine editor, syntax, and terminal.
- * Palette: https://rosepinetheme.com · editor tokens from rose-pine/vscode.
- */
-.dark[data-workbench-theme="rose-pine"] {
-  /* VS Code Dark application chrome (same as default / vscode-dark preset) */
-  --background: #1e1e1e;
-  --foreground: #d4d4d4;
-  --card: #252526;
-  --card-foreground: #d4d4d4;
-  --popover: #252526;
-  --popover-foreground: #d4d4d4;
-  --primary: #007acc;
+  --background: #ffffff;
+  --foreground: #1f1f1f;
+  --card: #f8f8f8;
+  --card-foreground: #1f1f1f;
+  --popover: #ffffff;
+  --popover-foreground: #1f1f1f;
+  --primary: #0066bf;
   --primary-foreground: #ffffff;
-  --secondary: #2d2d30;
-  --secondary-foreground: #d4d4d4;
-  --muted: #3c3c3c;
-  --muted-foreground: #a0a0a0;
-  --accent: #323235;
-  --accent-foreground: #d4d4d4;
-  --destructive: #f14c4c;
-  --border: #3c3c3c;
-  --input: #3c3c3c;
-  --ring: #007acc;
-  --chart-1: #007acc;
-  --chart-2: #4ec9b0;
-  --chart-3: #dcdcaa;
-  --chart-4: #c586c0;
-  --chart-5: #ce9178;
-  --sidebar: #252526;
-  --sidebar-foreground: #d4d4d4;
-  --sidebar-primary: #007acc;
+  --secondary: #f0f0f0;
+  --secondary-foreground: #1f1f1f;
+  --muted: #e8e8e8;
+  --muted-foreground: #6b6b6b;
+  --accent: #ebebeb;
+  --accent-foreground: #1f1f1f;
+  --destructive: #c72e2e;
+  --border: #dcdcdc;
+  --input: #ffffff;
+  --ring: #0066bf;
+  --sidebar: #f3f3f3;
+  --sidebar-foreground: #333333;
+  --sidebar-primary: #0066bf;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #2d2d30;
-  --sidebar-accent-foreground: #d4d4d4;
-  --sidebar-border: #3c3c3c;
-  --sidebar-ring: #007acc;
-  --surface: #252526;
-  --surface-elevated: #2d2d30;
-  --success: #89d185;
-  --activity-bar-bg: #333333;
-  --activity-bar-fg: #808080;
-  --activity-bar-active: #d4d4d4;
-  --activity-bar-accent: #007acc;
-  --workbench-tab-active-indicator: #007acc;
+  --sidebar-accent: #e8e8e8;
+  --sidebar-accent-foreground: #1f1f1f;
+  --sidebar-border: #dcdcdc;
+  --sidebar-ring: #0066bf;
+  --surface: #f8f8f8;
+  --surface-elevated: #ffffff;
+  --success: #388a34;
+  --activity-bar-bg: #f3f3f3;
+  --activity-bar-fg: #6b6b6b;
+  --activity-bar-active: #1f1f1f;
+  --activity-bar-accent: #0066bf;
+  --workbench-tab-active-indicator: #0066bf;
 
-  /* Rosé Pine editor surface */
-  --editor-bg: #191724;
-  --editor-fg: #e0def4;
-  --editor-gutter-fg: #908caa;
-  --editor-line-hl: #6e6a861a;
-  --editor-selection: #6e6a8633;
-  --editor-cursor: #6e6a86;
+  --editor-bg: #ffffff;
+  --editor-fg: #1f1f1f;
+  --editor-gutter-fg: #6b6b6b;
+  --editor-line-hl: #f5f5f5;
+  --editor-selection: #add6ff;
+  --editor-selection-match: #c8a2ff;
+  --editor-cursor: #1f1f1f;
 
-  /* Rosé Pine syntax tokens (rose-pine/vscode tokenColors) */
-  --syntax-default: #e0def4;
-  --syntax-keyword: #31748f;
-  --syntax-function: #ebbcba;
-  --syntax-variable: #e0def4;
-  --syntax-number: #ebbcba;
-  --syntax-string: #f6c177;
-  --syntax-type: #9ccfd8;
-  --syntax-operator: #31748f;
-  --syntax-property: #c4a7e7;
-  --syntax-comment: #6e6a86;
-  --syntax-bool: #ebbcba;
-  --syntax-class: #9ccfd8;
-  --syntax-parameter: #c4a7e7;
-  --syntax-punctuation: #908caa;
-  --syntax-tag: #9ccfd8;
-  --syntax-attribute: #c4a7e7;
-  --syntax-regexp: #f6c177;
-  --syntax-meta: #6e6a86;
-  --syntax-heading: #e0def4;
-  --syntax-link: #c4a7e7;
-  --syntax-invalid: #eb6f92;
-  --syntax-strong: #e0def4;
-  --syntax-emphasis: #908caa;
+  --syntax-default: #1f1f1f;
+  --syntax-keyword: #0000ff;
+  --syntax-function: #795e26;
+  --syntax-variable: #001080;
+  --syntax-number: #098658;
+  --syntax-string: #a31515;
+  --syntax-type: #267f99;
+  --syntax-operator: #1f1f1f;
+  --syntax-property: #001080;
+  --syntax-comment: #008000;
+  --syntax-bool: #098658;
+  --syntax-class: #267f99;
+  --syntax-parameter: #001080;
+  --syntax-punctuation: #1f1f1f;
+  --syntax-tag: #800000;
+  --syntax-attribute: #ff0000;
+  --syntax-regexp: #811f3f;
+  --syntax-meta: #808080;
+  --syntax-heading: #795e26;
+  --syntax-link: #0066bf;
+  --syntax-invalid: #c72e2e;
+  --syntax-strong: #1f1f1f;
+  --syntax-emphasis: #0000ff;
 
-  /* Rosé Pine terminal ANSI */
-  --terminal-ansi-black: #26233a;
-  --terminal-ansi-red: #eb6f92;
-  --terminal-ansi-green: #31748f;
-  --terminal-ansi-yellow: #f6c177;
-  --terminal-ansi-blue: #9ccfd8;
-  --terminal-ansi-magenta: #c4a7e7;
-  --terminal-ansi-cyan: #ebbcba;
-  --terminal-ansi-white: #e0def4;
+  --context-base-mode-prompt: #0066bf;
+  --context-workspace-context: #388a34;
+  --context-system-prompts: #811f3f;
+  --context-tool-instructions: #795e26;
+  --context-tool-summary-instruction: #808080;
+  --context-tool-schemas: #098658;
+  --context-chat-history: #267f99;
+  --context-skill-accent-1: #a31515;
+  --context-skill-accent-2: #0066bf;
+  --context-skill-accent-3: #388a34;
+  --context-skill-accent-4: #795e26;
+  --context-skill-accent-5: #267f99;
+  --context-skill-accent-6: #811f3f;
+
+  --chat-message-box-bg: #f5f5f5;
+
+  --terminal-ansi-black: #1f1f1f;
+  --terminal-ansi-red: #c72e2e;
+  --terminal-ansi-green: #388a34;
+  --terminal-ansi-yellow: #795e26;
+  --terminal-ansi-blue: #0066bf;
+  --terminal-ansi-magenta: #811f3f;
+  --terminal-ansi-cyan: #267f99;
+  --terminal-ansi-white: #ffffff;
+}
+
+/* ─── Light Cloud (soft cool gray) ────────────────────────────────────────── */
+
+html[data-workbench-theme="light-cloud"] {
+  color-scheme: light;
+
+  --background: #eef2f7;
+  --foreground: #1e293b;
+  --card: #e4eaf2;
+  --card-foreground: #1e293b;
+  --popover: #f8fafc;
+  --popover-foreground: #1e293b;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #dde4ee;
+  --secondary-foreground: #1e293b;
+  --muted: #d1dae6;
+  --muted-foreground: #64748b;
+  --accent: #cbd5e1;
+  --accent-foreground: #1e293b;
+  --destructive: #dc2626;
+  --border: #c5d0de;
+  --input: #f8fafc;
+  --ring: #2563eb;
+  --sidebar: #e4eaf2;
+  --sidebar-foreground: #334155;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d1dae6;
+  --sidebar-accent-foreground: #1e293b;
+  --sidebar-border: #c5d0de;
+  --sidebar-ring: #2563eb;
+  --surface: #e4eaf2;
+  --surface-elevated: #f8fafc;
+  --success: #059669;
+  --activity-bar-bg: #dde4ee;
+  --activity-bar-fg: #64748b;
+  --activity-bar-active: #1e293b;
+  --activity-bar-accent: #2563eb;
+  --workbench-tab-active-indicator: #2563eb;
+
+  --editor-bg: #f8fafc;
+  --editor-fg: #1e293b;
+  --editor-gutter-fg: #64748b;
+  --editor-line-hl: #eef2f7;
+  --editor-selection: #bfdbfe;
+  --editor-selection-match: #ddd6fe;
+  --editor-cursor: #2563eb;
+
+  --syntax-default: #1e293b;
+  --syntax-keyword: #7c3aed;
+  --syntax-function: #2563eb;
+  --syntax-variable: #be123c;
+  --syntax-number: #b45309;
+  --syntax-string: #059669;
+  --syntax-type: #0d9488;
+  --syntax-operator: #475569;
+  --syntax-property: #334155;
+  --syntax-comment: #64748b;
+  --syntax-bool: #b45309;
+  --syntax-class: #0d9488;
+  --syntax-parameter: #be123c;
+  --syntax-punctuation: #475569;
+  --syntax-tag: #dc2626;
+  --syntax-attribute: #2563eb;
+  --syntax-regexp: #059669;
+  --syntax-meta: #64748b;
+  --syntax-heading: #0d9488;
+  --syntax-link: #2563eb;
+  --syntax-invalid: #dc2626;
+  --syntax-strong: #1e293b;
+  --syntax-emphasis: #7c3aed;
+
+  --context-base-mode-prompt: #2563eb;
+  --context-workspace-context: #059669;
+  --context-system-prompts: #7c3aed;
+  --context-tool-instructions: #b45309;
+  --context-tool-summary-instruction: #64748b;
+  --context-tool-schemas: #0d9488;
+  --context-chat-history: #be123c;
+  --context-skill-accent-1: #dc2626;
+  --context-skill-accent-2: #2563eb;
+  --context-skill-accent-3: #059669;
+  --context-skill-accent-4: #b45309;
+  --context-skill-accent-5: #0d9488;
+  --context-skill-accent-6: #7c3aed;
+
+  --chat-message-box-bg: #eef2f7;
+
+  --terminal-ansi-black: #1e293b;
+  --terminal-ansi-red: #dc2626;
+  --terminal-ansi-green: #059669;
+  --terminal-ansi-yellow: #b45309;
+  --terminal-ansi-blue: #2563eb;
+  --terminal-ansi-magenta: #7c3aed;
+  --terminal-ansi-cyan: #0d9488;
+  --terminal-ansi-white: #f8fafc;
+}
+
+/* ─── Pink Studio (colorful pink) ─────────────────────────────────────────── */
+
+.dark[data-workbench-theme="pink-studio"] {
+  --background: #3b1a32;
+  --foreground: #ffe8f5;
+  --card: #4a223f;
+  --card-foreground: #ffe8f5;
+  --popover: #4a223f;
+  --popover-foreground: #ffe8f5;
+  --primary: #ff7eb6;
+  --primary-foreground: #2a0f24;
+  --secondary: #5c2d50;
+  --secondary-foreground: #ffe8f5;
+  --muted: #6a3560;
+  --muted-foreground: #f0b8d8;
+  --accent: #723866;
+  --accent-foreground: #ffe8f5;
+  --destructive: #ff4d88;
+  --border: #6a3560;
+  --input: #4a223f;
+  --ring: #ff7eb6;
+  --sidebar: #4a223f;
+  --sidebar-foreground: #ffd4ea;
+  --sidebar-primary: #ff7eb6;
+  --sidebar-primary-foreground: #2a0f24;
+  --sidebar-accent: #5c2d50;
+  --sidebar-accent-foreground: #ffe8f5;
+  --sidebar-border: #6a3560;
+  --sidebar-ring: #ff7eb6;
+  --surface: #4a223f;
+  --surface-elevated: #5c2d50;
+  --success: #7dffb8;
+  --activity-bar-bg: #4a223f;
+  --activity-bar-fg: #f0b8d8;
+  --activity-bar-active: #ffe8f5;
+  --activity-bar-accent: #ff7eb6;
+  --workbench-tab-active-indicator: #ff7eb6;
+
+  --editor-bg: #2f1528;
+  --editor-fg: #ffe8f5;
+  --editor-gutter-fg: #d48ab8;
+  --editor-line-hl: #3d1c34;
+  --editor-selection: #9e4a82;
+  --editor-selection-match: #ff9ecb;
+  --editor-cursor: #ffb3d9;
+
+  --syntax-default: #ffe8f5;
+  --syntax-keyword: #ff6b8b;
+  --syntax-function: #ffb3d9;
+  --syntax-variable: #ffc8e8;
+  --syntax-number: #ffe38b;
+  --syntax-string: #a6ffcb;
+  --syntax-type: #f2c6ff;
+  --syntax-operator: #ff8fa3;
+  --syntax-property: #ffd4ea;
+  --syntax-comment: #c98ab5;
+  --syntax-bool: #ffe38b;
+  --syntax-class: #f2c6ff;
+  --syntax-parameter: #ffc8e8;
+  --syntax-punctuation: #f0b8d8;
+  --syntax-tag: #ff9ecb;
+  --syntax-attribute: #ffd4ea;
+  --syntax-regexp: #7de2ff;
+  --syntax-meta: #c98ab5;
+  --syntax-heading: #ffb3d9;
+  --syntax-link: #7de2ff;
+  --syntax-invalid: #ff4d88;
+  --syntax-strong: #ffe8f5;
+  --syntax-emphasis: #ff8fa3;
+
+  --context-base-mode-prompt: #ffb3d9;
+  --context-workspace-context: #a6ffcb;
+  --context-system-prompts: #f2c6ff;
+  --context-tool-instructions: #ffe38b;
+  --context-tool-summary-instruction: #c98ab5;
+  --context-tool-schemas: #ff9ecb;
+  --context-chat-history: #7de2ff;
+  --context-skill-accent-1: #ff6b8b;
+  --context-skill-accent-2: #7de2ff;
+  --context-skill-accent-3: #a6ffcb;
+  --context-skill-accent-4: #ffe38b;
+  --context-skill-accent-5: #ffb3d9;
+  --context-skill-accent-6: #f2c6ff;
+
+  --chat-message-box-bg: #2f1528;
+
+  --terminal-ansi-black: #2a0f24;
+  --terminal-ansi-red: #ff4d88;
+  --terminal-ansi-green: #a6ffcb;
+  --terminal-ansi-yellow: #ffe38b;
+  --terminal-ansi-blue: #7de2ff;
+  --terminal-ansi-magenta: #ff9ecb;
+  --terminal-ansi-cyan: #ffb3d9;
+  --terminal-ansi-white: #ffe8f5;
+}
+
+/* ─── Blue Nova (colorful blue) ───────────────────────────────────────────── */
+
+.dark[data-workbench-theme="blue-nova"] {
+  --background: #0c1a33;
+  --foreground: #e8f4ff;
+  --card: #122544;
+  --card-foreground: #e8f4ff;
+  --popover: #122544;
+  --popover-foreground: #e8f4ff;
+  --primary: #4dabff;
+  --primary-foreground: #061224;
+  --secondary: #183058;
+  --secondary-foreground: #e8f4ff;
+  --muted: #1f3a66;
+  --muted-foreground: #8eb8e8;
+  --accent: #254575;
+  --accent-foreground: #e8f4ff;
+  --destructive: #ff6b8b;
+  --border: #1f3a66;
+  --input: #122544;
+  --ring: #4dabff;
+  --sidebar: #122544;
+  --sidebar-foreground: #cce4ff;
+  --sidebar-primary: #4dabff;
+  --sidebar-primary-foreground: #061224;
+  --sidebar-accent: #183058;
+  --sidebar-accent-foreground: #e8f4ff;
+  --sidebar-border: #1f3a66;
+  --sidebar-ring: #4dabff;
+  --surface: #122544;
+  --surface-elevated: #183058;
+  --success: #4ec994;
+  --activity-bar-bg: #122544;
+  --activity-bar-fg: #8eb8e8;
+  --activity-bar-active: #e8f4ff;
+  --activity-bar-accent: #4dabff;
+  --workbench-tab-active-indicator: #4dabff;
+
+  --editor-bg: #081528;
+  --editor-fg: #e8f4ff;
+  --editor-gutter-fg: #6a9fd4;
+  --editor-line-hl: #0f2240;
+  --editor-selection: #2563a8;
+  --editor-selection-match: #7eb8ff;
+  --editor-cursor: #4dabff;
+
+  --syntax-default: #e8f4ff;
+  --syntax-keyword: #7eb8ff;
+  --syntax-function: #4dabff;
+  --syntax-variable: #ff9a9a;
+  --syntax-number: #ffd166;
+  --syntax-string: #4ec994;
+  --syntax-type: #56d4f0;
+  --syntax-operator: #8eb8e8;
+  --syntax-property: #cce4ff;
+  --syntax-comment: #6a8fbf;
+  --syntax-bool: #ffd166;
+  --syntax-class: #56d4f0;
+  --syntax-parameter: #ff9a9a;
+  --syntax-punctuation: #8eb8e8;
+  --syntax-tag: #ff7eb6;
+  --syntax-attribute: #cce4ff;
+  --syntax-regexp: #4ec994;
+  --syntax-meta: #6a8fbf;
+  --syntax-heading: #56d4f0;
+  --syntax-link: #4dabff;
+  --syntax-invalid: #ff6b8b;
+  --syntax-strong: #e8f4ff;
+  --syntax-emphasis: #7eb8ff;
+
+  --context-base-mode-prompt: #4dabff;
+  --context-workspace-context: #4ec994;
+  --context-system-prompts: #7eb8ff;
+  --context-tool-instructions: #ffd166;
+  --context-tool-summary-instruction: #6a8fbf;
+  --context-tool-schemas: #56d4f0;
+  --context-chat-history: #ff9a9a;
+  --context-skill-accent-1: #ff7eb6;
+  --context-skill-accent-2: #56d4f0;
+  --context-skill-accent-3: #4ec994;
+  --context-skill-accent-4: #ffd166;
+  --context-skill-accent-5: #4dabff;
+  --context-skill-accent-6: #7eb8ff;
+
+  --chat-message-box-bg: #081528;
+
+  --terminal-ansi-black: #061224;
+  --terminal-ansi-red: #ff6b8b;
+  --terminal-ansi-green: #4ec994;
+  --terminal-ansi-yellow: #ffd166;
+  --terminal-ansi-blue: #4dabff;
+  --terminal-ansi-magenta: #c678ff;
+  --terminal-ansi-cyan: #56d4f0;
+  --terminal-ansi-white: #e8f4ff;
 }

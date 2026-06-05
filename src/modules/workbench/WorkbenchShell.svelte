@@ -21,7 +21,7 @@
   import { layoutOverride } from "$lib/stores/layoutOverride";
   import { files } from "$lib/stores/files";
   import { settings } from "$lib/stores/settings";
-  import { applyWorkbenchTheme, type WorkbenchThemeId } from "$lib/workbench-theme";
+  import { applyWorkbenchTheme, normalizeWorkbenchTheme, type WorkbenchThemeId } from "$lib/workbench-theme";
   import { iconTheme } from "$lib/stores/iconTheme";
   import {
     isTauriAvailable,
@@ -39,8 +39,8 @@
   import { shortcutOverrides } from "../shortcuts/registry";
   import { explorerAppearance } from "$lib/stores/explorerAppearance";
   import { chatAppearance } from "$lib/stores/chatAppearance";
+  import { contextAppearance } from "$lib/stores/contextAppearance";
   import { workbenchChrome } from "$lib/stores/workbenchChrome";
-  import { toggleMaximizeAppWindow } from "$lib/windowControls";
   import {
     setWorkbenchModalScrollLock,
     setWorkbenchAuxiliaryScrollLock,
@@ -199,16 +199,26 @@
     window.addEventListener("mouseup", onResizeUp);
   }
 
-  let lastSyncedWorkbenchTheme = $state<WorkbenchThemeId | null>(null);
+  let lastSyncedWorkbenchTheme: WorkbenchThemeId | null = null;
 
-  $effect(() => {
-    const theme = $settings.workbenchTheme;
-    applyWorkbenchTheme(theme);
-    if (lastSyncedWorkbenchTheme !== null && lastSyncedWorkbenchTheme !== theme) {
+  function syncAppearanceFromWorkbenchTheme(themeId: WorkbenchThemeId): void {
+    if (lastSyncedWorkbenchTheme !== null && lastSyncedWorkbenchTheme !== themeId) {
       editorChrome.syncFromActiveTheme();
       syntaxTheme.syncFromActiveTheme();
+      contextAppearance.syncFromActiveTheme();
+      chatAppearance.syncFromActiveTheme();
     }
-    lastSyncedWorkbenchTheme = theme;
+    lastSyncedWorkbenchTheme = themeId;
+  }
+
+  $effect(() => {
+    const theme = normalizeWorkbenchTheme($settings.workbenchTheme);
+    try {
+      applyWorkbenchTheme(theme);
+      syncAppearanceFromWorkbenchTheme(theme);
+    } catch (e) {
+      console.error("[workbench-theme] failed to apply theme:", e);
+    }
   });
 
   $effect(() => {
@@ -236,11 +246,16 @@
     window.addEventListener("resize", clampPanesToWindow);
     clampPanesToWindow();
 
-    syntaxTheme.init();
-    editorChrome.init();
-    explorerAppearance.init();
-    chatAppearance.init();
-    workbenchChrome.init();
+    try {
+      syntaxTheme.init();
+      editorChrome.init();
+      explorerAppearance.init();
+      chatAppearance.init();
+      contextAppearance.init();
+      workbenchChrome.init();
+    } catch (e) {
+      console.error("[workbench] appearance init failed:", e);
+    }
     void import("$lib/apiSecrets").then((m) => m.migrateCloudApiKeysFromSettings());
     initProjectStateAutosave();
     const onBeforeUnload = () => {
@@ -374,7 +389,7 @@
 
 <svelte:window onkeydown={onGlobalKeydown} />
 
-<ModeWatcher />
+<ModeWatcher defaultMode="dark" darkClassNames={[]} lightClassNames={[]} />
 <Toaster richColors position="bottom-right" />
 
 <div class="workbench-root flex h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -383,9 +398,8 @@
     <div
       class="workbench-titlebar__drag"
       data-tauri-drag-region
-      ondblclick={() => void toggleMaximizeAppWindow()}
     >
-      <span class="workbench-titlebar__title">Sidebar Editor</span>
+      <span class="workbench-titlebar__title" data-tauri-drag-region>Sidebar Editor</span>
     </div>
     <WindowControls />
   </header>

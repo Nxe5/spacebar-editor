@@ -137,6 +137,13 @@
           backgroundColor:
             "color-mix(in srgb, var(--editor-selection, #404040) 40%, transparent) !important",
         },
+        ".cm-selectionMatch": {
+          backgroundColor:
+            "color-mix(in srgb, var(--editor-selection-match, var(--editor-selection, #404040)) 38%, transparent) !important",
+        },
+        ".cm-searchMatch .cm-selectionMatch": {
+          backgroundColor: "transparent !important",
+        },
         "&.cm-focused .cm-cursor": {
           borderLeftColor: "var(--editor-cursor, var(--editor-fg, #e4e4e4))",
         },

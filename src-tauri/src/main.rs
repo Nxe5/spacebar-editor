@@ -3,7 +3,7 @@
 mod modules;
 
 use modules::commands::{
-    acquire_workspace_lock, add_recent_project, delete_entry, find_files, get_launch_args,
+    acquire_workspace_lock, add_recent_project, create_dir, delete_entry, find_files, get_launch_args,
     get_recent_projects, get_workspace_path, git_commit, git_current_branch, git_diff,
     git_create_checkpoint, git_discard, git_file_at_head, git_is_repo, git_log,
     git_restore_checkpoint, git_stage, git_status, git_unstage, grep_workspace, list_dir,
@@ -32,6 +32,7 @@ fn main() {
             list_dir,
             read_file,
             write_file,
+            create_dir,
             rename_entry,
             delete_entry,
             path_exists,

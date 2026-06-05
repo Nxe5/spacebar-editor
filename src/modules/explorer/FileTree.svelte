@@ -13,14 +13,19 @@
     renameEntry,
     pickWorkspaceFolder,
     listenFsChanged,
+    writeFile,
+    createDir,
   } from "$lib/ipc";
+  import { refreshDirectoryInTree } from "$lib/filesystemSync";
   import { layoutOverride } from "$lib/stores/layoutOverride";
   import {
+    anySubfolderExpanded,
     applyWorkspaceFolder,
     normalizeFileEntry,
     refreshWorkspaceTree,
     workspaceFolderName,
   } from "$lib/workspace";
+  import AppIcon from "$lib/components/AppIcon.svelte";
   import { openGitDiffFile } from "$lib/git/openChangedFile";
   import { relPathFromWorkspace } from "$lib/explorer/treeGitDecorations";
   import { normalizeFilePath } from "$lib/fsPath";
@@ -31,6 +36,9 @@
   import { editorErrorCountsByRel } from "$lib/stores/editorDiagnostics";
   import { buildGitStatusByRelPath } from "$lib/explorer/treeGitDecorations";
   import FileTreeRow from "./FileTreeRow.svelte";
+  import FilePlus from "@lucide/svelte/icons/file-plus";
+  import FolderPlus from "@lucide/svelte/icons/folder-plus";
+  import ExplorerNamePrompt, { type ExplorerNamePromptKind } from "./ExplorerNamePrompt.svelte";
 
   let loading = $state(true);
   let error = $state<string | null>(null);
@@ -44,6 +52,7 @@
   let lastRevealedPath: string | null = null;
   let gitRows = $state<GitPathStatus[]>([]);
   let ctxMenu = $state<{ x: number; y: number; entry: FileEntry } | null>(null);
+  let namePrompt = $state<{ kind: ExplorerNamePromptKind; parent: string } | null>(null);
   let unlistenFsChanged: (() => void) | null = null;
 
   const gitByRel = $derived(buildGitStatusByRelPath(gitRows));
@@ -282,8 +291,143 @@
     }
   }
 
+  function parentDir(filePath: string): string {
+    const p = normalizeFilePath(filePath);
+    const idx = p.lastIndexOf("/");
+    if (idx <= 0) return p;
+    return p.slice(0, idx) || "/";
+  }
+
+  /** Parent directory for new file/folder: selected folder, or parent of selected file, else workspace root. */
+  function targetDirectory(): string | null {
+    const ws = get(files).workspacePath;
+    if (!ws) return null;
+    if (!selectedPath) return normalizeFilePath(ws);
+    const entry = findEntry(get(files).tree, selectedPath);
+    if (!entry) return normalizeFilePath(ws);
+    if (entry.is_dir) return normalizeFilePath(entry.path);
+    return parentDir(entry.path);
+  }
+
+  function collapseAllSubfolders() {
+    const ws = get(files).workspacePath;
+    if (!ws) return;
+    files.collapseAllSubfolders(ws);
+  }
+
+  async function expandAllSubfolders() {
+    const ws = get(files).workspacePath;
+    if (!ws) return;
+    const rootPath = normalizeFilePath(ws);
+
+    async function expandDir(dirPath: string): Promise<void> {
+      const entry = findEntry(get(files).tree, dirPath);
+      if (!entry?.is_dir) return;
+      if (!entry.expanded || !entry.children?.length) {
+        try {
+          const raw = await listDir(dirPath);
+          const children = raw.map((c) => normalizeFileEntry(c as FileEntry & { isDir?: boolean }));
+          files.setChildren(dirPath, children);
+        } catch (e) {
+          console.error("Failed to expand directory:", e);
+          return;
+        }
+      }
+      const updated = findEntry(get(files).tree, dirPath);
+      if (!updated?.children) return;
+      for (const child of updated.children) {
+        if (child.is_dir) await expandDir(child.path);
+      }
+    }
+
+    const root = findEntry(get(files).tree, rootPath);
+    if (!root) {
+      for (const entry of get(files).tree) {
+        if (entry.is_dir) await expandDir(entry.path);
+      }
+      return;
+    }
+
+    if (!root.expanded || !root.children?.length) {
+      try {
+        const raw = await listDir(rootPath);
+        const children = raw.map((c) => normalizeFileEntry(c as FileEntry & { isDir?: boolean }));
+        files.setChildren(rootPath, children);
+      } catch (e) {
+        console.error("Failed to list workspace root:", e);
+        return;
+      }
+    }
+
+    const freshRoot = findEntry(get(files).tree, rootPath);
+    for (const child of freshRoot?.children ?? []) {
+      if (child.is_dir) await expandDir(child.path);
+    }
+  }
+
+  function toggleAllSubfolders() {
+    if (subfoldersExpanded) collapseAllSubfolders();
+    else void expandAllSubfolders();
+  }
+
+  function openNamePrompt(kind: ExplorerNamePromptKind) {
+    const parent = targetDirectory();
+    if (!parent || !desktopAvailable) return;
+    namePrompt = { kind, parent };
+  }
+
+  function closeNamePrompt() {
+    namePrompt = null;
+  }
+
+  async function confirmNamePrompt(name: string) {
+    const prompt = namePrompt;
+    closeNamePrompt();
+    if (!prompt) return;
+    const path = `${prompt.parent}/${name}`;
+    try {
+      if (prompt.kind === "file") {
+        await writeFile(path, "");
+        await refreshDirectoryInTree(prompt.parent);
+        bumpGitRefresh();
+        selectedPath = normalizeFilePath(path);
+        highlightPath = selectedPath;
+        workbench.openEditorFile({
+          path,
+          name,
+          content: "",
+          isDirty: false,
+          language: getLanguageFromPath(path),
+        });
+      } else {
+        await createDir(path);
+        await refreshDirectoryInTree(prompt.parent);
+        bumpGitRefresh();
+        selectedPath = normalizeFilePath(path);
+        highlightPath = selectedPath;
+        await revealPathInTree(path);
+      }
+    } catch (e) {
+      console.error(e);
+      error = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  function createNewFile() {
+    openNamePrompt("file");
+  }
+
+  function createNewFolder() {
+    openNamePrompt("folder");
+  }
+
   let workspaceLabel = $derived(
     $files.workspacePath ? workspaceFolderName($files.workspacePath) : null
+  );
+
+  let subfoldersExpanded = $derived(
+    $files.workspacePath != null &&
+      anySubfolderExpanded($files.tree, $files.workspacePath)
   );
 </script>
 
@@ -314,6 +458,35 @@
   {:else}
     <div class="workspace-header" title={$files.workspacePath}>
       <span class="workspace-label">{workspaceLabel}</span>
+      <div class="workspace-actions" role="toolbar" aria-label="Explorer actions">
+        <button
+          type="button"
+          class="header-action"
+          title={subfoldersExpanded ? "Collapse all folders" : "Expand all folders"}
+          aria-label={subfoldersExpanded ? "Collapse all folders" : "Expand all folders"}
+          onclick={() => toggleAllSubfolders()}
+        >
+          <AppIcon name={subfoldersExpanded ? "minus-square" : "plus-square"} size={14} />
+        </button>
+        <button
+          type="button"
+          class="header-action"
+          title="New file"
+          aria-label="New file"
+          onclick={() => createNewFile()}
+        >
+          <FilePlus size={14} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          class="header-action"
+          title="New folder"
+          aria-label="New folder"
+          onclick={() => createNewFolder()}
+        >
+          <FolderPlus size={14} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </div>
     </div>
     <div class="tree-content">
       {#if $files.tree.length === 0}
@@ -354,6 +527,15 @@
   {/if}
 </div>
 
+<ExplorerNamePrompt
+  open={namePrompt != null}
+  kind={namePrompt?.kind ?? "file"}
+  parentPath={namePrompt?.parent ?? ""}
+  workspacePath={$files.workspacePath}
+  onConfirm={(name) => void confirmNamePrompt(name)}
+  onCancel={closeNamePrompt}
+/>
+
 <style>
   .file-tree {
     display: flex;
@@ -368,20 +550,57 @@
 
   .workspace-header {
     flex-shrink: 0;
-    padding: 6px 12px 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px 4px 12px;
     border-bottom: 1px solid color-mix(in srgb, var(--sidebar-border, var(--border)) 55%, transparent);
     font-size: calc(var(--explorer-font-size, 12px) - 1px);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--muted-foreground);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-width: 0;
   }
 
   .workspace-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--foreground);
+  }
+
+  .workspace-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .header-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+  }
+
+  .header-action:hover {
+    background: var(--sidebar-accent);
+    color: var(--foreground);
+  }
+
+  .header-action:focus-visible {
+    outline: 2px solid var(--ring, var(--primary));
+    outline-offset: 1px;
   }
 
   .loading,

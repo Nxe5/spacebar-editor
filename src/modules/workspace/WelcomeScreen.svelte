@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { toast } from "svelte-sonner";
   import {
     pickWorkspaceFolder,
     getRecentProjects,
@@ -35,6 +36,9 @@
     try {
       const path = await pickWorkspaceFolder();
       if (path) await applyWorkspaceFolder(path);
+    } catch (e) {
+      console.error("[workspace] open folder failed:", e);
+      toast.error(String(e));
     } finally {
       opening = false;
     }
@@ -45,6 +49,9 @@
     opening = true;
     try {
       await applyWorkspaceFolder(path);
+    } catch (e) {
+      console.error("[workspace] open recent failed:", e);
+      toast.error(String(e));
     } finally {
       opening = false;
     }

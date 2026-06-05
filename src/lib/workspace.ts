@@ -48,6 +48,24 @@ export function buildWorkspaceTree(
   return [createWorkspaceRootEntry(workspacePath, children, expanded)];
 }
 
+/** True when any folder under the workspace root (not the root itself) is expanded. */
+export function anySubfolderExpanded(
+  tree: FileEntry[],
+  workspacePath: string
+): boolean {
+  const ws = normalizeFilePath(workspacePath);
+  function visit(entries: FileEntry[]): boolean {
+    for (const entry of entries) {
+      if (!entry.is_dir) continue;
+      const isRoot = normalizeFilePath(entry.path) === ws;
+      if (!isRoot && entry.expanded) return true;
+      if (entry.children && visit(entry.children)) return true;
+    }
+    return false;
+  }
+  return visit(tree);
+}
+
 // ---------------------------------------------------------------------------
 // Read-only mode (workspace lock conflict — spec 35)
 // ---------------------------------------------------------------------------

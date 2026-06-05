@@ -26,11 +26,12 @@ const ALWAYS_EXCLUDE: &[&str] = &[
     ".venv",
     "vendor",
     "__pycache__",
+    ".git",
 ];
 
 /// Build a `WalkBuilder` configured with `.gitignore` semantics (globs,
 /// negation, nested ignore files) plus our always-exclude overrides. Hidden
-/// dotfiles are skipped to match the prior explorer behavior.
+/// dotfiles are shown so users can see `.sidebar`, `.env`, etc. in the explorer.
 fn ignore_walk_builder(root: &Path) -> WalkBuilder {
     let mut overrides = OverrideBuilder::new(root);
     for name in ALWAYS_EXCLUDE {
@@ -40,7 +41,7 @@ fn ignore_walk_builder(root: &Path) -> WalkBuilder {
     }
     let mut builder = WalkBuilder::new(root);
     builder
-        .hidden(true)
+        .hidden(false)
         .git_ignore(true)
         .git_global(true)
         .git_exclude(true)
@@ -203,6 +204,14 @@ pub fn write_file_contents(path: &str, contents: &str) -> Result<String, String>
     }
     fs::write(path, contents).map_err(|e| e.to_string())?;
     Ok(audit)
+}
+
+pub fn create_directory(path: &str) -> Result<(), String> {
+    let p = Path::new(path);
+    if p.exists() {
+        return Err(format!("Path already exists: {path}"));
+    }
+    fs::create_dir_all(p).map_err(|e| e.to_string())
 }
 
 pub fn rename_path(from: &str, to: &str) -> Result<(), String> {
@@ -394,6 +403,34 @@ mod write_tests {
         assert!(audit.contains("glass_rainbow"));
         assert_eq!(fs::read_to_string(&nested).unwrap(), "print(1)");
 
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn list_directory_reads_project_root() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("parent")
+            .to_string_lossy()
+            .to_string();
+        let entries = list_directory(&root).expect("list project root");
+        assert!(
+            entries.iter().any(|e| e.name == "src-tauri" && e.is_dir),
+            "expected src-tauri dir in {:?}",
+            entries.iter().map(|e| &e.name).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn create_directory_makes_empty_folder() {
+        let base = std::env::temp_dir().join(format!(
+            "tl_mkdir_test_{}_{}",
+            std::process::id(),
+            uuid::Uuid::new_v4()
+        ));
+        let dir = base.join("new-folder");
+        create_directory(&dir.to_string_lossy()).expect("create dir");
+        assert!(dir.is_dir());
         let _ = fs::remove_dir_all(&base);
     }
 }

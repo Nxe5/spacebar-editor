@@ -14,6 +14,8 @@ import pasteClipboard from "../../../icons/paste-clipboard.svg?raw";
 import pause from "../../../icons/pause.svg?raw";
 import settings from "../../../icons/settings.svg?raw";
 import wrapText from "../../../icons/wrap-text.svg?raw";
+import plusSquare from "../../../icons/plus-square.svg?raw";
+import minusSquare from "../../../icons/minus-square.svg?raw";
 
 export type AppIconName =
   | "page-search"
@@ -31,7 +33,9 @@ export type AppIconName =
   | "attachment"
   | "circle-spark"
   | "chat-lines"
-  | "floppy-disk";
+  | "floppy-disk"
+  | "plus-square"
+  | "minus-square";
 
 const ICONS: Record<AppIconName, string> = {
   "page-search": pageSearch,
@@ -50,6 +54,8 @@ const ICONS: Record<AppIconName, string> = {
   "circle-spark": circleSpark,
   "chat-lines": chatLines,
   "floppy-disk": floppyDisk,
+  "plus-square": plusSquare,
+  "minus-square": minusSquare,
 };
 
 /** Inline SVG markup with currentColor strokes for toolbar buttons. */

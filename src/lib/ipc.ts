@@ -71,6 +71,11 @@ export async function writeFile(path: string, contents: string): Promise<string>
   return invoke<string>("write_file", { path, contents });
 }
 
+export async function createDir(path: string): Promise<void> {
+  await ensureTauriApi();
+  await invoke<void>("create_dir", { path });
+}
+
 export async function getWorkspacePath(): Promise<string> {
   await ensureTauriApi();
   return invoke<string>("get_workspace_path");

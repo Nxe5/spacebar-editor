@@ -19,6 +19,7 @@
   } from "$lib/stores/toolPolicy";
   import { currentMode, MODE_CONFIG, type ChatMode } from "$lib/stores/mode";
   import { activeSystemPromptText, systemPrompts } from "$lib/stores/systemPrompts";
+  import { promptFilePath } from "$lib/systemPrompts/config";
   import { files } from "$lib/stores/files";
   import { workbench, activeWorkbenchTab, activeEditorFile } from "$lib/stores/workbench";
   import { skills } from "$lib/stores/skills";
@@ -43,6 +44,8 @@
     resolveComposerChromeState,
     type ComposerChromeState,
   } from "$lib/chat/composerChrome";
+  import { contextAppearance } from "$lib/stores/contextAppearance";
+  import { getContextSectionColor } from "$lib/chat/contextAppearance";
   import {
     fetchOllamaModelList,
     RECOMMENDED_OLLAMA_MODELS,
@@ -184,6 +187,8 @@ import {
   let compacting = $state(false);
   let messagesContainer: HTMLDivElement;
   let showBreakdown = $state(false);
+  let contextPanelOpen = $state(false);
+  let expandedSectionId = $state<string | null>(null);
   let archiveExpanded = $state(false);
 
   function expandUserMessage(id: string, content: string) {
@@ -579,6 +584,74 @@ import {
     if (profile.contextHint === "server") return "Chat context (server-defined limit)";
     return "Estimated context from this chat";
   });
+
+  let contextBarColors = $derived($contextAppearance);
+
+  function getSectionColor(sectionId: string): string {
+    return getContextSectionColor(sectionId, contextBarColors);
+  }
+
+  function getSectionFilePath(section: { id: string; label: string }): string | null {
+    const ws = $files.workspacePath;
+    if (!ws) return null;
+    const skillEntry = $skills.entries.find((e) => e.title === section.label);
+    if (skillEntry) return `${ws}/.sidebar/skills/${skillEntry.id}/skill.md`;
+    if (section.id === "system-prompts") {
+      const mode = $currentMode;
+      const activePrompts = $systemPrompts.entries.filter(
+        (e) => e.enabled && (e.modes.length === 0 || e.modes.includes(mode))
+      );
+      if (activePrompts.length === 1) return promptFilePath(ws, activePrompts[0].filename);
+    }
+    return null;
+  }
+
+  function getActivePromptFiles(): Array<{ filename: string; label: string; path: string }> {
+    const ws = $files.workspacePath;
+    if (!ws) return [];
+    const mode = $currentMode;
+    return $systemPrompts.entries
+      .filter((e) => e.enabled && (e.modes.length === 0 || e.modes.includes(mode)))
+      .map((e) => ({ filename: e.filename, label: e.label, path: promptFilePath(ws, e.filename) }));
+  }
+
+  async function openSectionFile(filePath: string): Promise<void> {
+    await openWorkspaceFile(filePath);
+  }
+
+  function openBuiltinSection(sectionId: string, label: string, text: string): void {
+    const ws = $files.workspacePath ?? "";
+    const path = `${ws}/.sidebar/context/${sectionId}.md`;
+    workbench.openEditorFile({
+      path,
+      name: label,
+      content: text,
+      isDirty: false,
+      language: "markdown",
+      pendingOnDisk: true,
+    });
+  }
+
+  function openChatHistory(): void {
+    const ws = $files.workspacePath ?? "";
+    const msgs = $activeSession?.messages ?? [];
+    const lines: string[] = [];
+    for (const m of msgs) {
+      if (m.role === "tool") continue;
+      const prefix = m.role === "user" ? "### User" : "### Assistant";
+      lines.push(prefix);
+      if (m.content.trim()) lines.push(m.content.trim());
+      lines.push("");
+    }
+    workbench.openEditorFile({
+      path: `${ws}/.sidebar/context/chat-history.md`,
+      name: "Chat history",
+      content: lines.join("\n"),
+      isDirty: false,
+      language: "markdown",
+      pendingOnDisk: true,
+    });
+  }
 
   function formatTok(n: number): string {
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
@@ -2477,25 +2550,33 @@ import {
         class="context-bar"
         class:context-bar--warning={level === "warning"}
         class:context-bar--critical={level === "critical"}
+        class:context-bar--active={contextPanelOpen}
         role="button"
         tabindex="0"
         aria-label="Context usage breakdown"
+        aria-expanded={contextPanelOpen}
         onmouseenter={() => (showBreakdown = true)}
         onmouseleave={() => (showBreakdown = false)}
         onfocus={() => (showBreakdown = true)}
         onblur={() => (showBreakdown = false)}
+        onclick={() => (contextPanelOpen = !contextPanelOpen)}
+        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); contextPanelOpen = !contextPanelOpen; } }}
       >
         <div class="context-bar-track">
           {#if level === "healthy"}
-            <div class="context-seg context-seg--system" style="width: {seg(bd.systemTokens)}%"></div>
-            <div class="context-seg context-seg--tools" style="width: {seg(bd.toolSchemaTokens)}%"></div>
+            {#each bd.sections.filter(s => s.tokenEstimate > 0) as section (section.id)}
+              <div class="context-seg" style="width: {seg(section.tokenEstimate)}%; background: {getSectionColor(section.id)};"></div>
+            {/each}
+            {#if bd.toolSchemaTokens > 0}
+              <div class="context-seg context-seg--tools" style="width: {seg(bd.toolSchemaTokens)}%"></div>
+            {/if}
             <div class="context-seg context-seg--history" style="width: {seg(bd.historyTokens)}%"></div>
           {:else}
             <div class="context-bar-fill" style="width: {Math.min(100, contextPct())}%"></div>
           {/if}
         </div>
       </div>
-      {#if showBreakdown}
+      {#if showBreakdown && !contextPanelOpen}
         <div class="context-breakdown-popover" role="tooltip">
           <div class="breakdown-title">Context breakdown</div>
           <div class="breakdown-group">
@@ -2535,6 +2616,99 @@ import {
           <div class="breakdown-row breakdown-row--reserve">
             <span class="breakdown-label">Reply reserve</span>
             <span class="breakdown-tok">{formatTok(bd.reserveTokens)} tok</span>
+          </div>
+        </div>
+      {/if}
+      {#if contextPanelOpen}
+        {@const bd = contextBreakdown()}
+        {@const cw = bd.contextWindow}
+        <div class="context-panel" role="dialog" aria-label="Context breakdown">
+          <div class="context-panel-header">
+            <button
+              class="context-panel-close"
+              onclick={() => (contextPanelOpen = false)}
+              aria-label="Close context panel"
+            >×</button>
+            <span class="context-panel-title">Context</span>
+            <span class="context-panel-usage">~{formatTok(bd.total)} / {formatTok(cw)} tok</span>
+          </div>
+          <div class="context-panel-body">
+            <div class="cpanel-group">
+              <div class="cpanel-row cpanel-row--header">
+                <span class="cpanel-label">System prompt</span>
+                <span class="cpanel-tok">{formatTok(bd.systemTokens)} tok</span>
+              </div>
+              {#each bd.sections.filter(s => s.tokenEstimate > 0) as section (section.id)}
+                {@const filePath = getSectionFilePath(section)}
+                {@const promptFiles = section.id === 'system-prompts' ? getActivePromptFiles() : null}
+                {@const isDropdown = promptFiles !== null && promptFiles.length > 1}
+                {@const isExpanded = expandedSectionId === section.id}
+                <button
+                  type="button"
+                  class="cpanel-row cpanel-row--sub cpanel-row--clickable"
+                  onclick={() => {
+                    if (isDropdown) {
+                      expandedSectionId = isExpanded ? null : section.id;
+                    } else if (filePath) {
+                      void openSectionFile(filePath);
+                    } else {
+                      openBuiltinSection(section.id, section.label, section.text);
+                    }
+                  }}
+                >
+                  <span class="cpanel-dot" style="background: {getSectionColor(section.id)}" aria-hidden="true"></span>
+                  <span class="cpanel-label">{section.label}</span>
+                  <span class="cpanel-tok">{formatTok(section.tokenEstimate)} tok</span>
+                  {#if isDropdown}
+                    <span class="cpanel-chevron" aria-hidden="true">{isExpanded ? '▾' : '▸'}</span>
+                  {:else}
+                    <span class="cpanel-open-icon" aria-hidden="true">→</span>
+                  {/if}
+                </button>
+                {#if isExpanded && isDropdown && promptFiles}
+                  {#each promptFiles as pf (pf.filename)}
+                    <button
+                      type="button"
+                      class="cpanel-row cpanel-row--file"
+                      onclick={() => void openSectionFile(pf.path)}
+                    >
+                      <span class="cpanel-label">{pf.label}</span>
+                      <span class="cpanel-open-icon cpanel-open-icon--show" aria-hidden="true">→</span>
+                    </button>
+                  {/each}
+                {/if}
+              {/each}
+            </div>
+            {#if bd.toolSchemaTokens > 0}
+              <div class="cpanel-group">
+                <div class="cpanel-row cpanel-row--header">
+                  <span class="cpanel-dot" style="background: {contextBarColors.toolSchemas}" aria-hidden="true"></span>
+                  <span class="cpanel-label">Tool schemas</span>
+                  <span class="cpanel-tok">{formatTok(bd.toolSchemaTokens)} tok</span>
+                </div>
+              </div>
+            {/if}
+            <div class="cpanel-group">
+              <button
+                type="button"
+                class="cpanel-row cpanel-row--header cpanel-row--clickable"
+                onclick={openChatHistory}
+              >
+                <span class="cpanel-dot" style="background: {contextBarColors.chatHistory}" aria-hidden="true"></span>
+                <span class="cpanel-label">Chat history</span>
+                <span class="cpanel-tok">{formatTok(bd.historyTokens)} tok</span>
+                <span class="cpanel-open-icon" aria-hidden="true">→</span>
+              </button>
+            </div>
+            <div class="cpanel-divider"></div>
+            <div class="cpanel-row cpanel-row--total">
+              <span class="cpanel-label">Used</span>
+              <span class="cpanel-tok">~{formatTok(bd.total)} / {formatTok(cw)} tok</span>
+            </div>
+            <div class="cpanel-row cpanel-row--reserve">
+              <span class="cpanel-label">Reply reserve</span>
+              <span class="cpanel-tok">{formatTok(bd.reserveTokens)} tok</span>
+            </div>
           </div>
         </div>
       {/if}
@@ -3054,7 +3228,6 @@ import {
   }
 
   .message-user-composer.composer-shell--chromed {
-    --composer-chrome-fill: var(--chat-message-box-bg, var(--workbench-control-bg, #2d2d30));
     width: 100%;
     cursor: pointer;
   }
@@ -3329,13 +3502,13 @@ import {
     gap: 0;
     border-radius: 8px;
     border: 1px solid transparent;
-    background: var(--workbench-control-bg, var(--secondary));
+    background: var(--chat-message-box-bg, var(--workbench-control-bg, var(--secondary)));
     overflow: visible;
   }
 
-  /* Composer chrome: editor fill + 1px border (idle / focused / streaming rainbow). */
+  /* Composer chrome: message-box fill + 1px border (idle / focused / streaming rainbow). */
   .composer-shell--chromed {
-    --composer-chrome-fill: var(--workbench-panel-bg, var(--chat-panel-bg, var(--sidebar)));
+    --composer-chrome-fill: var(--chat-message-box-bg, var(--workbench-control-bg, #2d2d30));
     position: relative;
     background: var(--composer-chrome-fill);
     border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
@@ -3809,6 +3982,7 @@ import {
     border-radius: 2px;
     overflow: hidden;
     display: flex;
+    gap: 1px;
   }
 
   .context-bar--warning .context-bar-track { background: #3c3c3c; }
@@ -3915,9 +4089,191 @@ import {
     flex-shrink: 0;
   }
 
-  .context-seg--system { background: #c586c0; }
-  .context-seg--tools  { background: #ce9178; }
-  .context-seg--history { background: #569cd6; }
+  .context-seg--system { background: var(--context-system-prompts); }
+  .context-seg--tools  { background: var(--context-tool-schemas); }
+  .context-seg--history { background: var(--context-chat-history); }
+
+  .context-bar--active .context-bar-track {
+    opacity: 0.6;
+  }
+
+  .context-panel {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 240px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: #1e1e1e;
+    border: 1px solid #3c3c3c;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--foreground, #d4d4d4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+  }
+
+  .context-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .context-panel-close {
+    font-size: 13px;
+    line-height: 1;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: #606060;
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .context-panel-close:hover { color: #d4d4d4; }
+
+  .context-panel-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #808080;
+  }
+
+  .context-panel-body { }
+
+  .cpanel-group {
+    margin-bottom: 4px;
+  }
+
+  .cpanel-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 18px;
+    border-radius: 3px;
+  }
+
+  .cpanel-row--header {
+    font-weight: 500;
+    color: var(--foreground, #d4d4d4);
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    font-size: inherit;
+  }
+
+  .cpanel-row--sub {
+    padding-left: 16px;
+    color: #808080;
+    font-size: 10.5px;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+  }
+
+  .cpanel-row--clickable { cursor: pointer; }
+
+  .cpanel-row--clickable:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--foreground, #d4d4d4);
+  }
+
+  .cpanel-row--clickable:focus-visible {
+    outline: 1px solid var(--ring, #569cd6);
+    outline-offset: -1px;
+  }
+
+  .cpanel-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .cpanel-label { flex: 1; }
+
+  .cpanel-tok {
+    font-variant-numeric: tabular-nums;
+    color: var(--muted-foreground, #808080);
+    flex-shrink: 0;
+  }
+
+  .cpanel-row--header .cpanel-tok { color: var(--foreground, #d4d4d4); }
+
+  .cpanel-open-icon {
+    font-size: 10px;
+    color: #569cd6;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  .cpanel-open-icon--show { opacity: 1; }
+
+  .cpanel-row--clickable:hover .cpanel-open-icon { opacity: 1; }
+
+  .cpanel-chevron {
+    font-size: 9px;
+    color: #808080;
+    flex-shrink: 0;
+  }
+
+  .cpanel-row--file {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 24px;
+    min-height: 18px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: #808080;
+    font-size: 10.5px;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 3px;
+    font-family: inherit;
+  }
+
+  .cpanel-row--file:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--foreground, #d4d4d4);
+  }
+
+  .cpanel-row--file:hover .cpanel-open-icon { opacity: 1; }
+
+  .cpanel-row--file:focus-visible {
+    outline: 1px solid var(--ring, #569cd6);
+    outline-offset: -1px;
+  }
+
+  .cpanel-divider {
+    height: 1px;
+    background: #3c3c3c;
+    margin: 6px 0;
+  }
+
+  .cpanel-row--total {
+    font-weight: 500;
+    color: var(--foreground, #d4d4d4);
+  }
+
+  .cpanel-row--reserve { color: #606060; }
 
   .context-breakdown-popover {
     position: absolute;
@@ -3986,9 +4342,9 @@ import {
     flex-shrink: 0;
   }
 
-  .breakdown-dot--system  { background: #c586c0; }
-  .breakdown-dot--tools   { background: #ce9178; }
-  .breakdown-dot--history { background: #569cd6; }
+  .breakdown-dot--system  { background: var(--context-system-prompts); }
+  .breakdown-dot--tools   { background: var(--context-tool-schemas); }
+  .breakdown-dot--history { background: var(--context-chat-history); }
 
   .breakdown-divider {
     height: 1px;

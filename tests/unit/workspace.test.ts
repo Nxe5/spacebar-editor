@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  anySubfolderExpanded,
   buildWorkspaceTree,
   createWorkspaceRootEntry,
   workspaceFolderName,
@@ -29,5 +30,24 @@ describe("workspace tree", () => {
   it("preserves expanded flag when requested", () => {
     const root = createWorkspaceRootEntry("/proj", [], false);
     expect(root.expanded).toBe(false);
+  });
+
+  it("anySubfolderExpanded ignores the workspace root row", () => {
+    const tree = buildWorkspaceTree("/proj", [
+      {
+        name: "src",
+        path: "/proj/src",
+        is_dir: true,
+        expanded: false,
+        children: [],
+      },
+    ]);
+    expect(anySubfolderExpanded(tree, "/proj")).toBe(false);
+
+    tree[0].children![0].expanded = true;
+    expect(anySubfolderExpanded(tree, "/proj")).toBe(true);
+
+    tree[0].expanded = false;
+    expect(anySubfolderExpanded(tree, "/proj")).toBe(true);
   });
 });

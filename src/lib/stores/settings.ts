@@ -197,7 +197,7 @@ function createSettingsStore() {
     anthropicCatalogFetched: false,
     deepseekCatalogFetched: false,
     anthropicExtendedThinking: true,
-    workbenchTheme: "vscode-dark",
+    workbenchTheme: "spacebar",
     anthropicContextBudget: null,
     webFetchAllowedHosts: DEFAULT_WEB_FETCH_HOSTS,
     agentLimits: defaultAgentLimitsForBackend("ollama"),

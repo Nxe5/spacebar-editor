@@ -4,6 +4,7 @@
   import { editorChrome } from "$lib/stores/editorChrome";
   import { explorerAppearance } from "$lib/stores/explorerAppearance";
   import { chatAppearance } from "$lib/stores/chatAppearance";
+  import { contextAppearance } from "$lib/stores/contextAppearance";
   import { workbenchChrome } from "$lib/stores/workbenchChrome";
   import { SYNTAX_COLOR_FIELDS, CSS_VAR_BY_KEY, defaultSyntaxColors, type SyntaxColorMap } from "$lib/editor/syntaxColors";
   import { EDITOR_CHROME_FIELDS, EDITOR_CHROME_DEFAULTS, type EditorChromeMap } from "$lib/editor/editorChrome";
@@ -22,6 +23,12 @@
     type ChatWaitingStyle,
   } from "$lib/chat/chatAppearance";
   import {
+    CONTEXT_APPEARANCE_COLOR_FIELDS,
+    CONTEXT_APPEARANCE_CSS_VARS,
+    CONTEXT_APPEARANCE_DEFAULTS,
+    type ContextAppearanceMap,
+  } from "$lib/chat/contextAppearance";
+  import {
     WORKBENCH_CHROME_FIELDS,
     WORKBENCH_CHROME_DEFAULTS,
     WORKBENCH_CHROME_THEME_SOURCES,
@@ -31,6 +38,7 @@
   import {
     WORKBENCH_THEME_OPTIONS,
     applyWorkbenchTheme,
+    normalizeWorkbenchTheme,
     type WorkbenchThemeId,
   } from "$lib/workbench-theme";
 
@@ -49,6 +57,7 @@
     editorColors: EditorChromeMap;
     explorerColors: ExplorerAppearanceMap;
     chatColors: ChatAppearanceMap;
+    contextColors: ContextAppearanceMap;
     workbenchChromeColors: WorkbenchChromeMap;
     workbenchTheme: WorkbenchThemeId;
     onNavigate: (section: "general") => void;
@@ -60,6 +69,7 @@
     editorColors = $bindable(),
     explorerColors = $bindable(),
     chatColors = $bindable(),
+    contextColors = $bindable(),
     workbenchChromeColors = $bindable(),
     workbenchTheme = $bindable(),
     onNavigate,
@@ -108,6 +118,11 @@
   function setChatColor(key: keyof ChatAppearanceMap, value: string) {
     chatColors = { ...chatColors, [key]: value };
     chatAppearance.apply(chatColors);
+  }
+
+  function setContextColor(key: keyof ContextAppearanceMap, value: string) {
+    contextColors = { ...contextColors, [key]: value };
+    contextAppearance.apply(contextColors);
   }
 
   function setSyntaxColor(key: keyof SyntaxColorMap, value: string) {
@@ -159,6 +174,22 @@
     const themeValue = readThemeCssVar(cssVar, CHAT_APPEARANCE_DEFAULTS[key]);
     setChatColor(key, themeValue);
   }
+
+  function resetContextColor(key: keyof ContextAppearanceMap) {
+    const cssVar = CONTEXT_APPEARANCE_CSS_VARS[key];
+    const themeValue = readThemeCssVar(cssVar, CONTEXT_APPEARANCE_DEFAULTS[key]);
+    setContextColor(key, themeValue);
+  }
+
+  function applyThemeSelection(themeId: WorkbenchThemeId) {
+    const theme = normalizeWorkbenchTheme(themeId);
+    applyWorkbenchTheme(theme);
+    editorColors = editorChrome.syncFromActiveTheme();
+    syntaxColors = { ...syntaxTheme.syncFromActiveTheme() };
+    workbenchChromeColors = { ...workbenchChrome.syncFromActiveTheme() };
+    contextColors = { ...contextAppearance.syncFromActiveTheme() };
+    chatColors = { ...chatAppearance.syncFromActiveTheme() };
+  }
 </script>
 
 {#if section === "appearance-theme"}
@@ -170,16 +201,13 @@
           type="button"
           class="btn ghost small"
           onclick={() => {
-            applyWorkbenchTheme(workbenchTheme);
-            editorColors = editorChrome.syncFromActiveTheme();
-            syntaxColors = { ...syntaxTheme.syncFromActiveTheme() };
-            workbenchChromeColors = { ...workbenchChrome.syncFromActiveTheme() };
+            applyThemeSelection(workbenchTheme);
           }}
         >Sync editor from theme</button>
       </div>
     </div>
     <p class="note">
-      Click a region in the preview to jump to its colors. Workbench preset, editor, syntax, explorer, and chat.
+      Click a region in the preview to jump to its colors. Workbench preset, editor, syntax, explorer, chat, and context bar.
       Label and icon sizes →
       <button type="button" class="linkish" onclick={() => onNavigate("general")}>General</button>.
     </p>
@@ -192,10 +220,7 @@
         class="input"
         bind:value={workbenchTheme}
         onchange={() => {
-          applyWorkbenchTheme(workbenchTheme);
-          editorColors = editorChrome.syncFromActiveTheme();
-          syntaxColors = { ...syntaxTheme.syncFromActiveTheme() };
-          workbenchChromeColors = { ...workbenchChrome.syncFromActiveTheme() };
+          applyThemeSelection(workbenchTheme);
         }}
       >
         {#each WORKBENCH_THEME_OPTIONS as opt}
@@ -440,6 +465,42 @@
           value={explorerColors[field.key] as string}
           onChange={(v) => setExplorerColor(field.key, v)}
           onReset={() => resetExplorerColor(field.key)}
+        />
+      {/each}
+    </div>
+
+    <div class="theme-section" id="theme-region-context">
+      <div class="theme-section__head">
+        <h4 class="settings-subheading">Context bar</h4>
+        <div class="header-actions">
+          <button
+            type="button"
+            class="btn ghost small"
+            onclick={() => { contextColors = contextAppearance.resetToDefaults(); }}
+          >Reset</button>
+        </div>
+      </div>
+      <p class="note theme-section__note">
+        Colors for the token breakdown bar and panel (system prompt sections, tool schemas, chat history).
+      </p>
+      <p class="token-group-label">Prompt sections</p>
+      {#each CONTEXT_APPEARANCE_COLOR_FIELDS.filter((f) => f.group === "sections") as field}
+        <SettingsColorField
+          label={field.label}
+          hint={field.hint}
+          value={contextColors[field.key]}
+          onChange={(v) => setContextColor(field.key, v)}
+          onReset={() => resetContextColor(field.key)}
+        />
+      {/each}
+      <p class="token-group-label">Skill accents</p>
+      {#each CONTEXT_APPEARANCE_COLOR_FIELDS.filter((f) => f.group === "skills") as field}
+        <SettingsColorField
+          label={field.label}
+          hint={field.hint}
+          value={contextColors[field.key]}
+          onChange={(v) => setContextColor(field.key, v)}
+          onReset={() => resetContextColor(field.key)}
         />
       {/each}
     </div>

@@ -181,6 +181,36 @@ function createFilesStore() {
         workspacePath: null,
       });
     },
+    collapseAll() {
+      const collapse = (entries: FileEntry[]): FileEntry[] =>
+        entries.map((entry) => ({
+          ...entry,
+          expanded: false,
+          children: entry.children ? collapse(entry.children) : undefined,
+        }));
+      update((state) => ({ ...state, tree: collapse(state.tree) }));
+    },
+    /** Collapse nested folders; keep the workspace root row expanded. */
+    collapseAllSubfolders(workspacePath: string) {
+      const ws = normalizeFilePath(workspacePath);
+      const collapse = (entries: FileEntry[]): FileEntry[] =>
+        entries.map((entry) => {
+          const isRoot = normalizeFilePath(entry.path) === ws;
+          if (isRoot) {
+            return {
+              ...entry,
+              expanded: true,
+              children: entry.children ? collapse(entry.children) : entry.children,
+            };
+          }
+          return {
+            ...entry,
+            expanded: false,
+            children: entry.children ? collapse(entry.children) : undefined,
+          };
+        });
+      update((state) => ({ ...state, tree: collapse(state.tree) }));
+    },
   };
 }
 

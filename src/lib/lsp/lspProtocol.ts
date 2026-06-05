@@ -155,3 +155,14 @@ export const LSP_BINARY_NAMES: Record<string, string> = {
   json: "vscode-json-language-server",
   svelte: "svelte-language-server",
 };
+
+/** One-line install hint shown when a server binary is missing. */
+export const LSP_INSTALL_HINTS: Partial<Record<string, string>> = {
+  typescript:
+    "npm i -g typescript-language-server typescript  (Arch: pacman -S typescript-language-server)",
+  rust: "Install rust-analyzer from rustup or your package manager",
+  python: "pip install pyright  or  npm i -g pyright",
+  go: "go install golang.org/x/tools/gopls@latest",
+  css: "npm i -g vscode-langservers-extracted",
+  html: "npm i -g vscode-langservers-extracted",
+};

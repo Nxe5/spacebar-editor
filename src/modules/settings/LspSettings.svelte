@@ -1,6 +1,6 @@
 <script lang="ts">
   import { lspServers, setLspServer } from "$lib/lsp/lspSettings";
-  import { lspServerStatus } from "$lib/lsp/lspStore";
+  import { lspServerStatus, lspServerErrors } from "$lib/lsp/lspStore";
   import { LSP_BINARY_NAMES } from "$lib/lsp/lspProtocol";
   import { isTauriAvailable } from "$lib/ipc";
 
@@ -104,7 +104,7 @@
           <td class="status-cell">
             {#if status}
               <span class={statusClass(row.language, cfg.enabled)}></span>
-              <span class="status-text">{status}</span>
+              <span class="status-text" class:status-text--error={$lspServerStatus.get(row.language) === "error"}>{status}</span>
             {:else}
               <span class="status-text muted">—</span>
             {/if}
@@ -230,5 +230,6 @@
   .status-dot--blue   { background: #58a6ff; }
 
   .status-text { font-size: 11px; color: #888; }
+  .status-text--error { color: #f85149; white-space: normal; max-width: 280px; }
   .status-text.muted { color: #444; }
 </style>

@@ -69,8 +69,10 @@
   import { type EditorChromeMap } from "$lib/editor/editorChrome";
   import { explorerAppearance } from "$lib/stores/explorerAppearance";
   import { chatAppearance } from "$lib/stores/chatAppearance";
+  import { contextAppearance } from "$lib/stores/contextAppearance";
   import { type ExplorerAppearanceMap } from "$lib/explorer/explorerAppearance";
   import { type ChatAppearanceMap } from "$lib/chat/chatAppearance";
+  import { type ContextAppearanceMap } from "$lib/chat/contextAppearance";
   import ProviderServerGuide from "./ProviderServerGuide.svelte";
   import {
     type LlamacppServerTemplate,
@@ -193,12 +195,13 @@
     jinja: true,
     user: "Nxe5",
   });
-  let workbenchTheme = $state<WorkbenchThemeId>("vscode-dark");
+  let workbenchTheme = $state<WorkbenchThemeId>("spacebar");
   let webFetchAllowedHostsText = $state("");
   let syntaxColors = $state<SyntaxColorMap>(syntaxTheme.get());
   let editorColors = $state<EditorChromeMap>(editorChrome.get());
   let explorerColors = $state<ExplorerAppearanceMap>(explorerAppearance.get());
   let chatColors = $state<ChatAppearanceMap>(chatAppearance.get());
+  let contextColors = $state<ContextAppearanceMap>(contextAppearance.get());
   let workbenchChromeColors = $state<WorkbenchChromeMap>(workbenchChrome.get());
 
   let modelSearchQuery = $state("");
@@ -284,6 +287,7 @@
     editorColors = { ...editorChrome.get() };
     explorerColors = { ...explorerAppearance.get() };
     chatColors = { ...chatAppearance.get() };
+    contextColors = { ...contextAppearance.get() };
     workbenchChromeColors = { ...workbenchChrome.get() };
     llamacppModels = $settings.llamacppModels;
     ollamaServerTemplate = structuredClone($settings.ollamaServerTemplate);
@@ -639,6 +643,8 @@
       editorColors = editorChrome.syncFromActiveTheme();
       syntaxColors = { ...syntaxTheme.syncFromActiveTheme() };
       workbenchChromeColors = { ...workbenchChrome.syncFromActiveTheme() };
+      contextColors = { ...contextAppearance.syncFromActiveTheme() };
+      chatColors = { ...chatAppearance.syncFromActiveTheme() };
     }
     settings.setWorkbenchTheme(workbenchTheme);
     settings.setWebFetchAllowedHosts(
@@ -651,6 +657,7 @@
     editorChrome.persist(editorColors);
     explorerAppearance.persist(explorerColors);
     chatAppearance.persist(chatColors);
+    contextAppearance.persist(contextColors);
     workbenchChrome.persist(workbenchChromeColors);
 
     if (chatBackend === "ollama") {
@@ -1310,6 +1317,7 @@
             bind:editorColors
             bind:explorerColors
             bind:chatColors
+            bind:contextColors
             bind:workbenchChromeColors
             bind:workbenchTheme
             onNavigate={selectSettingsSection}

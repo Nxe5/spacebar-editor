@@ -6,6 +6,7 @@ export const EDITOR_CHROME_DEFAULTS = {
   gutterFg: "#858585",
   lineHighlight: "#2a2d2e",
   selection: "#264f78",
+  selectionMatch: "#264f78",
   cursor: "#d4d4d4",
 } as const;
 
@@ -24,6 +25,12 @@ export const EDITOR_CHROME_FIELDS: {
   { key: "gutterFg", label: "Line numbers", hint: "Gutter foreground", cssVar: "--editor-gutter-fg" },
   { key: "lineHighlight", label: "Active line", hint: "Current line highlight", cssVar: "--editor-line-hl" },
   { key: "selection", label: "Selection", hint: "Selected text background", cssVar: "--editor-selection" },
+  {
+    key: "selectionMatch",
+    label: "Matching words",
+    hint: "Other occurrences of the selected word",
+    cssVar: "--editor-selection-match",
+  },
   { key: "cursor", label: "Cursor", hint: "Caret color (falls back to text if unset)", cssVar: "--editor-cursor" },
 ];
 
@@ -108,6 +115,7 @@ export function readEditorChromeFromDocument(): EditorChromeMap {
     gutterFg: pick("--editor-gutter-fg", base.gutterFg),
     lineHighlight: pick("--editor-line-hl", base.lineHighlight),
     selection: pick("--editor-selection", base.selection),
+    selectionMatch: pick("--editor-selection-match", base.selectionMatch),
     cursor: pick("--editor-cursor", pick("--editor-fg", base.cursor)),
   };
 }

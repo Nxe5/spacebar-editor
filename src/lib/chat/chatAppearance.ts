@@ -145,3 +145,31 @@ export function applyChatAppearanceToDocument(appearance: ChatAppearanceMap): vo
   root.style.setProperty("--chat-activity-file-link", appearance.fileLinkColor);
   root.style.setProperty("--chat-message-box-bg", appearance.messageBoxBg);
 }
+
+export function clearChatAppearanceInlineOverrides(): void {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  for (const cssVar of Object.values(CHAT_APPEARANCE_CSS_VARS)) {
+    root.style.removeProperty(cssVar);
+  }
+}
+
+/** Read chat color tokens from the active workbench theme CSS (after clearing inline overrides). */
+export function readChatAppearanceFromDocument(
+  fallback: ChatAppearanceMap = defaultChatAppearance()
+): ChatAppearanceMap {
+  if (typeof document === "undefined") return fallback;
+  const s = getComputedStyle(document.documentElement);
+  const pick = (varName: string, defaultValue: string) => {
+    const v = s.getPropertyValue(varName).trim();
+    return v || defaultValue;
+  };
+  const out: ChatAppearanceMap = { ...fallback };
+  for (const field of CHAT_APPEARANCE_COLOR_FIELDS) {
+    out[field.key] = pick(
+      CHAT_APPEARANCE_CSS_VARS[field.key],
+      fallback[field.key]
+    );
+  }
+  return out;
+}

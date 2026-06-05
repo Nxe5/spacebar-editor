@@ -188,6 +188,12 @@
               <div class="mini-workbench__code-line">
                 <span style="color:{syntaxColors.punctuation}">{'}'}</span>
               </div>
+              <div class="mini-workbench__code-line mini-workbench__code-line--match-demo">
+                <span style="color:{syntaxColors.function}">log</span><span style="color:{syntaxColors.punctuation}">(</span><span
+                  class="mini-workbench__match"
+                  style={`background:color-mix(in srgb, ${editorColors.selectionMatch} 38%, transparent)`}
+                ><span style="color:{syntaxColors.string}">"world"</span></span><span style="color:{syntaxColors.punctuation}">);</span>
+              </div>
             </div>
           </div>
         </button>
@@ -478,6 +484,11 @@
   }
 
   .mini-workbench__selection {
+    padding: 0 1px;
+    border-radius: 2px;
+  }
+
+  .mini-workbench__match {
     padding: 0 1px;
     border-radius: 2px;
   }

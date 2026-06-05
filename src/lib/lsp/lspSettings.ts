@@ -5,6 +5,7 @@
 import { writable, get } from "svelte/store";
 import { type LspServerConfig, DEFAULT_LSP_SERVERS, LSP_BINARY_NAMES } from "./lspProtocol";
 import { isTauriAvailable } from "../ipc";
+import { clearLspFailure } from "./lspStore";
 
 const LSP_STORAGE_KEY = "sidebar.lsp.v1";
 
@@ -31,6 +32,9 @@ export const lspServers = writable<LspServerConfig[]>(load());
 lspServers.subscribe(save);
 
 export function setLspServer(language: string, patch: Partial<LspServerConfig>): void {
+  if ("enabled" in patch || "command" in patch || "args" in patch) {
+    clearLspFailure(language);
+  }
   lspServers.update((servers) => {
     const idx = servers.findIndex((s) => s.language === language);
     if (idx >= 0) {

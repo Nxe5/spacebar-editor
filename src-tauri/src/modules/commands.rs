@@ -1,5 +1,5 @@
 use crate::modules::filesystem::{
-    delete_path, find_files as find_files_inner, list_dir_tree as list_dir_tree_inner,
+    create_directory, delete_path, find_files as find_files_inner, list_dir_tree as list_dir_tree_inner,
     list_directory, path_exists as path_exists_inner, read_file_ranged,
     rename_path, web_fetch as web_fetch_inner, write_file_contents, FileEntry, ReadFileResult,
 };
@@ -19,7 +19,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 #[tauri::command]
 pub fn list_dir(path: &str) -> Result<Vec<FileEntry>, String> {
@@ -38,6 +38,11 @@ pub fn read_file(
 #[tauri::command]
 pub fn write_file(path: &str, contents: &str) -> Result<String, String> {
     write_file_contents(path, contents)
+}
+
+#[tauri::command]
+pub fn create_dir(path: String) -> Result<(), String> {
+    create_directory(&path)
 }
 
 #[tauri::command]
@@ -256,14 +261,16 @@ pub fn get_workspace_path() -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn pick_workspace_folder() -> Result<Option<String>, String> {
-    let folder = rfd::FileDialog::new()
+pub async fn pick_workspace_folder(window: WebviewWindow) -> Result<Option<String>, String> {
+    let folder = rfd::AsyncFileDialog::new()
         .set_title("Open workspace folder")
-        .pick_folder();
+        .set_parent(&window)
+        .pick_folder()
+        .await;
     let Some(folder) = folder else {
         return Ok(None);
     };
-    let s = folder.to_string_lossy().to_string();
+    let s = folder.path().to_string_lossy().to_string();
     if Path::new(&s).is_dir() {
         write_workspace_override(&s)?;
         return Ok(Some(s));
@@ -556,11 +563,13 @@ pub fn icon_pack_refresh_bundled() -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn pick_icon_pack_folder() -> Result<Option<String>, String> {
-    let picked = rfd::FileDialog::new()
+pub async fn pick_icon_pack_folder(window: WebviewWindow) -> Result<Option<String>, String> {
+    let picked = rfd::AsyncFileDialog::new()
         .set_title("Select icon pack folder")
-        .pick_folder();
-    Ok(picked.map(|p| p.to_string_lossy().into_owned()))
+        .set_parent(&window)
+        .pick_folder()
+        .await;
+    Ok(picked.map(|p| p.path().to_string_lossy().into_owned()))
 }
 
 // ---------------------------------------------------------------------------

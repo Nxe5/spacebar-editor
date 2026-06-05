@@ -1,8 +1,10 @@
 import { writable, get } from "svelte/store";
 import {
   applyChatAppearanceToDocument,
+  clearChatAppearanceInlineOverrides,
   defaultChatAppearance,
   loadChatAppearance,
+  readChatAppearanceFromDocument,
   saveChatAppearance,
   type ChatAppearanceMap,
 } from "../chat/chatAppearance";
@@ -36,6 +38,13 @@ function createChatAppearanceStore() {
       saveChatAppearance(appearance);
       set(appearance);
       applyChatAppearanceToDocument(appearance);
+      return appearance;
+    },
+
+    syncFromActiveTheme(): ChatAppearanceMap {
+      clearChatAppearanceInlineOverrides();
+      const appearance = readChatAppearanceFromDocument(get({ subscribe }));
+      set(appearance);
       return appearance;
     },
   };
