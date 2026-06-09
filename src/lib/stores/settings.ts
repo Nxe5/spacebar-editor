@@ -162,6 +162,8 @@ export type SettingsState = {
   includeWorkspaceInChat: boolean;
   readFileCap: ReadFileCapSettings;
   providerModelDefaults: ProviderModelDefaultsMap;
+  /** Bounding-box color shown when the element inspector hovers over a node in the browser pane. */
+  inspectorHighlightColor: string;
 };
 
 function createSettingsStore() {
@@ -210,6 +212,7 @@ function createSettingsStore() {
     includeWorkspaceInChat: false,
     readFileCap: { ...DEFAULT_READ_FILE_CAP },
     providerModelDefaults: structuredClone(DEFAULT_PROVIDER_MODEL_DEFAULTS),
+    inspectorHighlightColor: "#ff6b8b",
   };
 
   function normalizeModelList(
@@ -288,6 +291,10 @@ function createSettingsStore() {
       includeWorkspaceInChat: parsed.includeWorkspaceInChat === true,
       readFileCap: normalizeReadFileCap(parsed.readFileCap),
       providerModelDefaults: providerDefaults,
+      inspectorHighlightColor:
+        typeof parsed.inspectorHighlightColor === "string" && /^#[0-9a-fA-F]{6}$/.test(parsed.inspectorHighlightColor)
+          ? parsed.inspectorHighlightColor
+          : defaultState.inspectorHighlightColor,
     };
   }
 
@@ -609,6 +616,9 @@ function createSettingsStore() {
         ...state,
         editor: normalizeEditorSettings({ ...state.editor, ...editor }),
       }));
+    },
+    setInspectorHighlightColor: (color: string) => {
+      update((state) => ({ ...state, inspectorHighlightColor: color }));
     },
     setIncludeWorkspaceInChat: (includeWorkspaceInChat: boolean) => {
       update((state) => ({ ...state, includeWorkspaceInChat }));

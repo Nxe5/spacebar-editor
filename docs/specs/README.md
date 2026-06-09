@@ -74,7 +74,8 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | [39-context-ui-enhancements.md](39-context-ui-enhancements.md) | ✅ Implemented | Segmented context bar, breakdown popover, compaction archive/restore UI |
 | [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) | 🔶 Partial | v0.1.1: keychain, shell patterns, write audit, limits, workspace notice; §5 steps deferred |
 | [41-lsp-agent-tools.md](41-lsp-agent-tools.md) | ✅ Complete | LSP agent tools + shell spill + compaction tool retention |
-| [43-v-next-release-fixes.md](43-v-next-release-fixes.md) | 🔷 Planned | Dark Bubblegum colors, model selector empty states, file drag-to-chat, settings polish, compaction defaults, version status bar, macOS process name |
+| [43-v-next-release-fixes.md](43-v-next-release-fixes.md) | ✅ Implemented | Model selector always shows providers, inline chip drag-to-chat (contenteditable composer), settings polish, compaction defaults, version status bar |
+| [44-editor-actions-browser-tab.md](44-editor-actions-browser-tab.md) | 🔶 Partial | Editor actions `···` menu (new file/terminal/browser), browser tab nav controls, element inspector for chat |
 
 ### Editor & Git
 
@@ -133,7 +134,8 @@ These were the specs added as part of the competitive enhancement program (`exte
 | [39](39-context-ui-enhancements.md) | Context UI Enhancements | ✅ Implemented |
 | [41](41-lsp-agent-tools.md) | LSP Agent Tools | ✅ Complete |
 | [42](42-mlx-provider.md) | MLX Provider | ❌ Not started |
-| [43](43-v-next-release-fixes.md) | v-next Release Fixes | 🔷 Planned |
+| [43](43-v-next-release-fixes.md) | v-next Release Fixes | ✅ Implemented |
+| [44](44-editor-actions-browser-tab.md) | Editor Actions, Browser Tab & Element Inspector | 🔶 Partial |
 
 ---
 

@@ -42,6 +42,7 @@
     type WorkbenchThemeId,
   } from "$lib/workbench-theme";
 
+  import { settings } from "$lib/stores/settings";
   import SettingsColorField from "./SettingsColorField.svelte";
   import ThemeMiniWorkbench from "./ThemeMiniWorkbench.svelte";
   import {
@@ -503,6 +504,22 @@
           onReset={() => resetContextColor(field.key)}
         />
       {/each}
+    </div>
+
+    <div class="theme-section">
+      <div class="theme-section__head">
+        <h4 class="settings-subheading">Browser inspector</h4>
+      </div>
+      <p class="note theme-section__note">
+        Color of the bounding box shown when hovering over elements in the browser pane's Select element mode.
+      </p>
+      <SettingsColorField
+        label="Highlight color"
+        hint="Outline color drawn around the hovered element"
+        value={$settings.inspectorHighlightColor}
+        onChange={(v) => settings.setInspectorHighlightColor(v)}
+        onReset={() => settings.setInspectorHighlightColor("#ff6b8b")}
+      />
     </div>
 
     <div class="theme-section" id="theme-region-chat">

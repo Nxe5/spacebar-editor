@@ -329,7 +329,8 @@ import {
   type PendingAttachment =
     | { kind: "browser-file"; name: string; file: File }
     | { kind: "dir-entry"; name: string; entry: FileSystemDirectoryEntry }
-    | { kind: "abs-path"; name: string; path: string };
+    | { kind: "abs-path"; name: string; path: string }
+    | { kind: "element"; name: string; text: string };
 
   let pendingAttachments = $state<PendingAttachment[]>([]);
   let speechListening = $state(false);
@@ -842,6 +843,16 @@ import {
     }
   });
 
+  function onElementSelected(e: Event) {
+    const text = (e as CustomEvent<{ text: string }>).detail?.text;
+    if (!text) return;
+    const tagMatch = text.match(/\[Selected element:\s*([a-z][a-z0-9]*)/i);
+    const name = tagMatch?.[1]?.toLowerCase() || "element";
+    insertChipInComposer({ kind: "element", name, text });
+  }
+  window.addEventListener("spacebar:element-selected", onElementSelected);
+  onDestroy(() => window.removeEventListener("spacebar:element-selected", onElementSelected));
+
   $effect(() => {
     const ws = $files.workspacePath;
     if (ws && isTauriAvailable()) {
@@ -1100,6 +1111,9 @@ import {
     const chip = document.createElement("span");
     chip.contentEditable = "false";
     chip.className = "attachment-chip";
+    if (att.kind === "element") chip.dataset.kind = "element";
+    else if (att.kind === "dir-entry" || (att.kind === "abs-path" && att.name.endsWith("/"))) chip.dataset.kind = "dir";
+    else chip.dataset.kind = "file";
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "attachment-chip-name";
@@ -1111,11 +1125,30 @@ import {
     btn.className = "attachment-chip-remove";
     btn.textContent = "×";
     btn.setAttribute("aria-label", `Remove ${att.name}`);
+    // Prevent mousedown from moving the contenteditable cursor before the click fires.
+    btn.addEventListener("mousedown", (ev) => { ev.preventDefault(); ev.stopPropagation(); });
     btn.addEventListener("click", (ev) => {
-      ev.preventDefault();
+      ev.stopPropagation();
+      const anchor = (chip as HTMLElement & { __sbAnchor?: Text }).__sbAnchor;
       chip.remove();
       chipMap.delete(chip);
       syncAttachmentsFromDom();
+      // Re-focus and place cursor where the chip was (its old anchor node),
+      // falling back to end of composer if the anchor was also removed.
+      if (composerEl) {
+        composerEl.focus();
+        const targetNode = (anchor && anchor.parentNode === composerEl) ? anchor : null;
+        const sel = window.getSelection();
+        const range = document.createRange();
+        if (targetNode) {
+          range.setStart(targetNode, 0);
+        } else {
+          range.selectNodeContents(composerEl);
+          range.collapse(false);
+        }
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
     });
     chip.appendChild(btn);
 
@@ -1130,11 +1163,10 @@ import {
       composerEl.appendChild(chip);
     }
 
-    // Always place cursor in a text node immediately after the chip.
-    // Without this, the browser leaves the cursor at the start of the div
-    // (before the chip) when the composer wasn't focused, making typing
-    // insert text in front of the chip rather than after it.
+    // Insert a text node after the chip for cursor landing, and store a
+    // reference on the chip so the × handler can restore cursor position.
     const anchor = document.createTextNode("");
+    (chip as HTMLElement & { __sbAnchor?: Text }).__sbAnchor = anchor;
     chip.after(anchor);
     composerEl.focus();
     const newSel = window.getSelection();
@@ -1174,6 +1206,8 @@ import {
           );
         });
         parts.push(`--- ${att.name} ---\n${names.sort().join("\n") || "(empty)"}`);
+      } else if (att.kind === "element") {
+        parts.push(att.text);
       } else {
         try {
           const entries = await listDir(null, att.path);
@@ -2173,7 +2207,64 @@ import {
     await sendUserMessage(message);
   }
 
+  function removeChipBeforeCursor(): boolean {
+    const sel = window.getSelection();
+    if (!sel || !sel.isCollapsed || !composerEl) return false;
+    const { anchorNode, anchorOffset } = sel;
+    let chipToRemove: HTMLElement | null = null;
+
+    // Case A: cursor sits directly in composerEl — walk back past empty text nodes
+    if (anchorNode === composerEl && anchorOffset > 0) {
+      for (let i = anchorOffset - 1; i >= 0; i--) {
+        const n = composerEl.childNodes[i];
+        if (n instanceof HTMLElement && n.classList.contains("attachment-chip")) { chipToRemove = n; break; }
+        if (!(n instanceof Text && n.textContent === "")) break;
+      }
+    }
+
+    // Case B: cursor is at offset 0 of a text node — walk back past empty text nodes
+    if (!chipToRemove && anchorNode instanceof Text && anchorOffset === 0) {
+      let prev: Node | null = anchorNode.previousSibling;
+      while (prev instanceof Text && prev.textContent === "") prev = prev.previousSibling;
+      if (prev instanceof HTMLElement && prev.classList.contains("attachment-chip")) chipToRemove = prev;
+    }
+
+    if (!chipToRemove) return false;
+
+    const prevSib = chipToRemove.previousSibling;
+    const chipAnchor = (chipToRemove as HTMLElement & { __sbAnchor?: Text }).__sbAnchor;
+    chipToRemove.remove();
+    chipMap.delete(chipToRemove);
+    // Remove the orphaned anchor text node to prevent caret jumps in empty text nodes
+    if (chipAnchor?.parentNode === composerEl) chipAnchor.remove();
+
+    syncAttachmentsFromDom();
+    composerEl.focus();
+
+    // Place cursor at the end of whatever preceded the chip (not the start of what follows)
+    const newSel = window.getSelection();
+    const range = document.createRange();
+    if (prevSib && prevSib.parentNode === composerEl) {
+      if (prevSib instanceof Text) {
+        range.setStart(prevSib, prevSib.length);
+      } else {
+        const idx = Array.from(composerEl.childNodes).indexOf(prevSib as ChildNode);
+        range.setStart(composerEl, idx + 1);
+      }
+    } else {
+      range.setStart(composerEl, 0);
+    }
+    range.collapse(true);
+    newSel?.removeAllRanges();
+    newSel?.addRange(range);
+    return true;
+  }
+
   function handleKeydown(e: KeyboardEvent) {
+    if (e.key === "Backspace" && removeChipBeforeCursor()) {
+      e.preventDefault();
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       handleSubmit(e);
     }
@@ -2577,7 +2668,7 @@ import {
         aria-label="Message input"
         tabindex="0"
         data-placeholder="Plan, search, build anything…"
-        data-empty={!inputValue && pendingAttachments.length === 0 ? "true" : undefined}
+        data-empty={!inputValue.trim() && pendingAttachments.length === 0 ? "true" : undefined}
         bind:this={composerEl}
         oninput={onComposerInput}
         onkeydown={handleKeydown}
@@ -3966,6 +4057,21 @@ import {
   :global(.attachment-chip-remove:hover) {
     color: #ccc;
     background: rgba(255, 255, 255, 0.08);
+  }
+
+  :global(.attachment-chip[data-kind="file"]) {
+    border-color: rgba(100, 160, 255, 0.5);
+    background: rgba(100, 160, 255, 0.06);
+  }
+
+  :global(.attachment-chip[data-kind="dir"]) {
+    border-color: rgba(255, 185, 80, 0.5);
+    background: rgba(255, 185, 80, 0.06);
+  }
+
+  :global(.attachment-chip[data-kind="element"]) {
+    border-color: rgba(255, 107, 139, 0.5);
+    background: rgba(255, 107, 139, 0.06);
   }
 
   .composer-textarea {

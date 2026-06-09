@@ -33,6 +33,9 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | Interactive theme preview + workbench-chrome customization | Shipped |
 | Theme → editor/syntax sync on theme change | Shipped |
 | Shortcut rebinding UI | Shipped |
+| Browser preview tab (nav controls, :3000/:14200 quick buttons) | Shipped |
+| Element inspector (click-to-chip; configurable highlight color) | Shipped |
+| Chat composer attachment chips (file, folder, element) with Backspace removal | Shipped |
 | Agent error recovery (retries, continue after step limit) | Shipped |
 | Workspace lock (multi-window safety) | Shipped |
 | LSP (diagnostics, hover; user-installed servers) | Partial |

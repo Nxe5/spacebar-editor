@@ -25,7 +25,6 @@
   import { iconTheme } from "$lib/stores/iconTheme";
   import {
     isTauriAvailable,
-    openSettingsWindow,
     closeAuxiliaryWebviewWindows,
     ptyCreate,
     pickWorkspaceFolder,
@@ -41,15 +40,8 @@
   import { chatAppearance } from "$lib/stores/chatAppearance";
   import { contextAppearance } from "$lib/stores/contextAppearance";
   import { workbenchChrome } from "$lib/stores/workbenchChrome";
-  import {
-    setWorkbenchModalScrollLock,
-    setWorkbenchAuxiliaryScrollLock,
-    isWorkbenchScrollLocked,
-  } from "$lib/workbenchScrollLock";
-  import {
-    bindSettingsPopoutScrollLock,
-    syncAuxiliaryScrollLockWithSettingsWindow,
-  } from "$lib/settingsPopoutScrollLock";
+  import { setWorkbenchModalScrollLock } from "$lib/workbenchScrollLock";
+  import { syncAuxiliaryScrollLockWithSettingsWindow } from "$lib/settingsPopoutScrollLock";
   import type { ExplorerPanelTab } from "$lib/explorerPanel";
 
   const PANE_WIDTH_KEY = "sidebar.paneWidths.v1";
@@ -348,32 +340,12 @@
     feedbackOpen = true;
   }
 
-  async function openSettingsPopout() {
-    try {
-      if (!isTauriAvailable()) {
-        setWorkbenchModalScrollLock(true);
-        settingsOpen = true;
-        return;
-      }
-      setWorkbenchAuxiliaryScrollLock(true);
-      await openSettingsWindow();
-      await bindSettingsPopoutScrollLock();
-    } catch (e) {
-      if (!isWorkbenchScrollLocked()) {
-        setWorkbenchAuxiliaryScrollLock(false);
-      }
-      toast.error(String(e));
-      setWorkbenchModalScrollLock(true);
-      settingsOpen = true;
-    }
-  }
-
   function onGlobalKeydown(ev: KeyboardEvent) {
     dispatchWithOverrides(ev, {
       toggleChat: () => (showLeftPanel = !showLeftPanel),
       toggleExplorer: () => (showRightPanel = !showRightPanel),
       toggleBottom: () => (showBottomPanel = !showBottomPanel),
-      openSettings: () => void openSettingsPopout(),
+      openSettings: () => openSettingsModal(),
       newTerminal: () => void newTerminalTab(),
       newPreview: newPreviewTab,
       closeAllWorkbench: () => void closeAllWindowsAndTabs(),

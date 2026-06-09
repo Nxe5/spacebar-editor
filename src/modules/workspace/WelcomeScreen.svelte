@@ -119,15 +119,6 @@
         >
           {opening ? "Opening…" : "Open project folder"}
         </button>
-
-        <button
-          type="button"
-          class="btn ghost"
-          disabled
-          title="Coming in v0.1.1"
-        >
-          Tutorial
-        </button>
       </div>
 
       {#if recentProjects.length > 0}
@@ -162,25 +153,26 @@
 
   {#if desktop && appVersion}
     <footer class="version-bar">
-      <span class="version-text">
-        {#if updateState !== "unknown"}
-          <span
-            class="version-dot"
-            class:version-dot--green={updateState === "up-to-date"}
-            class:version-dot--amber={updateState === "update-available"}
-            class:version-dot--grey={updateState === "checking"}
-          ></span>
-        {/if}
-        v{appVersion}
-      </span>
+      <span class="version-text">v{appVersion}</span>
       {#if updateState === "update-available"}
+        <span class="version-sep" aria-hidden="true"></span>
         <button
           type="button"
           class="update-btn"
           onclick={() => void openExternalUrl("https://spacebareditor.com/downloads")}
         >
-          Download update{latestVersion ? ` (v${latestVersion})` : ""}
+          Update available{latestVersion ? ` — v${latestVersion}` : ""}
         </button>
+      {/if}
+      <span class="version-spacer"></span>
+      {#if updateState !== "unknown"}
+        <span
+          class="version-dot"
+          class:version-dot--green={updateState === "up-to-date"}
+          class:version-dot--amber={updateState === "update-available"}
+          class:version-dot--grey={updateState === "checking"}
+          title={updateState === "up-to-date" ? "Up to date" : updateState === "update-available" ? "Update available" : "Checking for updates…"}
+        ></span>
       {/if}
     </footer>
   {/if}
@@ -254,17 +246,6 @@
   .btn.primary:hover:not(:disabled) {
     background: #444;
     border-color: #555;
-  }
-
-  .btn.ghost {
-    background: transparent;
-    border-color: #404040;
-    color: #737373;
-  }
-
-  .btn.ghost:hover:not(:disabled) {
-    background: #2a2a2a;
-    color: #a3a3a3;
   }
 
   .btn:disabled {
@@ -357,7 +338,7 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     padding: 0 14px;
     height: 24px;
     border-top: 1px solid var(--border, #2a2a2a);
@@ -365,12 +346,21 @@
   }
 
   .version-text {
-    display: flex;
-    align-items: center;
-    gap: 5px;
     font-size: 11px;
     color: #5a5a5a;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .version-sep {
+    width: 1px;
+    height: 12px;
+    background: var(--border, #333);
+    flex-shrink: 0;
+  }
+
+  .version-spacer {
+    flex: 1;
   }
 
   .version-dot {
@@ -403,6 +393,7 @@
     background: rgba(210, 153, 34, 0.1);
     color: #d29922;
     transition: background 0.1s;
+    white-space: nowrap;
   }
 
   .update-btn:hover {

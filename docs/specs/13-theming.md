@@ -169,6 +169,49 @@ Defaults in `EDITOR_CHROME_DEFAULTS` (`src/lib/editor/editorChrome.ts`) match VS
 
 ---
 
+## Inspector Highlight Color
+
+A single user-configurable color governs the element inspector in the browser preview pane.
+
+| Setting | Key | Default | Location |
+|---------|-----|---------|----------|
+| `inspectorHighlightColor` | `sidebar.settings.v4` | `#ff6b8b` | Settings → Appearance → Browser inspector |
+
+**Validation:** only exact 6-digit hex strings (`/^#[0-9a-fA-F]{6}$/`) are accepted on load; invalid values fall back to the default.
+
+**Usage:** `PreviewPane.svelte` reads `$settings.inspectorHighlightColor` via `$derived`. It's passed to `injectStyle(doc, color)` for the `.__sb_hover` outline rule and applied inline to the inspect overlay border and hint pill.
+
+---
+
+## Scrollbars
+
+All scrollable areas use theme-aware CSS variables so scrollbars always match the active workbench theme. No hardcoded colors.
+
+### Global Rule (`src/styles/globals.css`, `@layer base`)
+
+```css
+* {
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 42%, transparent) var(--background);
+  scrollbar-width: thin;
+}
+*::-webkit-scrollbar        { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track  { background: var(--background); }
+*::-webkit-scrollbar-thumb  { background: color-mix(in oklab, var(--muted-foreground) 42%, transparent); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--muted-foreground) 62%, transparent); }
+*::-webkit-scrollbar-corner { background: var(--background); }
+```
+
+Placed in `@layer base` (lowest cascade priority) so more-specific component rules override safely:
+- `.cm-scroller` / `.xterm-viewport` — retain their own width (10px) and `var(--editor-bg)` track
+- `.tab-strip-scroll-native-hidden` — retains `scrollbar-width: none`
+- Component `<style>` blocks (no layer) always win on track/thumb sizing
+
+### macOS Notes
+
+Defining `::-webkit-scrollbar` opts elements into legacy always-visible scrollbars (overrides macOS overlay scrollbar default). Using `var(--background)` for the track ensures the dark background is always applied — preventing the white track that appears when `::-webkit-scrollbar-track` is absent.
+
+---
+
 ## Terminal Colors
 
 `--terminal-ansi-*` variables from workbench theme:

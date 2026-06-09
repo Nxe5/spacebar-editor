@@ -17,9 +17,13 @@ The shortcut infrastructure already exists:
 | `src/modules/shortcuts/dispatcher.ts` | Keyboard event listener — resolves key combos to action IDs |
 | `src/modules/shortcuts/defaults.ts` | Default key bindings — a `Record<string, string>` of action ID → key string |
 
-The infrastructure is complete but there is no UI to view or change bindings, and bindings are not persisted — they always load from `defaults.ts`.
+The infrastructure is complete. Bindings are persisted via `shortcutOverrides` in `localStorage`.
 
-The settings navigation already has a `keybindings` nav item (added as part of Spec 30's nav restructure). This spec implements the UI and persistence behind that nav item.
+The settings navigation has a `keybindings` nav item. The UI (filter, edit/capture, conflict detection, per-row reset, reset-all) is implemented in `KeybindingsSettings.svelte`.
+
+### `openSettings` shortcut
+
+`Mod+,` maps to the `openSettings` action, which calls `openSettingsModal()` in `WorkbenchShell.svelte`. This opens the same modal as the gear icon in the status bar. The previous `openSettingsPopout()` path (which opened a separate Tauri window) has been removed — settings are always opened as an in-window modal.
 
 ---
 

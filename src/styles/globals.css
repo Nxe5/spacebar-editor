@@ -272,6 +272,31 @@
     @apply border-border outline-ring/50;
   }
 
+  /* Scrollbars: theme-aware, dark by default.
+   * More-specific selectors (.cm-scroller, .tab-strip-scroll-native-hidden, etc.)
+   * below override these as needed. Component <style> blocks (no layer) also win. */
+  * {
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 42%, transparent) var(--background);
+    scrollbar-width: thin;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  *::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--muted-foreground) 42%, transparent);
+    border-radius: 4px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--muted-foreground) 62%, transparent);
+  }
+  *::-webkit-scrollbar-corner {
+    background: var(--background);
+  }
+
   /* CodeMirror + xterm: bounded panes need visible scroll affordance. */
   .cm-scroller,
   .xterm-viewport {

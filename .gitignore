@@ -10,6 +10,12 @@ src-tauri/target/
 !.env.example
 *.log
 .DS_Store
+
+# Spacebar Editor per-workspace runtime (when this repo is opened as a project)
+.sidebar/state.json
+.sidebar/.lock
+.sidebar/runs/
+
 tests/llm/results/*
 !tests/llm/results/.gitkeep
 tests/llm/fixtures/workspace/

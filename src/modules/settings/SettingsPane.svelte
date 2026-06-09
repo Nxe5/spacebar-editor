@@ -1567,7 +1567,8 @@
     gap: 2px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #333 #1f1f1f;
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 42%, transparent) var(--background);
+    scrollbar-width: thin;
   }
 
   .nav-rail::-webkit-scrollbar {
@@ -1575,11 +1576,11 @@
   }
 
   .nav-rail::-webkit-scrollbar-track {
-    background: #1f1f1f;
+    background: var(--background);
   }
 
   .nav-rail::-webkit-scrollbar-thumb {
-    background: #333;
+    background: color-mix(in oklab, var(--muted-foreground) 42%, transparent);
     border-radius: 2px;
   }
 
@@ -1745,7 +1746,8 @@
     overflow-y: auto;
     padding: 16px;
     scrollbar-width: thin;
-    scrollbar-color: #3a3a3a #262626;
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 42%, transparent) var(--background);
+    scrollbar-width: thin;
   }
 
   .modal-body::-webkit-scrollbar {
@@ -1753,11 +1755,11 @@
   }
 
   .modal-body::-webkit-scrollbar-track {
-    background: #262626;
+    background: var(--background);
   }
 
   .modal-body::-webkit-scrollbar-thumb {
-    background: #3a3a3a;
+    background: color-mix(in oklab, var(--muted-foreground) 42%, transparent);
     border-radius: 3px;
   }
 
