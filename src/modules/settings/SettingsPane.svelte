@@ -38,7 +38,7 @@
   } from "$lib/toolPolicy";
   import { EMPTY_PARAMETERS_JSON } from "$lib/toolSchema";
   import { files } from "$lib/stores/files";
-  import { isTauriAvailable, runShell } from "$lib/ipc";
+  import { isTauriAvailable, runShell, openExternalUrl } from "$lib/ipc";
   import AgentContextSection, {
     type AgentContextSubview,
   } from "./AgentContextSection.svelte";
@@ -746,9 +746,6 @@
               onclick={() => selectSettingsSection(s.id)}
             >
               <span class="nav-item-label">{s.label}</span>
-              {#if s.experimental}
-                <span class="nav-experimental-pill">Experimental</span>
-              {/if}
               {#if (s.id === "providers-ollama" && chatBackend === "ollama") || (s.id === "providers-llamacpp" && chatBackend === "llamacpp") || (s.id === "providers-anthropic" && chatBackend === "anthropic") || (s.id === "providers-deepseek" && chatBackend === "deepseek")}
                 <span class="nav-active-dot" title="Active chat provider"></span>
               {/if}
@@ -802,7 +799,7 @@
             </div>
             <p class="note">
               Local models via Ollama's HTTP API. Install from
-              <a href="https://ollama.com" target="_blank" rel="noreferrer">ollama.com</a>, then
+              <a href="https://ollama.com" onclick={(e) => { e.preventDefault(); void openExternalUrl("https://ollama.com"); }}>ollama.com</a>, then
               <code class="inline-code">ollama serve</code> (default port 11434).
             </p>
 
@@ -1029,7 +1026,7 @@
               {/if}
             </div>
             <p class="note">
-              Run <a href="https://github.com/ggml-org/llama.cpp" target="_blank" rel="noreferrer">llama.cpp</a>
+              Run <a href="https://github.com/ggml-org/llama.cpp" onclick={(e) => { e.preventDefault(); void openExternalUrl("https://github.com/ggml-org/llama.cpp"); }}>llama.cpp</a>
               <code class="inline-code">llama-server</code> with OpenAI API enabled (often port 8080).
             </p>
 
@@ -1137,34 +1134,34 @@
               <code class="inline-code">llama-server -m model.gguf --port 8080</code>
             </p>
             <div class="gguf-links">
-              <a href="https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+              <a href="https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF" onclick={(e) => { e.preventDefault(); void openExternalUrl("https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF"); }} class="gguf-link">
                 <span class="gguf-name">Llama 3.2 3B</span>
                 <span class="gguf-desc">Meta's lightweight model</span>
               </a>
-              <a href="https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+              <a href="https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF" onclick={(e) => { e.preventDefault(); void openExternalUrl("https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF"); }} class="gguf-link">
                 <span class="gguf-name">Qwen 2.5 7B</span>
                 <span class="gguf-desc">Strong reasoning & coding</span>
               </a>
-              <a href="https://huggingface.co/bartowski/Qwen2.5-Coder-7B-Instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+              <a href="https://huggingface.co/bartowski/Qwen2.5-Coder-7B-Instruct-GGUF" onclick={(e) => { e.preventDefault(); void openExternalUrl("https://huggingface.co/bartowski/Qwen2.5-Coder-7B-Instruct-GGUF"); }} class="gguf-link">
                 <span class="gguf-name">Qwen 2.5 Coder 7B</span>
                 <span class="gguf-desc">Code-specialized model</span>
               </a>
-              <a href="https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+              <a href="https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF" onclick={(e) => { e.preventDefault(); void openExternalUrl("https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF"); }} class="gguf-link">
                 <span class="gguf-name">Mistral 7B</span>
                 <span class="gguf-desc">Fast & efficient</span>
               </a>
-              <a href="https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+              <a href="https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF" onclick={(e) => { e.preventDefault(); void openExternalUrl("https://huggingface.co/bartowski/Phi-3.5-mini-instruct-GGUF"); }} class="gguf-link">
                 <span class="gguf-name">Phi 3.5 Mini</span>
                 <span class="gguf-desc">Microsoft's small model</span>
               </a>
-              <a href="https://huggingface.co/bartowski/gemma-2-9b-it-GGUF" target="_blank" rel="noreferrer" class="gguf-link">
+              <a href="https://huggingface.co/bartowski/gemma-2-9b-it-GGUF" onclick={(e) => { e.preventDefault(); void openExternalUrl("https://huggingface.co/bartowski/gemma-2-9b-it-GGUF"); }} class="gguf-link">
                 <span class="gguf-name">Gemma 2 9B</span>
                 <span class="gguf-desc">Google's open model</span>
               </a>
             </div>
             <p class="note muted" style="margin-top: 8px;">
               Choose Q4_K_M quantization for best quality/size balance. See
-              <a href="https://huggingface.co/models?library=gguf&sort=trending" target="_blank" rel="noreferrer">all GGUF models</a>.
+              <a href="https://huggingface.co/models?library=gguf&sort=trending" onclick={(e) => { e.preventDefault(); void openExternalUrl("https://huggingface.co/models?library=gguf&sort=trending"); }}>all GGUF models</a>.
             </p>
             </div>
 

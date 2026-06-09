@@ -73,6 +73,12 @@
     class:tone-error={folderDeco.tone === "error"}
     class:file-modified={gitTone === "modified"}
     class:file-untracked={gitTone === "untracked"}
+    draggable={true}
+    ondragstart={(e) => {
+      e.dataTransfer?.setData("application/spacebar-path", entry.path);
+      e.dataTransfer?.setData("text/plain", entry.path);
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+    }}
     onclick={() => void onActivate(entry)}
     oncontextmenu={(e) => {
       e.preventDefault();

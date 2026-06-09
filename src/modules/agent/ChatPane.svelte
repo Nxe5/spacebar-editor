@@ -25,7 +25,7 @@
   import { skills } from "$lib/stores/skills";
   import { buildActiveSkillBlocks } from "$lib/skills/activeSkills";
   import type { VariableContext } from "$lib/skills/skillVariables";
-  import { gitCurrentBranch, pathExists } from "$lib/ipc";
+  import { gitCurrentBranch, pathExists, readFile, listDir } from "$lib/ipc";
   import { cloudApiKeysForStream } from "$lib/apiSecrets";
   import {
     nestedScaffoldNoticeMessage,
@@ -175,6 +175,8 @@ import {
   };
 
   let inputValue = $state("");
+  let composerEl = $state<HTMLDivElement | undefined>(undefined);
+  const chipMap = new Map<HTMLElement, PendingAttachment>();
   let userMessageExpanded = $state<Record<string, boolean>>({});
   let userMessageDraft = $state<Record<string, string>>({});
   /** User message being edited in history; main Send rewinds here first. */
@@ -321,6 +323,15 @@ import {
   let contextBudgetMenuOpen = $state(false);
   let contextBudgetMenuEl: HTMLDivElement | undefined = $state();
   let attachInputEl = $state<HTMLInputElement | undefined>(undefined);
+  let chatDropActive = $state(false);
+  let chatDropCounter = 0;
+
+  type PendingAttachment =
+    | { kind: "browser-file"; name: string; file: File }
+    | { kind: "dir-entry"; name: string; entry: FileSystemDirectoryEntry }
+    | { kind: "abs-path"; name: string; path: string };
+
+  let pendingAttachments = $state<PendingAttachment[]>([]);
   let speechListening = $state(false);
   let speechRec: BrowserSpeechRec | null = null;
   let ollamaCatalogStatus = $state<"idle" | "ok" | "fail">("idle");
@@ -933,18 +944,18 @@ import {
     el.value = "";
     if (!file) return;
 
-    const gap = inputValue.trim().length ? "\n\n" : "";
+    const gap = getComposerText().trim().length ? "\n\n" : "";
 
     if (file.type.startsWith("image/")) {
       if (file.size > 150_000) {
-        inputValue += `${gap}[Image "${file.name}" skipped — larger than 150KB]\n`;
+        appendTextToComposer(`${gap}[Image "${file.name}" skipped — larger than 150KB]\n`);
         return;
       }
       try {
         const dataUrl = await readFileAsDataUrl(file);
-        inputValue += `${gap}![${file.name}](${dataUrl})\n`;
+        appendTextToComposer(`${gap}![${file.name}](${dataUrl})\n`);
       } catch {
-        inputValue += `${gap}[Could not read image "${file.name}"]\n`;
+        appendTextToComposer(`${gap}[Could not read image "${file.name}"]\n`);
       }
       return;
     }
@@ -958,14 +969,228 @@ import {
     if (textLike && file.size <= 512_000) {
       try {
         const text = await file.text();
-        inputValue += `${gap}--- ${file.name} ---\n${text}`;
+        appendTextToComposer(`${gap}--- ${file.name} ---\n${text}`);
       } catch {
-        inputValue += `${gap}[Could not read "${file.name}"]\n`;
+        appendTextToComposer(`${gap}[Could not read "${file.name}"]\n`);
       }
       return;
     }
 
-    inputValue += `${gap}[File: ${file.name} (${file.type || "unknown"}, ${file.size} bytes) — not inlined]\n`;
+    appendTextToComposer(`${gap}[File: ${file.name} (${file.type || "unknown"}, ${file.size} bytes) — not inlined]\n`);
+  }
+
+  function handleChatDragOver(e: DragEvent) {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    chatDropCounter++;
+    chatDropActive = true;
+  }
+
+  function handleChatDragLeave() {
+    chatDropCounter--;
+    if (chatDropCounter <= 0) {
+      chatDropCounter = 0;
+      chatDropActive = false;
+    }
+  }
+
+  function handleChatDrop(e: DragEvent) {
+    e.preventDefault();
+    chatDropCounter = 0;
+    chatDropActive = false;
+
+    const dt = e.dataTransfer;
+    if (!dt) return;
+
+    const spacebarPath = dt.getData("application/spacebar-path");
+    if (spacebarPath) {
+      const name = spacebarPath.split("/").pop() ?? spacebarPath;
+      insertChipInComposer({ kind: "abs-path", name, path: spacebarPath });
+      return;
+    }
+
+    const items = Array.from(dt.items ?? []);
+    if (items.length > 0) {
+      for (const item of items) {
+        const entry = item.webkitGetAsEntry?.();
+        if (!entry) {
+          const file = item.getAsFile?.();
+          if (file) insertChipInComposer({ kind: "browser-file", name: file.name, file });
+          continue;
+        }
+        if (entry.isDirectory) {
+          insertChipInComposer({ kind: "dir-entry", name: entry.name + "/", entry: entry as FileSystemDirectoryEntry });
+        } else {
+          const file = item.getAsFile?.();
+          if (file) insertChipInComposer({ kind: "browser-file", name: file.name, file });
+        }
+      }
+      return;
+    }
+
+    for (const file of Array.from(dt.files ?? [])) {
+      insertChipInComposer({ kind: "browser-file", name: file.name, file });
+    }
+  }
+
+  function removeAttachment(index: number) {
+    pendingAttachments = pendingAttachments.filter((_, i) => i !== index);
+  }
+
+  function syncAttachmentsFromDom() {
+    if (!composerEl) return;
+    const chips = composerEl.querySelectorAll<HTMLElement>(".attachment-chip");
+    pendingAttachments = [...chips].map(el => chipMap.get(el)).filter((a): a is PendingAttachment => !!a);
+  }
+
+  function getComposerText(): string {
+    if (!composerEl) return inputValue;
+    let text = "";
+    function walk(node: Node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent ?? "";
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element;
+        if (el.classList.contains("attachment-chip")) return;
+        if (el.tagName === "BR") { text += "\n"; return; }
+        if (el.tagName === "DIV" && text.length > 0 && !text.endsWith("\n")) text += "\n";
+        for (const child of el.childNodes) walk(child);
+      }
+    }
+    for (const child of composerEl.childNodes) walk(child);
+    return text;
+  }
+
+  function onComposerInput() {
+    inputValue = getComposerText();
+    syncAttachmentsFromDom();
+  }
+
+  function setComposerText(text: string) {
+    if (!composerEl) { inputValue = text; return; }
+    composerEl.innerHTML = "";
+    chipMap.clear();
+    pendingAttachments = [];
+    if (text) composerEl.appendChild(document.createTextNode(text));
+    inputValue = text;
+  }
+
+  function clearComposer() {
+    if (composerEl) composerEl.innerHTML = "";
+    chipMap.clear();
+    pendingAttachments = [];
+    inputValue = "";
+  }
+
+  function appendTextToComposer(text: string) {
+    if (composerEl) {
+      composerEl.appendChild(document.createTextNode(text));
+      inputValue = getComposerText();
+    } else {
+      inputValue += text;
+    }
+  }
+
+  function insertChipInComposer(att: PendingAttachment) {
+    if (!composerEl) {
+      pendingAttachments = [...pendingAttachments, att];
+      return;
+    }
+
+    const chip = document.createElement("span");
+    chip.contentEditable = "false";
+    chip.className = "attachment-chip";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "attachment-chip-name";
+    nameSpan.textContent = att.name;
+    chip.appendChild(nameSpan);
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "attachment-chip-remove";
+    btn.textContent = "×";
+    btn.setAttribute("aria-label", `Remove ${att.name}`);
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      chip.remove();
+      chipMap.delete(chip);
+      syncAttachmentsFromDom();
+    });
+    chip.appendChild(btn);
+
+    chipMap.set(chip, att);
+
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && composerEl.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(chip);
+    } else {
+      composerEl.appendChild(chip);
+    }
+
+    // Always place cursor in a text node immediately after the chip.
+    // Without this, the browser leaves the cursor at the start of the div
+    // (before the chip) when the composer wasn't focused, making typing
+    // insert text in front of the chip rather than after it.
+    const anchor = document.createTextNode("");
+    chip.after(anchor);
+    composerEl.focus();
+    const newSel = window.getSelection();
+    const newRange = document.createRange();
+    newRange.setStart(anchor, 0);
+    newRange.collapse(true);
+    newSel?.removeAllRanges();
+    newSel?.addRange(newRange);
+
+    pendingAttachments = [...pendingAttachments, att];
+  }
+
+  async function resolveAttachments(): Promise<string> {
+    const parts: string[] = [];
+    for (const att of pendingAttachments) {
+      if (att.kind === "browser-file") {
+        const file = att.file;
+        if (file.type.startsWith("image/") && file.size <= 150_000) {
+          try { parts.push(`![${file.name}](${await readFileAsDataUrl(file)})`); continue; } catch { /* fall through */ }
+        }
+        const textLike =
+          /^text\/|application\/(json|xml|javascript|typescript)/.test(file.type) ||
+          /\.(txt|md|json|xml|yaml|yml|toml|rs|ts|tsx|jsx|js|mjs|cjs|svelte|css|html|vue|py|go|java|kt|swift|c|h|cpp|hpp)$/i.test(file.name);
+        if (textLike && file.size <= 200_000) {
+          try {
+            const ext = file.name.split(".").pop() ?? "";
+            parts.push(`\`\`\`${ext}\n// ${file.name}\n${await file.text()}\n\`\`\``);
+            continue;
+          } catch { /* fall through */ }
+        }
+        parts.push(`[File: ${file.name} (${file.size} bytes)]`);
+      } else if (att.kind === "dir-entry") {
+        const names = await new Promise<string[]>((res) => {
+          att.entry.createReader().readEntries(
+            (entries) => res(entries.map((e) => e.name + (e.isDirectory ? "/" : ""))),
+            () => res([])
+          );
+        });
+        parts.push(`--- ${att.name} ---\n${names.sort().join("\n") || "(empty)"}`);
+      } else {
+        try {
+          const entries = await listDir(null, att.path);
+          const names = entries.map((e) => e.name + (e.is_dir ? "/" : "")).sort().join("\n");
+          parts.push(`--- ${att.name} ---\n${names || "(empty)"}`);
+        } catch {
+          try {
+            const text = await readFile(null, att.path);
+            const ext = att.name.split(".").pop() ?? "";
+            parts.push(`\`\`\`${ext}\n// ${att.name}\n${text}\n\`\`\``);
+          } catch {
+            parts.push(`[Could not read: ${att.name}]`);
+          }
+        }
+      }
+    }
+    return parts.join("\n\n");
   }
 
   function stopDictation() {
@@ -1001,8 +1226,15 @@ import {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0]?.transcript?.trim();
         if (!t) continue;
-        const sep = inputValue.length && !/\s$/.test(inputValue) ? " " : "";
-        inputValue = `${inputValue}${sep}${t}`;
+        if (composerEl) {
+          const cur = getComposerText();
+          const sep = cur.length && !/\s$/.test(cur) ? " " : "";
+          composerEl.appendChild(document.createTextNode(sep + t));
+          inputValue = getComposerText();
+        } else {
+          const sep = inputValue.length && !/\s$/.test(inputValue) ? " " : "";
+          inputValue = `${inputValue}${sep}${t}`;
+        }
       }
     };
     rec.onerror = () => {
@@ -1861,7 +2093,7 @@ import {
     }
 
     chat.truncateBeforeUserMessage(messageId);
-    inputValue = text;
+    setComposerText(text);
     userMessageExpanded = {};
     userMessageDraft = {};
     editingUserMessageId = null;
@@ -1905,7 +2137,7 @@ import {
     if (!draft || $chat.isStreaming) return;
     collapseUserMessage(messageId);
     await revertToUserMessage(messageId, draft);
-    inputValue = "";
+    clearComposer();
     await sendUserMessage(draft);
   }
 
@@ -1916,13 +2148,19 @@ import {
     stepLimitNotice = null;
 
     const editingId = editingUserMessageId;
-    const message = editingId
+    const typed = editingId
       ? (userMessageDraft[editingId] ?? "").trim()
-      : inputValue.trim();
-    if (!message) return;
+      : getComposerText().trim();
+
+    if (!typed && pendingAttachments.length === 0) return;
+
+    const attachmentText = pendingAttachments.length > 0 ? await resolveAttachments() : "";
+    const message = attachmentText && typed
+      ? `${attachmentText}\n\n${typed}`
+      : attachmentText || typed;
 
     if (editingId) {
-      inputValue = "";
+      clearComposer();
       userMessageExpanded = {};
       userMessageDraft = {};
       editingUserMessageId = null;
@@ -1931,7 +2169,7 @@ import {
       return;
     }
 
-    inputValue = "";
+    clearComposer();
     await sendUserMessage(message);
   }
 
@@ -1971,7 +2209,17 @@ import {
 
 <svelte:window onpointerdown={onDocPointerDown} />
 
-<div class="chat-pane">
+<div
+  class="chat-pane"
+  ondragover={handleChatDragOver}
+  ondragleave={handleChatDragLeave}
+  ondrop={(e) => void handleChatDrop(e)}
+>
+  {#if chatDropActive}
+    <div class="chat-drop-overlay" aria-hidden="true">
+      <span class="chat-drop-label">Drop to add as context</span>
+    </div>
+  {/if}
   <div class="messages" bind:this={messagesContainer}>
     <button
       type="button"
@@ -2321,14 +2569,25 @@ import {
       data-chrome-state={composerChromeState}
       onpointerdown={collapseAllHistoryEdits}
     >
-      <textarea
+      <div
         class="composer-textarea"
-        bind:value={inputValue}
-        placeholder="Plan, search, build anything…"
-        rows="3"
+        contenteditable="true"
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Message input"
+        tabindex="0"
+        data-placeholder="Plan, search, build anything…"
+        data-empty={!inputValue && pendingAttachments.length === 0 ? "true" : undefined}
+        bind:this={composerEl}
+        oninput={onComposerInput}
         onkeydown={handleKeydown}
         onfocus={collapseAllHistoryEdits}
-      ></textarea>
+        onpaste={(e) => {
+          e.preventDefault();
+          const text = e.clipboardData?.getData("text/plain") ?? "";
+          document.execCommand("insertText", false, text);
+        }}
+      ></div>
       <div class="composer-toolbar">
         <div class="composer-mode-wrap" bind:this={modeMenuAnchorEl}>
           <button
@@ -2409,34 +2668,34 @@ import {
               use:portal
               use:floatingPanel={{ getAnchor: () => modelMenuAnchorEl }}
             >
-              {#if showOllamaInModelMenu}
-                <div class="model-popup-section">
-                  <div class="model-popup-section-head">
-                    <span>Ollama</span>
-                    <div class="model-popup-actions">
-                      <button
-                        type="button"
-                        class="model-popup-action-btn"
-                        onclick={() => refreshOllamaModelsFromHost()}
-                        title="Refresh Ollama models"
-                        aria-label="Refresh Ollama models"
-                      >
-                        <RefreshCw size={14} strokeWidth={1.75} aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        class="model-popup-action-btn"
-                        onclick={() => {
-                          modelMenuOpen = false;
-                          onOpenSettings?.();
-                        }}
-                        title="Provider settings"
-                        aria-label="Provider settings"
-                      >
-                        <Settings size={14} strokeWidth={1.75} aria-hidden="true" />
-                      </button>
-                    </div>
+              <div class="model-popup-section">
+                <div class="model-popup-section-head">
+                  <span>Ollama</span>
+                  <div class="model-popup-actions">
+                    <button
+                      type="button"
+                      class="model-popup-action-btn"
+                      onclick={() => refreshOllamaModelsFromHost()}
+                      title="Refresh Ollama models"
+                      aria-label="Refresh Ollama models"
+                    >
+                      <RefreshCw size={14} strokeWidth={1.75} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      class="model-popup-action-btn"
+                      onclick={() => {
+                        modelMenuOpen = false;
+                        onOpenSettings?.();
+                      }}
+                      title="Provider settings"
+                      aria-label="Provider settings"
+                    >
+                      <Settings size={14} strokeWidth={1.75} aria-hidden="true" />
+                    </button>
                   </div>
+                </div>
+                {#if showOllamaInModelMenu && ollamaMenuRows.length > 0}
                   {#each ollamaMenuRows as row (row.id)}
                     <button
                       type="button"
@@ -2450,53 +2709,15 @@ import {
                       {row.name}
                     </button>
                   {/each}
-                </div>
-              {/if}
-              {#if showAnthropicInModelMenu}
+                {:else}
+                  <span class="model-popup-unavailable">No models available</span>
+                {/if}
+              </div>
               <div class="model-popup-section">
                 <div class="model-popup-section-head">
-                  <span>Anthropic</span>
+                  <span>llama.cpp</span>
                 </div>
-                {#each anthropicMenuRows as row (row.id)}
-                  <button
-                    type="button"
-                    role="option"
-                    class="model-popup-option"
-                    class:model-popup-option--current={$settings.chatBackend === "anthropic" &&
-                      $settings.selectedModel === row.id}
-                    aria-selected={$settings.chatBackend === "anthropic" && $settings.selectedModel === row.id}
-                    onclick={() => pickAnthropicModelRow(row.id)}
-                  >
-                    {row.name}
-                  </button>
-                {/each}
-              </div>
-              {/if}
-              {#if showDeepseekInModelMenu}
-              <div class="model-popup-section">
-                <div class="model-popup-section-head">
-                  <span>DeepSeek</span>
-                </div>
-                {#each deepseekMenuRows as row (row.id)}
-                  <button
-                    type="button"
-                    role="option"
-                    class="model-popup-option"
-                    class:model-popup-option--current={$settings.chatBackend === "deepseek" &&
-                      $settings.selectedModel === row.id}
-                    aria-selected={$settings.chatBackend === "deepseek" && $settings.selectedModel === row.id}
-                    onclick={() => pickDeepseekModelRow(row.id)}
-                  >
-                    {row.name}
-                  </button>
-                {/each}
-              </div>
-              {/if}
-              {#if $settings.llamacppModels.length > 0}
-                <div class="model-popup-section">
-                  <div class="model-popup-section-head">
-                    <span>llama.cpp</span>
-                  </div>
+                {#if $settings.llamacppModels.length > 0}
                   {#each $settings.llamacppModels as row (row.id)}
                     <button
                       type="button"
@@ -2510,8 +2731,54 @@ import {
                       {row.name}
                     </button>
                   {/each}
+                {:else}
+                  <span class="model-popup-unavailable">No models available</span>
+                {/if}
+              </div>
+              <div class="model-popup-section">
+                <div class="model-popup-section-head">
+                  <span>Anthropic</span>
                 </div>
-              {/if}
+                {#if showAnthropicInModelMenu && anthropicMenuRows.length > 0}
+                  {#each anthropicMenuRows as row (row.id)}
+                    <button
+                      type="button"
+                      role="option"
+                      class="model-popup-option"
+                      class:model-popup-option--current={$settings.chatBackend === "anthropic" &&
+                        $settings.selectedModel === row.id}
+                      aria-selected={$settings.chatBackend === "anthropic" && $settings.selectedModel === row.id}
+                      onclick={() => pickAnthropicModelRow(row.id)}
+                    >
+                      {row.name}
+                    </button>
+                  {/each}
+                {:else}
+                  <span class="model-popup-unavailable">No models available</span>
+                {/if}
+              </div>
+              <div class="model-popup-section">
+                <div class="model-popup-section-head">
+                  <span>DeepSeek</span>
+                </div>
+                {#if showDeepseekInModelMenu && deepseekMenuRows.length > 0}
+                  {#each deepseekMenuRows as row (row.id)}
+                    <button
+                      type="button"
+                      role="option"
+                      class="model-popup-option"
+                      class:model-popup-option--current={$settings.chatBackend === "deepseek" &&
+                        $settings.selectedModel === row.id}
+                      aria-selected={$settings.chatBackend === "deepseek" && $settings.selectedModel === row.id}
+                      onclick={() => pickDeepseekModelRow(row.id)}
+                    >
+                      {row.name}
+                    </button>
+                  {/each}
+                {:else}
+                  <span class="model-popup-unavailable">No models available</span>
+                {/if}
+              </div>
               {#if lastTokPerSec != null && lastTokPerSec > 0}
                 <p class="model-popup-foot">
                   Last reply · {lastTokPerSec >= 100
@@ -2851,6 +3118,27 @@ import {
     overflow: hidden;
     border-radius: inherit;
     background: var(--workbench-panel-bg, var(--chat-panel-bg, var(--sidebar)));
+    position: relative;
+  }
+
+  .chat-drop-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    border: 2px dashed rgba(255, 255, 255, 0.25);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .chat-drop-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.75);
+    letter-spacing: 0.01em;
   }
 
   .tool-approval-slot {
@@ -3632,8 +3920,57 @@ import {
     height: var(--composer-tool-cluster-icon-size, 18px);
   }
 
+  :global(.attachment-chip) {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px 2px 8px;
+    border-radius: 5px;
+    background: var(--workbench-control-bg, #2a2a2a);
+    border: 1px solid #3a3a3a;
+    font-size: 11px;
+    color: #c8c8c8;
+    max-width: 240px;
+    vertical-align: middle;
+    user-select: none;
+    cursor: default;
+    line-height: 1.4;
+    margin: 0 1px;
+  }
+
+  :global(.attachment-chip-name) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ui-monospace, monospace;
+  }
+
+  :global(.attachment-chip-remove) {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: 3px;
+    transition: color 0.1s, background 0.1s;
+  }
+
+  :global(.attachment-chip-remove:hover) {
+    color: #ccc;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
   .composer-textarea {
     display: block;
+    position: relative;
     width: 100%;
     box-sizing: border-box;
     margin: 0;
@@ -3645,18 +3982,24 @@ import {
     font-family: inherit;
     font-size: 12px;
     line-height: 1.45;
-    resize: none;
     min-height: 4.25rem;
-    field-sizing: content;
+    max-height: 16rem;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    cursor: text;
   }
 
-  .composer-textarea::placeholder {
+  .composer-textarea[data-empty="true"]::before {
+    content: attr(data-placeholder);
     color: #858585;
+    pointer-events: none;
   }
 
   .composer-textarea:focus {
     outline: none;
   }
+
 
   .composer-toolbar {
     --composer-tool-cluster-bg: var(--workbench-control-bg, var(--secondary));
@@ -4016,6 +4359,14 @@ import {
     font-size: 10px;
     color: #858585;
     font-variant-numeric: tabular-nums;
+  }
+
+  .model-popup-unavailable {
+    display: block;
+    padding: 4px 12px 6px;
+    font-size: 11px;
+    color: #5a5a5a;
+    font-style: italic;
   }
 
   .context-footer {

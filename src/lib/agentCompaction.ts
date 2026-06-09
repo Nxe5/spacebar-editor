@@ -15,8 +15,8 @@ export type AgentCompactionSettings = {
 };
 
 export const DEFAULT_AGENT_COMPACTION: AgentCompactionSettings = {
-  enabled: false,
-  autoCompact: false,
+  enabled: true,
+  autoCompact: true,
   useActiveChatModel: true,
   compactThreshold: 0.85,
   compactKeepRecentTurns: 6,

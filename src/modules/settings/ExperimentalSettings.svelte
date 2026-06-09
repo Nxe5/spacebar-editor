@@ -114,7 +114,6 @@
   <div class="stack">
     <div class="provider-page-head">
       <h3 class="provider-page-title">Compaction</h3>
-      <span class="experimental-pill">Experimental</span>
     </div>
     <p class="note">
       Summarize-and-rehydrate long chat sessions when context fills up (spec 21). Enable
@@ -204,7 +203,6 @@
   <div class="stack">
     <div class="provider-page-head">
       <h3 class="provider-page-title">Autocomplete</h3>
-      <span class="experimental-pill">Experimental</span>
     </div>
     <p class="note">
       Inline code completions while you type. Not implemented yet — options are saved for when
