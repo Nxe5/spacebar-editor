@@ -25,7 +25,17 @@
   import { skills } from "$lib/stores/skills";
   import { buildActiveSkillBlocks } from "$lib/skills/activeSkills";
   import type { VariableContext } from "$lib/skills/skillVariables";
-  import { gitCurrentBranch, pathExists, readFile, listDir } from "$lib/ipc";
+  import {
+    gitCurrentBranch,
+    pathExists,
+    readFile,
+    listDir,
+    grepWorkspace,
+    getLanguageFromPath,
+    listenFileDrag,
+    openExternalUrl,
+  } from "$lib/ipc";
+  import FileIcon from "$lib/components/FileIcon.svelte";
   import { cloudApiKeysForStream } from "$lib/apiSecrets";
   import {
     nestedScaffoldNoticeMessage,
@@ -176,7 +186,6 @@ import {
 
   let inputValue = $state("");
   let composerEl = $state<HTMLDivElement | undefined>(undefined);
-  const chipMap = new Map<HTMLElement, PendingAttachment>();
   let userMessageExpanded = $state<Record<string, boolean>>({});
   let userMessageDraft = $state<Record<string, string>>({});
   /** User message being edited in history; main Send rewinds here first. */
@@ -325,11 +334,13 @@ import {
   let attachInputEl = $state<HTMLInputElement | undefined>(undefined);
   let chatDropActive = $state(false);
   let chatDropCounter = 0;
+  let chatRootEl = $state<HTMLDivElement | undefined>(undefined);
+  let unlistenFileDrag: (() => void) | null = null;
 
   type PendingAttachment =
     | { kind: "browser-file"; name: string; file: File }
     | { kind: "dir-entry"; name: string; entry: FileSystemDirectoryEntry }
-    | { kind: "abs-path"; name: string; path: string }
+    | { kind: "abs-path"; name: string; path: string; isDir?: boolean }
     | { kind: "element"; name: string; text: string };
 
   let pendingAttachments = $state<PendingAttachment[]>([]);
@@ -837,6 +848,20 @@ import {
   onMount(async () => {
     void refreshOllamaModelsFromHost();
     void syncCloudCatalogOnce();
+    if (isTauriAvailable()) {
+      listenFileDrag({
+        onOver: (pos) => {
+          chatDropActive = dragPointInChatPane(pos);
+        },
+        onDrop: (paths, pos) => void onNativeFileDrop(paths, pos),
+        onLeave: () => {
+          chatDropCounter = 0;
+          chatDropActive = false;
+        },
+      })
+        .then((un) => (unlistenFileDrag = un))
+        .catch(() => {});
+    }
     if (isTauriAvailable() && $files.workspacePath) {
       await systemPrompts.load($files.workspacePath);
       await reloadProjectTools($files.workspacePath);
@@ -848,7 +873,7 @@ import {
     if (!text) return;
     const tagMatch = text.match(/\[Selected element:\s*([a-z][a-z0-9]*)/i);
     const name = tagMatch?.[1]?.toLowerCase() || "element";
-    insertChipInComposer({ kind: "element", name, text });
+    addAttachment({ kind: "element", name, text });
   }
   window.addEventListener("spacebar:element-selected", onElementSelected);
   onDestroy(() => window.removeEventListener("spacebar:element-selected", onElementSelected));
@@ -863,6 +888,7 @@ import {
   onDestroy(() => {
     stopDictation();
     abortController?.abort();
+    unlistenFileDrag?.();
     if (compactionNoticeTimer) clearTimeout(compactionNoticeTimer);
   });
 
@@ -1005,7 +1031,39 @@ import {
     }
   }
 
-  function handleChatDrop(e: DragEvent) {
+  /** Decode `file://` URIs from a drag's uri-list into absolute paths. */
+  function pathsFromUriList(dt: DataTransfer): string[] {
+    const raw = dt.getData("text/uri-list") || "";
+    return raw
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter((s) => s && !s.startsWith("#") && s.startsWith("file://"))
+      .map((uri) => {
+        try {
+          return decodeURIComponent(new URL(uri).pathname);
+        } catch {
+          return "";
+        }
+      })
+      .filter(Boolean);
+  }
+
+  /** Add an absolute path as a chip, detecting whether it is a directory. */
+  async function addAbsolutePathAttachment(path: string) {
+    const norm = normalizeFilePath(path).replace(/\/$/, "");
+    if (!norm) return;
+    let isDir = false;
+    try {
+      await listDir(null, norm);
+      isDir = true;
+    } catch {
+      isDir = false;
+    }
+    const base = norm.split("/").pop() ?? norm;
+    addAttachment({ kind: "abs-path", name: isDir ? `${base}/` : base, path: norm, isDir });
+  }
+
+  async function handleChatDrop(e: DragEvent) {
     e.preventDefault();
     chatDropCounter = 0;
     chatDropActive = false;
@@ -1016,7 +1074,17 @@ import {
     const spacebarPath = dt.getData("application/spacebar-path");
     if (spacebarPath) {
       const name = spacebarPath.split("/").pop() ?? spacebarPath;
-      insertChipInComposer({ kind: "abs-path", name, path: spacebarPath });
+      addAttachment({ kind: "abs-path", name, path: spacebarPath });
+      return;
+    }
+
+    // External OS drops are handled by the native Tauri drag-drop listener,
+    // which receives real absolute paths (HTML5 only sees portal/FUSE URIs).
+    if (isTauriAvailable()) return;
+
+    const uriPaths = pathsFromUriList(dt);
+    if (uriPaths.length > 0) {
+      for (const p of uriPaths) void addAbsolutePathAttachment(p);
       return;
     }
 
@@ -1026,32 +1094,44 @@ import {
         const entry = item.webkitGetAsEntry?.();
         if (!entry) {
           const file = item.getAsFile?.();
-          if (file) insertChipInComposer({ kind: "browser-file", name: file.name, file });
+          if (file) addAttachment({ kind: "browser-file", name: file.name, file });
           continue;
         }
         if (entry.isDirectory) {
-          insertChipInComposer({ kind: "dir-entry", name: entry.name + "/", entry: entry as FileSystemDirectoryEntry });
+          addAttachment({ kind: "dir-entry", name: entry.name + "/", entry: entry as FileSystemDirectoryEntry });
         } else {
           const file = item.getAsFile?.();
-          if (file) insertChipInComposer({ kind: "browser-file", name: file.name, file });
+          if (file) addAttachment({ kind: "browser-file", name: file.name, file });
         }
       }
       return;
     }
 
     for (const file of Array.from(dt.files ?? [])) {
-      insertChipInComposer({ kind: "browser-file", name: file.name, file });
+      addAttachment({ kind: "browser-file", name: file.name, file });
     }
+  }
+
+  function dragPointInChatPane(pos: { x: number; y: number }): boolean {
+    if (!chatRootEl) return false;
+    const scale = window.devicePixelRatio || 1;
+    const x = pos.x / scale;
+    const y = pos.y / scale;
+    const r = chatRootEl.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
+  async function onNativeFileDrop(paths: string[], pos: { x: number; y: number }) {
+    const inside = dragPointInChatPane(pos);
+    chatDropCounter = 0;
+    chatDropActive = false;
+    if (!inside) return;
+    for (const p of paths) await addAbsolutePathAttachment(p);
   }
 
   function removeAttachment(index: number) {
     pendingAttachments = pendingAttachments.filter((_, i) => i !== index);
-  }
-
-  function syncAttachmentsFromDom() {
-    if (!composerEl) return;
-    const chips = composerEl.querySelectorAll<HTMLElement>(".attachment-chip");
-    pendingAttachments = [...chips].map(el => chipMap.get(el)).filter((a): a is PendingAttachment => !!a);
+    focusComposer();
   }
 
   function getComposerText(): string {
@@ -1062,7 +1142,6 @@ import {
         text += node.textContent ?? "";
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as Element;
-        if (el.classList.contains("attachment-chip")) return;
         if (el.tagName === "BR") { text += "\n"; return; }
         if (el.tagName === "DIV" && text.length > 0 && !text.endsWith("\n")) text += "\n";
         for (const child of el.childNodes) walk(child);
@@ -1074,13 +1153,11 @@ import {
 
   function onComposerInput() {
     inputValue = getComposerText();
-    syncAttachmentsFromDom();
   }
 
   function setComposerText(text: string) {
     if (!composerEl) { inputValue = text; return; }
     composerEl.innerHTML = "";
-    chipMap.clear();
     pendingAttachments = [];
     if (text) composerEl.appendChild(document.createTextNode(text));
     inputValue = text;
@@ -1088,9 +1165,20 @@ import {
 
   function clearComposer() {
     if (composerEl) composerEl.innerHTML = "";
-    chipMap.clear();
     pendingAttachments = [];
     inputValue = "";
+  }
+
+  function focusComposer() {
+    if (!composerEl) return;
+    composerEl.focus();
+    const sel = window.getSelection();
+    if (!sel) return;
+    const range = document.createRange();
+    range.selectNodeContents(composerEl);
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
 
   function appendTextToComposer(text: string) {
@@ -1102,81 +1190,117 @@ import {
     }
   }
 
-  function insertChipInComposer(att: PendingAttachment) {
-    if (!composerEl) {
-      pendingAttachments = [...pendingAttachments, att];
+  function attachmentChipLabel(att: PendingAttachment): string {
+    const raw = att.name;
+    if (att.kind === "dir-entry" || raw.endsWith("/")) {
+      return raw.endsWith("/") ? raw : `${raw}/`;
+    }
+    return raw.split("/").pop() ?? raw;
+  }
+
+  type ChipKind = "file" | "dir" | "element" | "image" | "video" | "audio";
+
+  function mediaKindFromName(name: string): "image" | "video" | "audio" | null {
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    if (["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(ext)) return "image";
+    if (["mp4", "webm", "mkv", "mov", "avi", "m4v"].includes(ext)) return "video";
+    if (["mp3", "wav", "ogg", "flac", "m4a", "aac"].includes(ext)) return "audio";
+    return null;
+  }
+
+  function attachmentChipKind(att: PendingAttachment): ChipKind {
+    if (att.kind === "element") return "element";
+    if (
+      att.kind === "dir-entry" ||
+      (att.kind === "abs-path" && (att.isDir || att.name.endsWith("/")))
+    ) {
+      return "dir";
+    }
+    return mediaKindFromName(att.name) ?? "file";
+  }
+
+  function addAttachment(att: PendingAttachment) {
+    if (
+      att.kind === "abs-path" &&
+      pendingAttachments.some((a) => a.kind === "abs-path" && a.path === att.path)
+    ) {
       return;
     }
-
-    const chip = document.createElement("span");
-    chip.contentEditable = "false";
-    chip.className = "attachment-chip";
-    if (att.kind === "element") chip.dataset.kind = "element";
-    else if (att.kind === "dir-entry" || (att.kind === "abs-path" && att.name.endsWith("/"))) chip.dataset.kind = "dir";
-    else chip.dataset.kind = "file";
-
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "attachment-chip-name";
-    nameSpan.textContent = att.name;
-    chip.appendChild(nameSpan);
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "attachment-chip-remove";
-    btn.textContent = "×";
-    btn.setAttribute("aria-label", `Remove ${att.name}`);
-    // Prevent mousedown from moving the contenteditable cursor before the click fires.
-    btn.addEventListener("mousedown", (ev) => { ev.preventDefault(); ev.stopPropagation(); });
-    btn.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      const anchor = (chip as HTMLElement & { __sbAnchor?: Text }).__sbAnchor;
-      chip.remove();
-      chipMap.delete(chip);
-      syncAttachmentsFromDom();
-      // Re-focus and place cursor where the chip was (its old anchor node),
-      // falling back to end of composer if the anchor was also removed.
-      if (composerEl) {
-        composerEl.focus();
-        const targetNode = (anchor && anchor.parentNode === composerEl) ? anchor : null;
-        const sel = window.getSelection();
-        const range = document.createRange();
-        if (targetNode) {
-          range.setStart(targetNode, 0);
-        } else {
-          range.selectNodeContents(composerEl);
-          range.collapse(false);
-        }
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-      }
-    });
-    chip.appendChild(btn);
-
-    chipMap.set(chip, att);
-
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && composerEl.contains(sel.anchorNode)) {
-      const range = sel.getRangeAt(0);
-      range.deleteContents();
-      range.insertNode(chip);
-    } else {
-      composerEl.appendChild(chip);
-    }
-
-    // Insert a text node after the chip for cursor landing, and store a
-    // reference on the chip so the × handler can restore cursor position.
-    const anchor = document.createTextNode("");
-    (chip as HTMLElement & { __sbAnchor?: Text }).__sbAnchor = anchor;
-    chip.after(anchor);
-    composerEl.focus();
-    const newSel = window.getSelection();
-    const newRange = document.createRange();
-    newRange.setStart(anchor, 0);
-    newRange.collapse(true);
-    newSel?.removeAllRanges();
-    newSel?.addRange(newRange);
-
     pendingAttachments = [...pendingAttachments, att];
+    focusComposer();
+  }
+
+  /** Open the file behind a chip in the editor; for element chips, locate the
+   *  source via workspace search and jump to the matching line. */
+  async function openAttachmentTarget(att: PendingAttachment) {
+    if (att.kind === "element") {
+      await openElementSource(att.text);
+      return;
+    }
+    if (att.kind !== "abs-path") return;
+    const isDir = att.isDir || att.name.endsWith("/");
+    // Folders and media open with the OS (file manager / default viewer);
+    // anything text-like opens in the editor.
+    if (isDir || mediaKindFromName(att.name)) {
+      try {
+        await openExternalUrl(`file://${encodeURI(att.path)}`);
+      } catch {
+        toast.error(`Could not open ${att.name}`);
+      }
+      return;
+    }
+    await openPathInEditor(att.path);
+  }
+
+  async function openPathInEditor(absPath: string, line?: number) {
+    try {
+      const content = await readFile(null, absPath);
+      const name = absPath.split("/").pop() ?? absPath;
+      workbench.openEditorFile({
+        path: absPath,
+        name,
+        content,
+        isDirty: false,
+        language: getLanguageFromPath(absPath),
+      });
+      if (line != null) {
+        window.dispatchEvent(
+          new CustomEvent("sidebar:goto-line", { detail: { path: absPath, line } })
+        );
+      }
+    } catch {
+      toast.error(`Could not open ${absPath.split("/").pop() ?? absPath}`);
+    }
+  }
+
+  /** Best-effort: grep the workspace for the element's text/id/class and open
+   *  the first source match at its line. */
+  async function openElementSource(elementText: string) {
+    const ws = get(files).workspacePath;
+    if (!ws || !isTauriAvailable()) return;
+
+    const needles: string[] = [];
+    const textMatch = elementText.match(/Text:\s*"([^"\n]+)"/);
+    if (textMatch?.[1]) needles.push(textMatch[1].trim());
+    const idMatch = elementText.match(/#([A-Za-z][\w-]*)/);
+    if (idMatch?.[1]) needles.push(`id="${idMatch[1]}"`);
+    const clsMatch = elementText.match(/\[Selected element:\s*[a-z][a-z0-9]*\.([\w-]+)/i);
+    if (clsMatch?.[1]) needles.push(clsMatch[1]);
+
+    for (const needle of needles) {
+      if (needle.length < 3) continue;
+      try {
+        const matches = await grepWorkspace(ws, needle);
+        const hit = matches[0];
+        if (hit) {
+          await openPathInEditor(hit.path, hit.line_number);
+          return;
+        }
+      } catch {
+        /* try next needle */
+      }
+    }
+    toast.info("Couldn't locate this element's source in the project.");
   }
 
   async function resolveAttachments(): Promise<string> {
@@ -1197,7 +1321,12 @@ import {
             continue;
           } catch { /* fall through */ }
         }
-        parts.push(`[File: ${file.name} (${file.size} bytes)]`);
+        const media = mediaKindFromName(file.name);
+        parts.push(
+          media
+            ? `[${media.charAt(0).toUpperCase() + media.slice(1)}: ${file.name} (${file.type || "unknown"}, ${file.size} bytes)]`
+            : `[File: ${file.name} (${file.size} bytes)]`
+        );
       } else if (att.kind === "dir-entry") {
         const names = await new Promise<string[]>((res) => {
           att.entry.createReader().readEntries(
@@ -1209,6 +1338,13 @@ import {
       } else if (att.kind === "element") {
         parts.push(att.text);
       } else {
+        // Binary media can't be inlined as text — reference the path so the
+        // agent can use its tools on it instead.
+        const media = mediaKindFromName(att.name);
+        if (media && !att.isDir) {
+          parts.push(`[${media.charAt(0).toUpperCase() + media.slice(1)} attached: ${att.path}]`);
+          continue;
+        }
         try {
           const entries = await listDir(null, att.path);
           const names = entries.map((e) => e.name + (e.is_dir ? "/" : "")).sort().join("\n");
@@ -1219,7 +1355,7 @@ import {
             const ext = att.name.split(".").pop() ?? "";
             parts.push(`\`\`\`${ext}\n// ${att.name}\n${text}\n\`\`\``);
           } catch {
-            parts.push(`[Could not read: ${att.name}]`);
+            parts.push(`[Attached file (binary, not inlined): ${att.path}]`);
           }
         }
       }
@@ -2207,62 +2343,29 @@ import {
     await sendUserMessage(message);
   }
 
-  function removeChipBeforeCursor(): boolean {
+  function composerCaretAtStart(): boolean {
     const sel = window.getSelection();
-    if (!sel || !sel.isCollapsed || !composerEl) return false;
+    if (!sel?.isCollapsed || !composerEl) return false;
     const { anchorNode, anchorOffset } = sel;
-    let chipToRemove: HTMLElement | null = null;
-
-    // Case A: cursor sits directly in composerEl — walk back past empty text nodes
-    if (anchorNode === composerEl && anchorOffset > 0) {
-      for (let i = anchorOffset - 1; i >= 0; i--) {
-        const n = composerEl.childNodes[i];
-        if (n instanceof HTMLElement && n.classList.contains("attachment-chip")) { chipToRemove = n; break; }
-        if (!(n instanceof Text && n.textContent === "")) break;
-      }
-    }
-
-    // Case B: cursor is at offset 0 of a text node — walk back past empty text nodes
-    if (!chipToRemove && anchorNode instanceof Text && anchorOffset === 0) {
+    if (anchorNode === composerEl) return anchorOffset === 0;
+    if (anchorNode instanceof Text) {
+      if (anchorOffset > 0) return false;
       let prev: Node | null = anchorNode.previousSibling;
       while (prev instanceof Text && prev.textContent === "") prev = prev.previousSibling;
-      if (prev instanceof HTMLElement && prev.classList.contains("attachment-chip")) chipToRemove = prev;
+      return prev == null;
     }
-
-    if (!chipToRemove) return false;
-
-    const prevSib = chipToRemove.previousSibling;
-    const chipAnchor = (chipToRemove as HTMLElement & { __sbAnchor?: Text }).__sbAnchor;
-    chipToRemove.remove();
-    chipMap.delete(chipToRemove);
-    // Remove the orphaned anchor text node to prevent caret jumps in empty text nodes
-    if (chipAnchor?.parentNode === composerEl) chipAnchor.remove();
-
-    syncAttachmentsFromDom();
-    composerEl.focus();
-
-    // Place cursor at the end of whatever preceded the chip (not the start of what follows)
-    const newSel = window.getSelection();
-    const range = document.createRange();
-    if (prevSib && prevSib.parentNode === composerEl) {
-      if (prevSib instanceof Text) {
-        range.setStart(prevSib, prevSib.length);
-      } else {
-        const idx = Array.from(composerEl.childNodes).indexOf(prevSib as ChildNode);
-        range.setStart(composerEl, idx + 1);
-      }
-    } else {
-      range.setStart(composerEl, 0);
-    }
-    range.collapse(true);
-    newSel?.removeAllRanges();
-    newSel?.addRange(range);
-    return true;
+    return false;
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Backspace" && removeChipBeforeCursor()) {
+    if (
+      e.key === "Backspace" &&
+      !getComposerText() &&
+      pendingAttachments.length > 0 &&
+      composerCaretAtStart()
+    ) {
       e.preventDefault();
+      pendingAttachments = pendingAttachments.slice(0, -1);
       return;
     }
     if (e.key === "Enter" && !e.shiftKey) {
@@ -2302,6 +2405,7 @@ import {
 
 <div
   class="chat-pane"
+  bind:this={chatRootEl}
   ondragover={handleChatDragOver}
   ondragleave={handleChatDragLeave}
   ondrop={(e) => void handleChatDrop(e)}
@@ -2660,15 +2764,54 @@ import {
       data-chrome-state={composerChromeState}
       onpointerdown={collapseAllHistoryEdits}
     >
+      {#if pendingAttachments.length > 0}
+        <div class="composer-attachments" role="list" aria-label="Attachments">
+          {#each pendingAttachments as att, i (i)}
+            {@const label = attachmentChipLabel(att)}
+            {@const kind = attachmentChipKind(att)}
+            <span class="attachment-chip" data-kind={kind} role="listitem">
+              <button
+                type="button"
+                class="attachment-chip-main"
+                title={att.name}
+                aria-label={`Open ${label}`}
+                onclick={() => void openAttachmentTarget(att)}
+              >
+                <span class="attachment-chip-icon" aria-hidden="true">
+                  {#if kind === "element"}
+                    <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5.5 4.5 2 8l3.5 3.5" />
+                      <path d="M10.5 4.5 14 8l-3.5 3.5" />
+                    </svg>
+                  {:else}
+                    <FileIcon name={label.replace(/\/$/, "")} isDir={kind === "dir"} size={12} />
+                  {/if}
+                </span>
+                <span class="attachment-chip-name">{label}</span>
+              </button>
+              <button
+                type="button"
+                class="attachment-chip-remove"
+                aria-label={`Remove ${label}`}
+                onclick={(e) => {
+                  e.stopPropagation();
+                  removeAttachment(i);
+                }}
+              >×</button>
+            </span>
+          {/each}
+        </div>
+      {/if}
       <div
         class="composer-textarea"
+        class:composer-textarea--with-attachments={pendingAttachments.length > 0}
         contenteditable="true"
         role="textbox"
         aria-multiline="true"
         aria-label="Message input"
         tabindex="0"
         data-placeholder="Plan, search, build anything…"
-        data-empty={!inputValue.trim() && pendingAttachments.length === 0 ? "true" : undefined}
+        data-empty={!inputValue.trim() ? "true" : undefined}
         bind:this={composerEl}
         oninput={onComposerInput}
         onkeydown={handleKeydown}
@@ -4011,67 +4154,112 @@ import {
     height: var(--composer-tool-cluster-icon-size, 18px);
   }
 
-  :global(.attachment-chip) {
+  .composer-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px 0;
+  }
+
+  .attachment-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 18px;
+    padding: 0 2px 0 4px;
+    border-radius: 4px;
+    background: var(--workbench-control-bg, #2a2a2a);
+    border: 1px solid #3a3a3a;
+    font-size: 10px;
+    color: #b8b8b8;
+    max-width: 140px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .attachment-chip-main {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 4px 2px 8px;
-    border-radius: 5px;
-    background: var(--workbench-control-bg, #2a2a2a);
-    border: 1px solid #3a3a3a;
-    font-size: 11px;
-    color: #c8c8c8;
-    max-width: 240px;
-    vertical-align: middle;
-    user-select: none;
-    cursor: default;
-    line-height: 1.4;
-    margin: 0 1px;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    line-height: 1;
   }
 
-  :global(.attachment-chip-name) {
+  .attachment-chip-main:hover .attachment-chip-name {
+    text-decoration: underline;
+  }
+
+  .attachment-chip-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+  }
+
+  .attachment-chip-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: ui-monospace, monospace;
+    line-height: 1;
   }
 
-  :global(.attachment-chip-remove) {
+  .attachment-chip-remove {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     padding: 0;
     border: none;
     background: none;
     color: #666;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1;
-    border-radius: 3px;
+    border-radius: 2px;
     transition: color 0.1s, background 0.1s;
   }
 
-  :global(.attachment-chip-remove:hover) {
+  .attachment-chip-remove:hover {
     color: #ccc;
     background: rgba(255, 255, 255, 0.08);
   }
 
-  :global(.attachment-chip[data-kind="file"]) {
+  .attachment-chip[data-kind="file"] {
     border-color: rgba(100, 160, 255, 0.5);
     background: rgba(100, 160, 255, 0.06);
   }
 
-  :global(.attachment-chip[data-kind="dir"]) {
+  .attachment-chip[data-kind="dir"] {
     border-color: rgba(255, 185, 80, 0.5);
     background: rgba(255, 185, 80, 0.06);
   }
 
-  :global(.attachment-chip[data-kind="element"]) {
+  .attachment-chip[data-kind="element"] {
     border-color: rgba(255, 107, 139, 0.5);
     background: rgba(255, 107, 139, 0.06);
+  }
+
+  .attachment-chip[data-kind="image"] {
+    border-color: rgba(120, 220, 150, 0.5);
+    background: rgba(120, 220, 150, 0.06);
+  }
+
+  .attachment-chip[data-kind="video"],
+  .attachment-chip[data-kind="audio"] {
+    border-color: rgba(190, 130, 255, 0.5);
+    background: rgba(190, 130, 255, 0.06);
   }
 
   .composer-textarea {
@@ -4094,6 +4282,11 @@ import {
     white-space: pre-wrap;
     word-break: break-word;
     cursor: text;
+  }
+
+  .composer-textarea--with-attachments {
+    padding-top: 6px;
+    min-height: 3rem;
   }
 
   .composer-textarea[data-empty="true"]::before {

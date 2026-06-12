@@ -162,6 +162,34 @@ export async function listenFsChanged(callback: () => void): Promise<UnlistenFn>
   return listen("fs:changed", () => callback());
 }
 
+export interface DragDropPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Subscribe to OS-level file drags over the window (Tauri intercepts these,
+ * so HTML5 drop events never carry usable file paths). Positions are in
+ * physical pixels; divide by `devicePixelRatio` for client coordinates.
+ */
+export async function listenFileDrag(handlers: {
+  onOver?: (position: DragDropPoint) => void;
+  onDrop?: (paths: string[], position: DragDropPoint) => void;
+  onLeave?: () => void;
+}): Promise<UnlistenFn> {
+  await ensureTauriApi();
+  const unsubs = await Promise.all([
+    listen<{ position: DragDropPoint }>("tauri://drag-over", (e) =>
+      handlers.onOver?.(e.payload.position)
+    ),
+    listen<{ paths: string[]; position: DragDropPoint }>("tauri://drag-drop", (e) =>
+      handlers.onDrop?.(e.payload.paths ?? [], e.payload.position)
+    ),
+    listen("tauri://drag-leave", () => handlers.onLeave?.()),
+  ]);
+  return () => unsubs.forEach((u) => u());
+}
+
 export async function gitCurrentBranch(repoPath: string): Promise<string | null> {
   await ensureTauriApi();
   return invoke<string | null>("git_current_branch", { repoPath });
