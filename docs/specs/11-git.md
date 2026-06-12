@@ -101,5 +101,5 @@ Formatted for model context:
 
 | Limitation | Status | Notes |
 |------------|--------|-------|
-| Checkpoint UI | ❌ Not started | Backend ready, UI not wired |
-| Agent turn undo | ❌ Not started | Snapshot or git-based batch discard |
+| Checkpoint UI | ✅ Complete | Git checkpoints + "↩ Undo last turn" in chat |
+| Agent turn undo | ✅ Complete | Restores git checkpoint from agent turn — shipped v0.1.2 |

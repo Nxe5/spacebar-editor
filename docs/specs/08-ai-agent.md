@@ -119,8 +119,9 @@ This is **not** a project plan document. See [19-planning-system.md](19-planning
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Persistent `plans/` folder | ❌ Not started | [19-planning-system.md](19-planning-system.md) |
-| Sequential tool execution | ✅ Current | Tools run one at a time |
-| Parallel read-only tools | ❌ Not started | Planned optimization |
-| Context overflow warnings | ❌ Not started | Warn when approaching limit |
-| Agent error recovery | ❌ Not started | Retry, cancel cleanup, continue after max |
-| Context compaction | ❌ Spec ready | [21-context-compaction.md](21-context-compaction.md) — summarize-and-rehydrate; auto threshold % in Settings |
+| Parallel read-only tools | ✅ Complete | [38-parallel-tool-execution.md](38-parallel-tool-execution.md) |
+| Context overflow warnings | ✅ Complete | [34-context-overflow-warnings.md](34-context-overflow-warnings.md) |
+| Agent error recovery | ✅ Complete | [32-agent-error-recovery.md](32-agent-error-recovery.md) |
+| Context compaction | ✅ Complete | [21-context-compaction.md](21-context-compaction.md) — enabled by default at 85% |
+| Agent activity step grouping | ❌ Not started | [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) §5 — v0.1.3 |
+| Attachment chip click-to-open | ✅ Complete | [43-v-next-release-fixes.md](43-v-next-release-fixes.md) §3 |

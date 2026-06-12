@@ -20,12 +20,12 @@
 | Welcome / recent projects | ✅ Complete | No-workspace screen — [36](specs/36-first-run-onboarding.md) |
 | AI Backends | ✅ Complete | Ollama, llama.cpp, Anthropic, DeepSeek |
 | Agent Loop | ✅ Complete | Multi-turn tool chains, parallel read-only tools, agent turn undo |
-| Context compaction | 🔶 Experimental | Manual + auto; Settings → Compaction — [21](specs/21-context-compaction.md) |
+| Context compaction | ✅ Complete | Manual + auto; enabled by default at 85%; Settings → Compaction — [21](specs/21-context-compaction.md) |
 | Context overflow UI | ✅ Complete | Amber/red bar — [34](specs/34-context-overflow-warnings.md) |
 | Tools (16) | ✅ Complete | Filesystem, git, grep, shell, web fetch |
 | Git UI | ✅ Complete | Staged/changes, diff view, discard |
 | Editor | ✅ Complete | CodeMirror 6, 15 grammars, wrap, Prettier, diff mode — [20](specs/20-editor-formatting-and-theming.md) |
-| Theming | ✅ Complete | 9 workbench presets + interactive theme preview + chrome/editor/syntax appearance — [13](specs/13-theming.md) |
+| Theming | ✅ Complete | 7 workbench presets + interactive theme preview + chrome/editor/syntax appearance — [13](specs/13-theming.md) |
 | Workspace lock | ✅ Complete | Multi-window safety — [35](specs/35-workspace-lock.md) |
 | Shortcut rebinding | ✅ Complete | Settings → Keybindings — [37](specs/37-shortcut-rebinding.md) |
 | LSP | 🔶 Partial | Diagnostics + hover; user-installed servers — [25](specs/25-lsp-diagnostics.md) |
@@ -41,7 +41,7 @@
 
 ### Workbench
 - **Chat** (left), **editor/terminal/preview tabs** (center), **explorer + git + search** (right)
-- **Welcome screen** when no folder is open (recent projects, open folder)
+- **Welcome screen** when no folder is open (recent projects, open folder, version/update status bar)
 - Status bar with context meter and pane toggles
 - Bottom dock for additional terminals
 
@@ -61,6 +61,8 @@ Multi-turn tool chain in `ChatPane.svelte`:
 2. Execute tool calls (with policy gates; read-only tools may run in parallel)
 3. Append results to context
 4. Repeat until model stops or limits hit
+
+Composer supports **drag-and-drop context chips**: files, folders, and preview elements appear as typed chips above the textarea (with per-type icons). Drops from the in-app explorer or any OS file manager (via Tauri native drag-drop) resolve to real absolute paths. Clicking a chip opens the file in the editor, reveals a folder/media in the OS, or locates an element's source via workspace search. Content is resolved at send time.
 
 **Configurable limits:** `maxAgentSteps`, `maxToolCallsPerRun`, `maxToolsPerTurn`, `parallelExecution`, `maxConcurrentTools`
 
@@ -176,4 +178,4 @@ Dev server default port: **14200**. No Node sidecar build step.
 
 ---
 
-*Last updated: 2026-06-05 · v0.1.2 public beta*
+*Last updated: 2026-06-10 · v0.1.3*

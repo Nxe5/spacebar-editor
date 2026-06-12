@@ -235,6 +235,10 @@ Assembled by `src/lib/agent/systemPrompt/assemble.ts` (`assembleSystemPrompt`), 
 
 Provider dispatch and per-turn streaming go through `src/lib/agent/streamTurn.ts`.
 
+### Chat Composer
+
+The composer is a `<div contenteditable>` (not a `<textarea>`). **Attachment chips** (files, folders, inspector elements) are tracked as a reactive `pendingAttachments` array and rendered in a `.composer-attachments` row above the textarea. Chips are resolved to text content at send time via `resolveAttachments()`. Files and folders can be dragged from the in-app explorer (`FileTreeRow.svelte` sets `draggable`) or the OS file manager; the drop handler normalises `DataTransfer` items to `PendingAttachment` objects via `addAttachment()`.
+
 ### Chat Footer (provider-specific)
 
 | Backend | Left | Right |
@@ -242,6 +246,13 @@ Provider dispatch and per-turn streaming go through `src/lib/agent/streamTurn.ts
 | Ollama | tok/s, tokens, duration | Editable context budget |
 | llama.cpp | Same stream metrics | Read-only (`· server`) |
 | Anthropic | `X in · Y out this month` | Context estimate (read-only) |
+
+### Context Bar & Panel
+
+The segmented 3px bar (purple = system, orange = tools, blue = history) has two interaction modes:
+
+- **Hover** → `context-breakdown-popover` tooltip with per-section token counts (suppressed when panel open)
+- **Click** → toggles `contextPanelOpen`; the `context-panel` overlay lists all system prompt sections with hover-to-preview text and click-to-open file rows for skills/prompts
 
 ---
 
@@ -542,4 +553,4 @@ spacebar-editor/
 
 ---
 
-*Last updated: 2026-06-05 · v0.1.2 public beta. For implementation status, see [Specifications](../specs/README.md).*
+*Last updated: 2026-06-10 · v0.1.3. For implementation status, see [Specifications](../specs/README.md).*

@@ -24,7 +24,7 @@
 
 ---
 
-## Phase A — Dogfooding (In Progress / Recent)
+## Phase A — Dogfooding (Mostly Complete)
 
 | Item | Status | Notes |
 |------|--------|-------|
@@ -41,7 +41,7 @@
 | Workbench themes (incl. Rosé Pine) + theme→editor sync | ✅ Done | [13-theming.md](13-theming.md) |
 | Filter custom tools without handlers | ❌ Planned | Tool system cleanup |
 | **Planning system** (`plans/` + file-backed Plan mode) | ❌ Spec ready | [19-planning-system.md](19-planning-system.md) |
-| **Agent activity step grouping** (Plan → steps, not raw shell rows) | 📋 **v0.1.1** | [40](40-product-hardening-and-agent-ux.md) §5 — remaining |
+| **Agent activity step grouping** (Plan → steps, not raw shell rows) | 📋 **v0.1.3** | [40](40-product-hardening-and-agent-ux.md) §5 — remaining |
 | **LSP agent tools** (`lsp_find_references`, etc.) | ✅ Done | [41](41-lsp-agent-tools.md) |
 | **Scope-aware shell policy** (`pnpm test` auto-allow, etc.) | ✅ Done | [40](40-product-hardening-and-agent-ux.md) §6 — v0.1.1 |
 | **Nested scaffold notice** (agent created `tester/` inside workspace) | ✅ Done | [40](40-product-hardening-and-agent-ux.md) §4 — v0.1.1 |
@@ -61,7 +61,7 @@
 | Shortcut rebinding | ✅ Done | [37-shortcut-rebinding.md](37-shortcut-rebinding.md) |
 | Agent turn undo | ✅ Done | "↩ Undo last turn" button — git checkpoint restore |
 | **MLX provider** (Apple Silicon) | ❌ Planned (v0.1.3) | `mlx_lm.server` OpenAI-compat backend — [42](42-mlx-provider.md) |
-| **Context compaction** | ✅ Done | [21-context-compaction.md](21-context-compaction.md) — experimental in Settings |
+| **Context compaction** | ✅ Done | [21-context-compaction.md](21-context-compaction.md) — enabled by default at 85% |
 
 ---
 
@@ -86,7 +86,9 @@
 | DeepSeek | ✅ | `deepseek` chat backend; Settings → DeepSeek |
 | Mistral, Perplexity | ❌ Not started | OpenAI-compat + provider registry |
 | Custom tool shell executor | ❌ Not started | Optional `.sidebar` command templates |
-| Context compaction | ❌ Spec ready | [21-context-compaction.md](21-context-compaction.md) — not sliding window |
+| Context compaction | ✅ Done | [21-context-compaction.md](21-context-compaction.md) |
+| Ollama model pull UI | ❌ Not started | [27-local-model-ux.md](27-local-model-ux.md) §4 |
+| Agent activity step grouping | ❌ Planned (v0.1.3) | [40](40-product-hardening-and-agent-ux.md) §5 |
 | Full provider billing APIs | ❌ Not started | Beyond local monthly estimates |
 
 ---
@@ -95,57 +97,54 @@
 
 > Competitive-positioning plan layered onto the phases above. Each item links to a full spec. Phases here (0–3) map onto roadmap Phases B→D; they are an execution ordering, not separate release gates.
 
-### Phase 0 — Polish & Trust (1–2 weeks)
-
-Small, high-visibility fixes that immediately raise confidence in the tool.
+### Phase 0 — Polish & Trust
 
 | Item | Spec | Status |
 |------|------|--------|
-| Filesystem watcher → tree + git refresh | [24-filesystem-watcher.md](24-filesystem-watcher.md) | ✅ Done |
-| Search panel wired up | [26-search-panel.md](26-search-panel.md) | ✅ Done |
-| Compaction visual divider + archive/restore | [21-context-compaction.md](21-context-compaction.md) | ✅ Done |
-| Context overflow bar states | [34-context-overflow-warnings.md](34-context-overflow-warnings.md) | ✅ Done |
-| `read_file` size cap + pagination | [22-llm-file-interaction.md](22-llm-file-interaction.md) §3 | 🔶 Partial |
-| Tool schema trimming by mode | [22](22-llm-file-interaction.md) §4 | 🔶 Partial |
-| `.gitignore` respect + depth caps in file tree | [22](22-llm-file-interaction.md) §2 | 🔶 Partial |
-| Preview iframe sandbox | [14-security.md](14-security.md) §B | ❌ Spec ready |
+| Filesystem watcher → tree + git refresh | [24](24-filesystem-watcher.md) | ✅ Done |
+| Search panel wired up | [26](26-search-panel.md) | ✅ Done |
+| Compaction visual divider + archive/restore | [21](21-context-compaction.md) | ✅ Done |
+| Context overflow bar states | [34](34-context-overflow-warnings.md) | ✅ Done |
+| `read_file` size cap + pagination | [22](22-llm-file-interaction.md) §3 | ✅ Done |
+| Tool schema trimming by mode | [22](22-llm-file-interaction.md) §4 | ✅ Done |
+| `.gitignore` respect + depth caps in file tree | [22](22-llm-file-interaction.md) §2 | ✅ Done |
+| Stall detection + parse error surfacing | [22](22-llm-file-interaction.md) §5–6 | ✅ Done |
+| Preview iframe sandbox | [14](14-security.md) §B | ❌ Omitted (WebKitGTK) |
 
-### Phase 1 — Core Differentiators (4–8 weeks)
-
-Close the gap with Cursor and lean into the local-first power-user position.
-
-| Item | Spec | Status |
-|------|------|--------|
-| Skills system (detection, variables, sidebar, bundled pack) | [23-skills-system.md](23-skills-system.md) | ❌ Spec ready |
-| Stall detection + tool-call error surfacing | [22](22-llm-file-interaction.md) §5–6 | ❌ Spec ready |
-| LSP Phase 1 — diagnostics + hover | [25-lsp-diagnostics.md](25-lsp-diagnostics.md) | 🔶 Partial |
-| Autocomplete inference hook (Ollama FIM) | [28-inline-edit-autocomplete.md](28-inline-edit-autocomplete.md) §2 | ❌ Spec ready |
-| Enhanced tool instructions + capability flags | [27-local-model-ux.md](27-local-model-ux.md) §2–3 | ❌ Spec ready |
-| Context window auto-detection | [21](21-context-compaction.md) §15.3 | ❌ Spec ready |
-| Context budget visualization | [21](21-context-compaction.md) §15.2 | ❌ Spec ready |
-
-### Phase 2 — Competitive Parity (8–16 weeks)
-
-Retain developers coming from Cursor.
+### Phase 1 — Core Differentiators
 
 | Item | Spec | Status |
 |------|------|--------|
-| Inline edit (Cmd+K) | [28-inline-edit-autocomplete.md](28-inline-edit-autocomplete.md) §3 | ❌ Spec ready |
-| LSP Phase 2 — go-to-def, rename, Rust/Python/Go | [25-lsp-diagnostics.md](25-lsp-diagnostics.md) §6 | ❌ Spec ready |
-| OS keychain for API keys | [14-security.md](14-security.md) §A | ❌ Spec ready |
-| Ollama model pull UI + recommendations | [27-local-model-ux.md](27-local-model-ux.md) §4 | ❌ Spec ready |
-| Shortcut rebinding | [37-shortcut-rebinding.md](37-shortcut-rebinding.md) | ✅ Done |
+| Per-project skills (CRUD, injection, variables) | [30](30-agent-context-and-model-settings.md) | ✅ Done |
+| Bundled skills starter pack | [30](30-agent-context-and-model-settings.md) §9 | ❌ Not started |
+| LSP Phase 1 — diagnostics + hover | [25](25-lsp-diagnostics.md) | ✅ Done (TS/JS) |
+| Per-model settings + assembly preview | [30](30-agent-context-and-model-settings.md) | ✅ Done |
+| Autocomplete inference hook (Ollama FIM) | [28](28-inline-edit-autocomplete.md) §2 | ❌ Not started |
+| Ollama model pull UI + recommendations | [27](27-local-model-ux.md) §4 | ❌ Not started |
+| Context budget visualization | [39](39-context-ui-enhancements.md) | ✅ Done |
+| Attachment chips + native OS drag-drop | [43](43-v-next-release-fixes.md) §3 | ✅ Done |
 
-### Phase 3 — Ecosystem (16+ weeks)
-
-Compound value through community and extensibility.
+### Phase 2 — Competitive Parity
 
 | Item | Spec | Status |
 |------|------|--------|
-| Skills registry (GitHub-based → hosted) | [29-skills-registry.md](29-skills-registry.md) | ❌ Spec ready |
+| Inline edit (Cmd+K) | [28](28-inline-edit-autocomplete.md) §3 | ❌ Not started |
+| LSP Phase 2 — go-to-def, rename, more languages | [25](25-lsp-diagnostics.md) §6 | ❌ Not started |
+| OS keychain for API keys | [14](14-security.md) §A | ✅ Done |
+| Rust path enforcement | [33](33-rust-path-enforcement.md) | ✅ Done |
+| Shortcut rebinding | [37](37-shortcut-rebinding.md) | ✅ Done |
+| Editor wrap + Prettier | [20](20-editor-formatting-and-theming.md) | ✅ Done |
+| MLX provider (Apple Silicon) | [42](42-mlx-provider.md) | ❌ Planned (v0.1.3) |
+
+### Phase 3 — Ecosystem
+
+| Item | Spec | Status |
+|------|------|--------|
+| Skills registry (GitHub-based → hosted) | [29](29-skills-registry.md) | ❌ Deferred (P3) |
 | Plugin / extension API (userland tools) | — | ❌ Not started |
-| File-backed plans (`plans/`) | [19-planning-system.md](19-planning-system.md) | 🔶 Spec ready |
+| File-backed plans (`plans/`) | [19](19-planning-system.md) | ❌ Not started |
 | Multi-workspace / project switcher | — | ❌ Deferred |
+| Agent activity step grouping | [40](40-product-hardening-and-agent-ux.md) §5 | ❌ Planned (v0.1.3) |
 
 ---
 
@@ -165,6 +164,9 @@ Compound value through community and extensibility.
 
 | Date | Item |
 |------|------|
+| 2026-06-10 | **Attachment chip polish** — native Tauri drag-drop, type icons, click-to-open (editor/explorer/OS), element source grep — [43](43-v-next-release-fixes.md) §3 |
+| 2026-06-10 | **Editor actions + browser tab** — `···` menu, preview nav, element inspector — [44](44-editor-actions-browser-tab.md) |
+| 2026-06-10 | **v-next release fixes** — model selector, compaction defaults, settings polish — [43](43-v-next-release-fixes.md) |
 | 2026-06-05 | **v0.1.2 public beta** — OS keychain, Rust path enforcement (Spec 33), production CSP, agent turn undo |
 | 2026-05 | Git checkpoint infrastructure (Rust backend) |
 | 2026-05 | Provider server config templates |

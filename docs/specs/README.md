@@ -1,6 +1,6 @@
 # Spacebar Editor — Specifications
 
-> **Last aligned with codebase:** 2026-06-05 — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
+> **Last aligned with codebase:** 2026-06-10 (spec audit) — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
 
 This directory contains the detailed engineering specifications for Spacebar Editor, organized by domain.
 
@@ -22,7 +22,7 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | **Filesystem Watcher** | ✅ Complete | Debounced `fs:changed` → tree + git refresh — [24](24-filesystem-watcher.md) |
 | **Enhancement Program (32–38)** | ✅ Mostly complete | Error recovery, overflow warnings, workspace lock, onboarding, shortcuts, parallel tools — see table below |
 | **LSP** | 🔶 Partial | Rust transport + TS client; diagnostics + hover — [25](25-lsp-diagnostics.md) |
-| **Stall / Error Detection** | 🔶 Partial | `stallDetection.ts` done, wire-up done — [22](22-llm-file-interaction.md) |
+| **Stall / Error Detection** | ✅ Complete | Phase 0 — parse errors + stall detection — [22](22-llm-file-interaction.md) |
 | **Security Hardening** | ✅ Complete | Rust path enforcement, OS keychain, production CSP — [14](14-security.md), [33](33-rust-path-enforcement.md), [40](40-product-hardening-and-agent-ux.md) §3 |
 | **Skills** | ✅ Complete (per-project) | CRUD UI + injection + variable interpolation; bundled pack/registry pending — [30](30-agent-context-and-model-settings.md) |
 | **Planning System** | ❌ Not started | `plans/` files, picker UI — [19](19-planning-system.md) |
@@ -74,14 +74,14 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | [39-context-ui-enhancements.md](39-context-ui-enhancements.md) | ✅ Implemented | Segmented context bar, breakdown popover, compaction archive/restore UI |
 | [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) | 🔶 Partial | v0.1.1: keychain, shell patterns, write audit, limits, workspace notice; §5 steps deferred |
 | [41-lsp-agent-tools.md](41-lsp-agent-tools.md) | ✅ Complete | LSP agent tools + shell spill + compaction tool retention |
-| [43-v-next-release-fixes.md](43-v-next-release-fixes.md) | ✅ Implemented | Model selector always shows providers, inline chip drag-to-chat (contenteditable composer), settings polish, compaction defaults, version status bar |
-| [44-editor-actions-browser-tab.md](44-editor-actions-browser-tab.md) | 🔶 Partial | Editor actions `···` menu (new file/terminal/browser), browser tab nav controls, element inspector for chat |
+| [43-v-next-release-fixes.md](43-v-next-release-fixes.md) | ✅ Implemented | Model selector, attachment chips (native OS drop, icons, click-to-open), settings polish, compaction defaults, version bar |
+| [44-editor-actions-browser-tab.md](44-editor-actions-browser-tab.md) | 🔶 Partial | Editor `···` menu, browser tab + inspector; **pending:** untitled-file Save As (`pick_save_path`) |
 
 ### Editor & Git
 
 | Document | Status | Description |
 |----------|--------|-------------|
-| [10-editor.md](10-editor.md) | 🔶 Partial | Languages, syntax, diff mode |
+| [10-editor.md](10-editor.md) | ✅ Core complete | CodeMirror, grammars, wrap, Prettier, diff; LSP Phase 2 + Cmd+K pending |
 | [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.md) | ✅ Complete | Editor wrap, Prettier, syntax + editor chrome in Appearance |
 | [25-lsp-diagnostics.md](25-lsp-diagnostics.md) | 🔶 Partial | LSP transport, diagnostics, hover; Phase 2 features pending |
 | [11-git.md](11-git.md) | ✅ Complete | Git UI, Rust backend, agent tools |
@@ -92,11 +92,11 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 |----------|--------|-------------|
 | [12-ipc.md](12-ipc.md) | ✅ Complete | Tauri commands and events |
 | [13-theming.md](13-theming.md) | ✅ Complete | Color systems, icon themes |
-| [14-security.md](14-security.md) | 🔶 Partial | Current state + keychain / iframe sandbox addenda |
+| [14-security.md](14-security.md) | 🔶 Partial | Keychain, Rust path enforcement, CSP ✅; LLM-in-Rust deferred; preview sandbox intentionally omitted (WebKitGTK) |
 | [15-testing.md](15-testing.md) | ✅ Complete | Test strategy and suites |
 | [16-build.md](16-build.md) | ✅ Complete | Build commands |
 | [24-filesystem-watcher.md](24-filesystem-watcher.md) | ✅ Core implemented | `watcher.rs` → debounced `fs:changed` → tree + git refresh |
-| [33-rust-path-enforcement.md](33-rust-path-enforcement.md) | ❌ Not started | `canonicalize_workspace_path` in Rust, symlink escape hardening, `workspace_root` param on all filesystem commands |
+| [33-rust-path-enforcement.md](33-rust-path-enforcement.md) | ✅ Complete | `canonicalize_workspace_path` in Rust; `workspace_root` on all FS IPC — shipped v0.1.2 |
 | [37-shortcut-rebinding.md](37-shortcut-rebinding.md) | ✅ Complete | Keybindings settings UI, `sidebar.keybindings.v1` persistence, conflict detection |
 
 ### Planning
@@ -125,7 +125,7 @@ These were the specs added as part of the competitive enhancement program (`exte
 | [30](30-agent-context-and-model-settings.md) | Agent Context & Model Settings | ✅ Core complete (skills CRUD) |
 | [31](31-llm-eval-harness.md) | LLM Eval Harness | ✅ Implemented |
 | [32](32-agent-error-recovery.md) | Agent Error Recovery | ✅ Complete |
-| [33](33-rust-path-enforcement.md) | Rust Path Enforcement | ❌ Not started |
+| [33](33-rust-path-enforcement.md) | Rust Path Enforcement | ✅ Complete |
 | [34](34-context-overflow-warnings.md) | Context Overflow Warnings | ✅ Complete |
 | [35](35-workspace-lock.md) | Workspace Lock | ✅ Complete |
 | [36](36-first-run-onboarding.md) | First-Run / Onboarding | ✅ Complete |

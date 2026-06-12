@@ -66,12 +66,12 @@ Legacy error mapping may still mention harness in `invokeSafe.ts` / `errors.ts`;
 
 ## Security Boundaries
 
-| Boundary | Current State | Status | Planned |
-|----------|---------------|--------|---------|
-| Tool path sandboxing | Enforced in **TypeScript** (`pathUtils.ts`) | ✅ Complete | Canonicalize in Rust |
-| Secrets storage | API keys in **`localStorage`** (`sidebar.settings.v3`) | 🔶 Partial | OS keychain via Stronghold |
-| LLM HTTP | Webview `fetch` | ✅ Working | Rust proxy + events |
-| CSP | `null` in `tauri.conf.json` | 🔶 Partial | Restrictive CSP for release |
+| Boundary | Current State | Status | Notes |
+|----------|---------------|--------|-------|
+| Tool path sandboxing | TS (`pathUtils.ts`) + Rust (`canonicalize_workspace_path`) | ✅ Complete | [33-rust-path-enforcement.md](33-rust-path-enforcement.md) |
+| Secrets storage | OS keychain for API keys; settings in `localStorage` | ✅ Complete | [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) §3 |
+| LLM HTTP | Webview `fetch` with per-request key retrieval | ✅ Working | Rust proxy deferred |
+| CSP | Restrictive allowlist in `tauri.conf.json` | ✅ Complete | Anthropic, DeepSeek, localhost |
 
 ---
 

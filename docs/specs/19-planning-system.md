@@ -1,6 +1,6 @@
 # Spec 19 — Planning System (`plans/`)
 
-> **Status:** 🔶 Not started  
+> **Status:** ❌ Not started  
 > **Area:** Plan Mode · Persistence · Agent Integration  
 > **Depends on:** [08-ai-agent.md](08-ai-agent.md) (agent loop) · [09-tool-system.md](09-tool-system.md) (tool runner) · [06-state-management.md](06-state-management.md) (`.sidebar/state.json`)
 

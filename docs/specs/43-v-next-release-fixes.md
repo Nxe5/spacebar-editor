@@ -14,7 +14,7 @@ All items in this spec have been implemented. See §9 for implementation notes.
 | # | Area | Summary | Status |
 |---|------|---------|--------|
 | §2 | Model Selector | Show provider titles even when no models available | ✅ Done |
-| §3 | Chat UX | Drag file or folder into chat for context (inline chips) | ✅ Done |
+| §3 | Chat UX | Drag file/folder/element into chat; attachment chips with icons, click-to-open, native OS drop | ✅ Done |
 | §4 | Settings | Experimental section — names only, drop redundant label | ✅ Done |
 | §5 | Settings | Ollama & llama.cpp help links — make them clickable | ✅ Done |
 | §6 | Compaction | Enable compaction and auto-compaction by default at 85% | ✅ Done |
@@ -37,32 +37,57 @@ When the user opens the model picker and a provider has no models configured or 
 
 ## 3. Drag File or Folder into Chat for Context ✅
 
-Files and folders can be dragged from the OS file manager or the in-app explorer into the chat area. Each item appears as an **inline chip** within the chat composer's contenteditable input (not above it).
+Files and folders can be dragged from the OS file manager or the in-app explorer into the chat area. Each item appears as an **attachment chip** in a dedicated row above the composer textarea.
 
 ### Architecture
 
 - **Drop detection:** `.chat-pane` has `ondragover`/`ondragleave`/`ondrop` handlers. `chatDropCounter` tracks enter/leave nesting for accurate overlay display.
-- **Chip insertion:** `insertChipInComposer(att)` creates a `<span contenteditable="false" class="attachment-chip">` element, inserts it at the current cursor (or appends), then places the cursor in a text node immediately after the chip so typing continues inline.
-- **Pending state:** `PendingAttachment` union type (`browser-file | dir-entry | abs-path`). The `chipMap: Map<HTMLElement, PendingAttachment>` maps each DOM chip to its attachment data (File objects cannot be serialized to data attributes).
+- **Pending state:** `pendingAttachments: PendingAttachment[]` — a reactive Svelte array (`browser-file | dir-entry | abs-path | element` union). `addAttachment(att)` pushes to the array; `removeAttachment(i)` filters by index and refocuses the composer.
+- **Chip row:** a `.composer-attachments` `<div role="list">` rendered above the textarea via a Svelte `{#each}` loop. Chip labels are computed by `attachmentChipLabel()` / `attachmentChipKind()`. CSS is Svelte-scoped (no `:global()` needed — chips are declared in the template).
+- **Backspace removal:** when the composer text is empty and `pendingAttachments` is non-empty, `composerCaretAtStart()` returns `true` and Backspace removes the last chip via `pendingAttachments.slice(0, -1)`.
 - **Content resolution:** `resolveAttachments()` reads file content at send time — browser files via `File.text()`, directories via `FileSystemDirectoryEntry.createReader()`, absolute paths via `readFile`/`listDir` IPC.
-- **Sync:** `onComposerInput()` → `syncAttachmentsFromDom()` re-derives `pendingAttachments` from chip DOM nodes after any browser-native edit (Backspace over chip, etc.).
 - **Explorer drag source:** `FileTreeRow.svelte` sets `draggable={true}` and `ondragstart` with `application/spacebar-path` + `text/plain` MIME types.
 
 ### Contenteditable Composer
 
-The chat composer was migrated from `<textarea>` to a `<div contenteditable="true">`:
+The chat composer is a `<div contenteditable="true">` (not a `<textarea>`). Chips live outside the contenteditable in their own row — the composer itself stays plain text.
 
-| Old | New |
-|-----|-----|
-| `<textarea bind:value={inputValue}>` | `<div contenteditable role="textbox" bind:this={composerEl}>` |
-| `inputValue` managed by Svelte | `inputValue` synced from DOM via `onComposerInput()` |
-| Chips above textarea | Chips inline with text |
+| Aspect | Implementation |
+|--------|---------------|
+| Text sync | `inputValue` re-derived from DOM on each `oninput` via `getComposerText()` |
+| Chip display | `.composer-attachments` row above the `<div>`, Svelte `{#each pendingAttachments}` |
+| Chip removal | `removeAttachment(i)` + `focusComposer()` |
+| Backspace chip removal | `composerCaretAtStart()` guard + `pendingAttachments.slice(0, -1)` |
 
-Helper functions: `getComposerText()`, `setComposerText()`, `clearComposer()`, `appendTextToComposer()`, `insertChipInComposer()`.
+Helper functions: `getComposerText()`, `setComposerText()`, `clearComposer()`, `appendTextToComposer()`, `focusComposer()`, `addAttachment()`.
 
-Paste handler strips rich HTML (plain text only). Chip CSS uses `:global()` selectors since elements are created via `document.createElement`.
+Paste handler strips rich HTML (plain text only).
 
-**Files changed:** `src/modules/agent/ChatPane.svelte`, `src/modules/explorer/FileTreeRow.svelte`
+### Native OS drag-drop (Dolphin, file manager, etc.)
+
+HTML5 `drop` events in Tauri only receive portal/FUSE URIs (e.g. `/run/user/1000/doc/…`), not real paths. External drops are handled via Tauri's native drag-drop events:
+
+| Piece | Implementation |
+|-------|----------------|
+| IPC helper | `listenFileDrag()` in `src/lib/ipc.ts` — subscribes to `tauri://drag-over`, `tauri://drag-drop`, `tauri://drag-leave` |
+| Hit testing | Drop position (physical pixels ÷ `devicePixelRatio`) tested against `.chat-pane` bounds |
+| Path resolution | Each dropped path becomes an `abs-path` chip via `addAbsolutePathAttachment()` — same shape as explorer drags |
+| Dir detection | `listDir(null, path)` distinguishes files from folders |
+
+In web-only mode (`pnpm dev:web`), falls back to `text/uri-list` parsing.
+
+### Chip icons and click-to-open
+
+| Chip kind | Icon | Click action (not on ×) |
+|-----------|------|-------------------------|
+| File | `FileIcon` (matches explorer icon theme) | Open in editor |
+| Folder | `FileIcon` (dir) | Open in OS file manager (`openExternalUrl`) |
+| Image / video / audio | `FileIcon` + tinted border | Open with OS default app |
+| Element (e.g. `h1`, `div`) | `</>` glyph | Grep workspace for element text/id/class → open file at matching line |
+
+Element source location uses `grepWorkspace()` with needles extracted from the inspector payload, then `sidebar:goto-line` for highlight.
+
+**Files changed:** `src/modules/agent/ChatPane.svelte`, `src/modules/explorer/FileTreeRow.svelte`, `src/lib/ipc.ts`
 
 ---
 
@@ -130,9 +155,9 @@ v0.1.2  │  Update available — v0.1.3            ●
 
 ## 9. Implementation Notes
 
-All items implemented in session 2026-06-09. Key design choices:
+Items §2–§8 implemented 2026-06-09; §3 chip polish (native drop, icons, click-to-open) completed 2026-06-10. Key design choices:
 
 - **No `target="_blank"`** anywhere in Tauri — all external URLs go via `openExternalUrl()` IPC.
-- **Contenteditable composer** required migrating 5 `inputValue =` write sites and adding `chipMap` for File-object lifecycle management across DOM mutations.
-- **Chip CSS `:global()`** — necessary because chip DOM elements are created imperatively (not via Svelte template), so Svelte's scoped hash is not applied to them.
+- **Contenteditable composer** required migrating `inputValue =` write sites to `setComposerText()` / `clearComposer()` helpers. Chips moved to a separate `.composer-attachments` row (not inline in contenteditable), which simplified the DOM lifecycle: `pendingAttachments` is a plain reactive array and no `chipMap` or `syncAttachmentsFromDom` is needed.
+- **Chip CSS scoped** — chips are declared in the Svelte template so Svelte's scoped hash applies normally; no `:global()` is needed.
 - **Compaction migration safety** — `normalizeAgentCompaction` uses strict boolean equality, not truthiness, to detect stored user preference.

@@ -1,6 +1,6 @@
 # Spec 22 — LLM ↔ File Interaction Hardening
 
-> **Status:** 🔶 Partial — §2 `.gitignore`-aware tree filtering ✅ · §3 `read_file` cap ✅ (global agent setting, lines or % of context; Rust ranged reads) · §4 tool trimming ✅ (mode-scoped via `MODE_CONFIG` + `getToolsForPolicy`) · §5–6 parse errors + stall detection ✅. Remaining: none for Phase 0 scope.
+> **Status:** ✅ **Phase 0 complete** — §2 `.gitignore`-aware tree filtering · §3 `read_file` cap (global agent setting, lines or % of context; Rust ranged reads) · §4 tool trimming (mode-scoped via `MODE_CONFIG` + `getToolsForPolicy`) · §5–6 parse errors + stall detection. No remaining Phase 0 items.
 > **Area:** Agent Loop · Tool System · Rust Filesystem · Context Management
 > **Phase:** 0 — Polish & trust (Phase B in [17-roadmap.md](17-roadmap.md))
 > **Depends on:** [08-ai-agent.md](08-ai-agent.md) (agent loop) · [09-tool-system.md](09-tool-system.md) (tools/policy) · [12-ipc.md](12-ipc.md) (Rust commands) · [21-context-compaction.md](21-context-compaction.md) (token budget)

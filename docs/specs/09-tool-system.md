@@ -125,6 +125,8 @@ Auto-detects test runner:
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Custom tool handlers | ❌ Not started | Filter tools without handlers |
-| Parallel read-only tools | ❌ Not started | Execute read tools in parallel |
-| Rust path enforcement | ❌ Not started | Canonicalize paths in Rust |
+| Custom tool handlers | ❌ Not started | Filter tools without handlers in policy UI |
+| Parallel read-only tools | ✅ Complete | [38-parallel-tool-execution.md](38-parallel-tool-execution.md) |
+| Rust path enforcement | ✅ Complete | [33-rust-path-enforcement.md](33-rust-path-enforcement.md) |
+| Scope-aware shell policy | ✅ Complete | Allow/deny patterns — [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) §6 |
+| LSP agent tools | ✅ Complete | [41-lsp-agent-tools.md](41-lsp-agent-tools.md) |

@@ -1,6 +1,6 @@
 # Editor
 
-> **Status:** 🔶 **PARTIAL** — Core CodeMirror + grammars work; wrapping, Prettier, and full syntax/markdown theming are spec’d in [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.md).
+> **Status:** ✅ **CORE COMPLETE** — CodeMirror 6, 15 grammars, line wrap, Prettier, diff mode, and full syntax/editor chrome in Appearance settings. Remaining gaps: LSP Phase 2 (go-to-def, rename, completions), Cmd+K inline edit — see [25-lsp-diagnostics.md](25-lsp-diagnostics.md), [28-inline-edit-autocomplete.md](28-inline-edit-autocomplete.md).
 
 ---
 
@@ -35,23 +35,24 @@
 
 ---
 
-## Syntax Colors
+## Syntax Colors & Editor Chrome
 
 Custom highlight via `src/lib/editor/syntaxTheme.ts`:
 - Uses `--syntax-*` CSS variables + `tl-syn-*` classes in `styles/editor-syntax.css`
-- Settings → Appearance → Syntax: **9 token types** editable today
-- **Gap:** Markdown (`.md`) tokens like headings/links often look wrong because `heading`, `link`, `emphasis`, etc. are aliased to other keys, not user-facing fields — see [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.md)
-- Editor chrome (`--editor-bg`, gutter, selection) follows workbench preset only; not fully editable in Settings
+- Settings → Appearance → Syntax: editable token colors (including markdown-specific tokens)
+- Settings → Appearance → Editor: gutter, selection, active line, and related chrome colors
+
+Details: [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.md).
 
 ---
 
-## Formatting & Wrapping (Planned)
+## Formatting & Wrapping
 
 | Feature | Status |
 |---------|--------|
-| Line wrap (`EditorView.lineWrapping`) | ❌ Not started |
-| Prettier (format document / format on save) | ❌ Not started |
-| Full syntax + editor chrome in Settings | ❌ Not started |
+| Line wrap (`EditorView.lineWrapping`) | ✅ Complete — Settings → Appearance → Editor |
+| Prettier (format document / format on save) | ✅ Complete |
+| Full syntax + editor chrome in Settings | ✅ Complete |
 
 Details: [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.md).
 
@@ -80,6 +81,9 @@ Details: [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.
 | History (undo/redo) | `history()` | ✅ |
 | Middle-click scroll | Custom `middleClickScroll()` | ✅ |
 | Scroll past end | `scrollPastEnd()` | ✅ |
+| Line wrap | `EditorView.lineWrapping` compartment | ✅ |
+| Prettier format | Format command + format-on-save | ✅ |
+| Go to line | `sidebar:goto-line` event | ✅ |
 
 ---
 
@@ -90,6 +94,7 @@ Details: [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.
 - Preserves undo history and cursor position on tab switch
 - Document changes update `files.updateFileContent()` and mark buffer dirty
 - Save writes via `writeFile()` IPC
+- LSP diagnostics + hover via `lspCodeMirror.ts` (Phase 1)
 
 ---
 
@@ -97,8 +102,8 @@ Details: [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.
 
 | Limitation | Status | Notes |
 |------------|--------|-------|
-| LSP integration | ❌ Not started | No completions/diagnostics |
-| Cmd+K inline edit | ❌ Not started | Chat + tools only |
-| Syntax colors per theme | 🔶 Partial | 9 fields in Settings; markdown tokens weak — [20](20-editor-formatting-and-theming.md) |
-| Line wrap | ❌ Not started | [20](20-editor-formatting-and-theming.md) |
-| Prettier | ❌ Not started | [20](20-editor-formatting-and-theming.md) |
+| LSP Phase 1 | ✅ Shipped | Diagnostics + hover for TS/JS — [25](25-lsp-diagnostics.md) |
+| LSP Phase 2 | ❌ Not started | Go-to-def, rename, completions, more languages |
+| Cmd+K inline edit | ❌ Not started | Chat + tools only — [28](28-inline-edit-autocomplete.md) |
+| Autocomplete (FIM) | ❌ Not started | Settings scaffold only — [28](28-inline-edit-autocomplete.md) |
+| Untitled file Save As | ❌ Not started | Needs `pick_save_path` IPC — [44](44-editor-actions-browser-tab.md) §3 |

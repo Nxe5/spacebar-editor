@@ -24,7 +24,7 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | Per-project state persistence (`.sidebar/`) | Shipped |
 | Context budget tracking + breakdown popover | Shipped |
 | Context overflow warnings (amber / red bar) | Shipped |
-| Context compaction (manual + auto) + archive restore | Shipped — experimental |
+| Context compaction (manual + auto) + archive restore | Shipped |
 | Workspace text search (ripgrep, `Cmd+Shift+F`) | Shipped |
 | Filesystem watcher (explorer + git refresh) | Shipped |
 | Editor line wrap + Prettier format / format-on-save | Shipped |
@@ -35,7 +35,10 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | Shortcut rebinding UI | Shipped |
 | Browser preview tab (nav controls, :3000/:14200 quick buttons) | Shipped |
 | Element inspector (click-to-chip; configurable highlight color) | Shipped |
-| Chat composer attachment chips (file, folder, element) with Backspace removal | Shipped |
+| Chat composer attachment chips (file, folder, element, media) with type icons + Backspace removal | Shipped |
+| Drag files/folders from explorer or OS into chat (native Tauri drag-drop for external paths) | Shipped |
+| Click attachment chip to open in editor, OS file manager, or locate element source | Shipped |
+| Welcome screen version indicator + GitHub update check | Shipped |
 | Agent error recovery (retries, continue after step limit) | Shipped |
 | Workspace lock (multi-window safety) | Shipped |
 | LSP (diagnostics, hover; user-installed servers) | Partial |
@@ -143,7 +146,7 @@ The chat footer shows a 3px bar divided into three segments:
 - **Orange** — tool schemas (native tool call mode only)
 - **Blue** — chat history
 
-Hover the bar to see a breakdown popover with per-section token counts, total used, context window size, and reply reserve. Usage states turn **amber** (70–90%) and **red** (>90%) as the budget fills.
+**Hover** the bar to see a breakdown popover with per-section token counts, total used, context window size, and reply reserve. **Click** the bar to open a sticky context panel (full-width, scrollable) that lists all system prompt sections with hover-to-preview text and click-to-open file-backed sections (skills, system prompts). Usage states turn **amber** (70–90%) and **red** (>90%) as the budget fills.
 
 ### Compaction
 
@@ -156,7 +159,7 @@ When the context fills up, compaction summarizes old messages into a compact blo
 
 **Archive and restore:** the full pre-compaction message list is saved as `preCompactionMessages` on the session. The compaction divider in the chat shows "N archived messages · Restore full context". Clicking "Restore full context" reverts the session to its pre-compaction state — one level of undo.
 
-**Settings** (Settings → Compaction): master switch, summary model picker, auto-compaction threshold (50–95%, default 85%), keep-last-N raw turns (2–20).
+**Settings** (Settings → Compaction): master switch (enabled by default), summary model picker, auto-compaction threshold (50–95%, default 85%), keep-last-N raw turns (2–20). Both the master switch and auto-compaction are on by default for new installs; existing users who had them off retain that preference.
 
 ---
 
