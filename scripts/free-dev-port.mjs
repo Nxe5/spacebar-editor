@@ -1,17 +1,9 @@
 /**
  * Free the TCP listener on the Vite dev port before starting Vite.
  * Matches defaults in vite.config.ts / src-tauri/tauri.conf.json devUrl.
- *
- * kill-port alone sometimes misses listeners (IPv6 / edge cases); we SIGKILL
- * processes from lsof LISTEN rows first on Unix, then kill-port / fuser.
  */
 import { execSync } from "node:child_process";
-import { createRequire } from "node:module";
 import process from "node:process";
-
-const require = createRequire(import.meta.url);
-/** @type {(port: number, method?: string) => Promise<void>} */
-const killPortPkg = require("kill-port");
 
 const port = Number(process.env.VITE_PORT ?? process.env.PORT ?? 14200);
 
@@ -36,11 +28,36 @@ function killListenPidsUnix(p) {
   }
 }
 
-if (process.platform !== "win32") {
-  killListenPidsUnix(port);
+function killListenPidsWindows(p) {
+  try {
+    const out = execSync(`netstat -ano -p tcp | findstr :${p}`, {
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "ignore"],
+    });
+    const pids = new Set();
+    for (const line of out.split(/\r?\n/)) {
+      if (!line.includes("LISTENING")) continue;
+      const parts = line.trim().split(/\s+/);
+      const pid = Number(parts[parts.length - 1]);
+      if (Number.isFinite(pid) && pid > 0) pids.add(pid);
+    }
+    for (const pid of pids) {
+      try {
+        execSync(`taskkill /F /PID ${pid}`, { stdio: "ignore" });
+      } catch {
+        /* already gone */
+      }
+    }
+  } catch {
+    /* no listeners */
+  }
 }
 
-await killPortPkg(port).catch(() => {});
+if (process.platform === "win32") {
+  killListenPidsWindows(port);
+} else {
+  killListenPidsUnix(port);
+}
 
 if (process.platform === "linux") {
   try {

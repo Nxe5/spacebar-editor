@@ -50,6 +50,19 @@ export default defineConfig(({ mode }) => {
     __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__: JSON.stringify(anthropicApiKey),
   },
   clearScreen: false,
+  /** esbuild 0.28+ errors on Safari <14.1 in Vite's default targets; Tauri WebViews are modern. */
+  esbuild: {
+    supported: {
+      destructuring: true,
+    },
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      supported: {
+        destructuring: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       $lib: path.resolve(import.meta.dirname, "./src/lib"),
