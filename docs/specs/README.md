@@ -23,7 +23,7 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | **Enhancement Program (32–38)** | ✅ Mostly complete | Error recovery, overflow warnings, workspace lock, onboarding, shortcuts, parallel tools — see table below |
 | **LSP** | 🔶 Partial | Rust transport + TS client; diagnostics + hover — [25](25-lsp-diagnostics.md) |
 | **Stall / Error Detection** | ✅ Complete | Phase 0 — parse errors + stall detection — [22](22-llm-file-interaction.md) |
-| **Security Hardening** | 🔶 Partial | Rust path enforcement, app-settings API keys, production CSP — [14](14-security.md), [33](33-rust-path-enforcement.md), [40](40-product-hardening-and-agent-ux.md) §3 |
+| **Security Hardening** | 🔶 Partial | Rust path enforcement, app-settings API keys, production CSP — [14](14-security.md), [33](33-rust-path-enforcement.md), [40](40-product-hardening-and-agent-ux.md) §3; trust boundary plan — [45](45-security-hardening-and-capability-expansion.md) |
 | **Skills** | ✅ Complete (per-project) | CRUD UI + injection + variable interpolation; bundled pack/registry pending — [30](30-agent-context-and-model-settings.md) |
 | **Planning System** | ❌ Not started | `plans/` files, picker UI — [19](19-planning-system.md) |
 | **Inline edit (Cmd+K)** | ❌ Not started | [28](28-inline-edit-autocomplete.md) |
@@ -76,6 +76,7 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | [41-lsp-agent-tools.md](41-lsp-agent-tools.md) | ✅ Complete | LSP agent tools + shell spill + compaction tool retention |
 | [43-v-next-release-fixes.md](43-v-next-release-fixes.md) | ✅ Implemented | Model selector, attachment chips (native OS drop, icons, click-to-open), settings polish, compaction defaults, version bar |
 | [44-editor-actions-browser-tab.md](44-editor-actions-browser-tab.md) | 🔶 Partial | Editor `···` menu, browser tab + inspector; **pending:** untitled-file Save As (`pick_save_path`) |
+| [45-security-hardening-and-capability-expansion.md](45-security-hardening-and-capability-expansion.md) | 📋 Draft | Trust gate, narrow-only tool policy, web access globe toggle, enforcement audits, capability roadmap |
 
 ### Editor & Git
 

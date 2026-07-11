@@ -13,9 +13,6 @@ use modules::commands::{
     watch_workspace, web_fetch, write_file, write_project_state, write_system_prompt,
     ensure_system_prompts_layout, ensure_skill_dir, ActiveLockPath,
 };
-use modules::secrets::{
-    delete_cloud_api_key, get_cloud_api_key, has_cloud_api_key, save_cloud_api_key,
-};
 use modules::lsp::{spawn_lsp, lsp_send, lsp_stop, stop_all_lsp, LspManager};
 use modules::pty::{pty_close, pty_create, pty_resize, pty_write, PtyManager};
 use modules::watcher::WatcherState;
@@ -79,10 +76,6 @@ fn main() {
             spawn_lsp,
             lsp_send,
             lsp_stop,
-            save_cloud_api_key,
-            delete_cloud_api_key,
-            has_cloud_api_key,
-            get_cloud_api_key,
         ])
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();

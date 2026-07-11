@@ -41,6 +41,21 @@ describe("conversation", () => {
     });
   });
 
+  it("preserves reasoning_content from assistant thinking for Kimi follow-ups", () => {
+    const history: ChatMessage[] = [
+      {
+        id: "1",
+        role: "assistant",
+        content: "",
+        thinking: "planning tool use",
+        timestamp: 0,
+        rawToolCalls: [{ id: "tc1", name: "write_file", arguments: '{"path":"a.ts"}' }],
+      },
+    ];
+    const msgs = buildProviderMessages("system", history);
+    expect(msgs[1]?.reasoning_content).toBe("planning tool use");
+  });
+
   it("fills missing tool results after assistant tool_calls in history", () => {
     const history: ChatMessage[] = [
       { id: "1", role: "user", content: "go", timestamp: 0 },

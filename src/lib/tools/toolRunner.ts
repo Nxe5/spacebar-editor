@@ -16,6 +16,7 @@ import {
   webFetch as invokeWebFetch,
   isTauriAvailable,
 } from "../ipc";
+import { runShellWithTerminalVisibility } from "../terminal/runShellInPty";
 import type { FileEntry } from "../stores/files";
 import { formatGitLog, formatGitStatus } from "./gitFormat";
 import { unescapeLiteralEscapes } from "../textEscapes";
@@ -413,7 +414,9 @@ async function runShellCommand(
   const command = requireString(args, "command");
   if (typeof command !== "string") return command;
   const timeoutMs = typeof args.timeout_ms === "number" ? args.timeout_ms : undefined;
-  const result = await invokeRunShell(workspacePath, command, timeoutMs);
+  const result = isTauriAvailable()
+    ? await runShellWithTerminalVisibility(workspacePath, command, timeoutMs ?? 120_000)
+    : await invokeRunShell(workspacePath, command, timeoutMs);
 
   if (result.timed_out) {
     return fail(`Command timed out.\n${result.stderr}`);
@@ -537,7 +540,8 @@ export async function executeTool(
   }
 
   try {
-    return await handler(args, workspacePath, context);
+    const normalizedArgs = normalizeToolArguments(name, args);
+    return await handler(normalizedArgs, workspacePath, context);
   } catch (e) {
     return fail(`Tool execution failed: ${toolErrorMessage(e)}`);
   }

@@ -217,6 +217,9 @@ function createSkillsStore() {
     subscribe,
     load,
     initialize,
+    clear: () => {
+      set({ entries: [], contents: {}, initialized: false });
+    },
     addSkill,
     removeSkill,
     saveContent,

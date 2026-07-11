@@ -1,5 +1,5 @@
 import { writable, derived, get } from "svelte/store";
-import { loadProjectToolsFile, mergeProjectToolsLayer, type ProjectToolsFile } from "../projectTools";
+import { loadProjectToolsFile, mergeProjectToolsLayer, mergeProjectToolsLayerDetailed, type ProjectToolsFile } from "../projectTools";
 import { ALL_TOOL_NAMES } from "../tools/toolDefinitions";
 import { EMPTY_PARAMETERS_JSON } from "../toolSchema";
 import { normalizeShellRules } from "../shellPolicy";
@@ -183,6 +183,9 @@ export const toolPolicy = createToolPolicyStore();
 
 const projectToolsLayer = writable<ProjectToolsFile | null>(null);
 
+/** Non-blocking notices after loading `.sidebar/tools.json`. */
+export const projectToolPolicyNotices = writable<string[]>([]);
+
 export const effectiveToolPolicy = derived(
   [toolPolicy, projectToolsLayer],
   ([$global, $project]) => mergeProjectToolsLayer($global, $project)
@@ -190,7 +193,35 @@ export const effectiveToolPolicy = derived(
 
 export async function reloadProjectTools(workspacePath: string): Promise<void> {
   const data = await loadProjectToolsFile(workspacePath);
+  if (!data) {
+    projectToolsLayer.set(null);
+    projectToolPolicyNotices.set([]);
+    return;
+  }
+  const global = get(toolPolicy);
+  const { ignoredPolicyWidening, ignoredCustomToolShadows } = mergeProjectToolsLayerDetailed(
+    global,
+    data
+  );
+  const notices: string[] = [];
+  if (ignoredPolicyWidening.length) {
+    notices.push(
+      `Project tried to loosen tool permissions for: ${ignoredPolicyWidening.join(", ")} (ignored).`
+    );
+  }
+  if (ignoredCustomToolShadows.length) {
+    notices.push(
+      `Project custom tools shadow built-in names (ignored): ${ignoredCustomToolShadows.join(", ")}.`
+    );
+  }
+  projectToolPolicyNotices.set(notices);
   projectToolsLayer.set(data);
+}
+
+/** Skip project tool overrides (restricted workspace trust). */
+export function clearProjectToolsLayer(): void {
+  projectToolsLayer.set(null);
+  projectToolPolicyNotices.set([]);
 }
 
 // Kept for tests or legacy callers

@@ -114,6 +114,8 @@ import {
     toolIsDenied,
     type ToolPolicyState,
   } from "$lib/toolPolicy";
+  import type { Tool } from "$lib/providers/openaiCompat";
+  import { filterToolsByWebAccess } from "$lib/webAccess";
   import { executeTool } from "$lib/tools/toolRunner";
   import {
     StallTracker,
@@ -157,7 +159,7 @@ import {
   import { providerUsage } from "$lib/stores/providerUsage";
   import { getCloudApiKey } from "$lib/apiSecrets";
   import {
-    fetchDeepseekAccountBalance,
+    fetchAccountBalance,
     type ProviderAccountBalance,
   } from "$lib/providerBalance";
   import AppIcon from "$lib/components/AppIcon.svelte";
@@ -592,12 +594,24 @@ import {
     buildActiveSkillBlocks($skills, $currentMode, skillVariableContext())
   );
 
+  let webAccessEnabled = $derived($activeSession?.webAccessEnabled === true);
+
+  function toolsForActiveSession(
+    policy: ToolPolicyState,
+    modeToolNames: string[]
+  ): Tool[] {
+    return filterToolsByWebAccess(
+      getToolsForPolicy(policy, modeToolNames),
+      webAccessEnabled
+    );
+  }
+
   /** System prompt sections + tool schema tokens — recomputed only when settings/mode change. */
   let systemBreakdown = $derived(() => {
     const st = $settings;
     const mode = $currentMode;
     const modeConfig = MODE_CONFIG[mode];
-    const toolObjects = getToolsForPolicy($effectiveToolPolicy, modeConfig.tools);
+    const toolObjects = toolsForActiveSession($effectiveToolPolicy, modeConfig.tools);
     const modelSettings = resolveActiveModelSettings(st);
     const { sections } = assembleSystemPrompt({
       mode,
@@ -725,7 +739,7 @@ import {
 
   async function refreshFooterBalance(force = false) {
     const backend = get(settings).chatBackend;
-    if (backend !== "deepseek") {
+    if (backend !== "deepseek" && backend !== "kimi") {
       footerBalance = null;
       footerBalanceError = null;
       footerBalanceKey = backend;
@@ -737,8 +751,8 @@ import {
     footerBalanceLoading = true;
     footerBalanceError = null;
     try {
-      const apiKey = await getCloudApiKey("deepseek");
-      footerBalance = await fetchDeepseekAccountBalance(apiKey);
+      const apiKey = await getCloudApiKey(backend);
+      footerBalance = await fetchAccountBalance(backend, apiKey);
       footerBalanceKey = backend;
     } catch (err) {
       footerBalance = null;
@@ -1948,7 +1962,7 @@ import {
     const mode = get(currentMode);
     const modeConfig = MODE_CONFIG[mode];
     const policyState = get(effectiveToolPolicy);
-    let tools = getToolsForPolicy(policyState, modeConfig.tools);
+    let tools = toolsForActiveSession(policyState, modeConfig.tools);
     const modelSettings = resolveActiveModelSettings(st);
     const nativeTools = usesNativeToolCalls(modelSettings);
     let systemPromptText = buildSystemPrompt(tools.length > 0);
@@ -2162,7 +2176,8 @@ import {
         providerMessages = appendAssistantToolCalls(
           providerMessages,
           turnContent,
-          activeToolCalls
+          activeToolCalls,
+          turn.thinking
         );
 
         const toolRound = await executeToolCallsWithApproval(
@@ -2214,7 +2229,7 @@ import {
         if (modeSwitched) {
           const nextMode = get(currentMode);
           const nextModeConfig = MODE_CONFIG[nextMode];
-          tools = getToolsForPolicy(policyState, nextModeConfig.tools);
+          tools = toolsForActiveSession(policyState, nextModeConfig.tools);
           systemPromptText = buildSystemPrompt(tools.length > 0);
           providerMessages = [
             { role: "system", content: systemPromptText },

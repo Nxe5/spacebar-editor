@@ -6,6 +6,7 @@ describe("buildWorkspaceContextBlock", () => {
     const block = buildWorkspaceContextBlock("/home/user/proj");
     expect(block).toContain("/home/user/proj");
     expect(block).toContain("relative paths");
+    expect(block).toContain("create-vite");
   });
 
   it("warns when no workspace is open", () => {

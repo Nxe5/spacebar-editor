@@ -9,9 +9,11 @@ import {
   writeProjectState,
   isTauriAvailable,
 } from "./ipc";
-import { reloadProjectTools } from "./stores/toolPolicy";
+import { clearProjectToolsLayer, reloadProjectTools, projectToolPolicyNotices } from "./stores/toolPolicy";
+import { toast } from "svelte-sonner";
 import { systemPrompts } from "./stores/systemPrompts";
 import { skills } from "./stores/skills";
+import { workspaceRestricted } from "./workspaceTrust";
 import { buildWorkspaceTree, normalizeFileEntry } from "./workspace";
 import type { FileEntry } from "./stores/files";
 import { listDir } from "./ipc";
@@ -255,9 +257,18 @@ export async function switchProjectWorkspace(path: string): Promise<void> {
   activeWorkspace = normalized;
 
   if (isTauriAvailable()) {
-    void systemPrompts.load(normalized);
-    void skills.load(normalized);
-    await reloadProjectTools(normalized);
+    if (get(workspaceRestricted)) {
+      clearProjectToolsLayer();
+      skills.clear();
+      systemPrompts.clear();
+    } else {
+      void systemPrompts.load(normalized);
+      void skills.load(normalized);
+      await reloadProjectTools(normalized);
+      for (const msg of get(projectToolPolicyNotices)) {
+        toast.message(msg, { duration: 8000 });
+      }
+    }
   }
 }
 

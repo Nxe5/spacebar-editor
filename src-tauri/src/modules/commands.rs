@@ -54,8 +54,10 @@ pub fn read_file(
 
 #[tauri::command]
 pub fn write_file(workspace_root: Option<String>, path: String, contents: String) -> Result<String, String> {
-    let safe = resolve_path(workspace_root.as_deref(), &path)?;
+    let safe = resolve_path(workspace_root.as_deref(), &path)
+        .map_err(|e| format!("resolve_path failed for '{path}': {e}"))?;
     write_file_contents(&safe, &contents)
+        .map_err(|e| format!("write failed for '{}': {e}", safe))
 }
 
 #[tauri::command]

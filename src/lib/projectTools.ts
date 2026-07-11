@@ -1,6 +1,13 @@
 import { readFile, isTauriAvailable } from "./ipc";
 import { normalizeShellRules, type ShellRules } from "./shellPolicy";
-import type { CustomToolEntry, ToolPolicyState, ToolRule } from "./toolPolicy";
+import {
+  strictestToolRule,
+  globalToolRule,
+  type CustomToolEntry,
+  type ToolPolicyState,
+  type ToolRule,
+} from "./toolPolicy";
+import { ALL_TOOL_NAMES } from "./tools/toolDefinitions";
 import { EMPTY_PARAMETERS_JSON } from "./toolSchema";
 
 export type ProjectToolsFile = {
@@ -13,6 +20,16 @@ export type ProjectToolsFile = {
     parametersJson?: string;
   }>;
 };
+
+export type ProjectToolsMergeResult = {
+  state: ToolPolicyState;
+  /** Tool names whose project rules tried to widen global policy (ignored). */
+  ignoredPolicyWidening: string[];
+  /** Custom tool names dropped because they shadow a built-in tool. */
+  ignoredCustomToolShadows: string[];
+};
+
+const BUILTIN_SET = new Set<string>(ALL_TOOL_NAMES);
 
 export function projectToolsPath(workspacePath: string): string {
   const base = workspacePath.replace(/\/$/, "");
@@ -33,19 +50,67 @@ export async function loadProjectToolsFile(
   }
 }
 
+function mergeProjectToolRules(
+  global: ToolPolicyState,
+  projectRules: Record<string, ToolRule> | undefined
+): { toolRules: Record<string, ToolRule>; ignoredPolicyWidening: string[] } {
+  if (!projectRules) {
+    return { toolRules: { ...global.toolRules }, ignoredPolicyWidening: [] };
+  }
+
+  const toolRules = { ...global.toolRules };
+  const ignoredPolicyWidening: string[] = [];
+
+  for (const [name, projectRule] of Object.entries(projectRules)) {
+    const base = globalToolRule(global, name);
+    const merged = strictestToolRule(base, projectRule);
+    if (merged !== projectRule) {
+      ignoredPolicyWidening.push(name);
+    }
+    toolRules[name] = merged;
+  }
+
+  return { toolRules, ignoredPolicyWidening };
+}
+
 export function mergeProjectToolsLayer(
   global: ToolPolicyState,
   project: ProjectToolsFile | null
 ): ToolPolicyState {
-  if (!project) return global;
+  return mergeProjectToolsLayerDetailed(global, project).state;
+}
+
+export function mergeProjectToolsLayerDetailed(
+  global: ToolPolicyState,
+  project: ProjectToolsFile | null
+): ProjectToolsMergeResult {
+  if (!project) {
+    return {
+      state: global,
+      ignoredPolicyWidening: [],
+      ignoredCustomToolShadows: [],
+    };
+  }
+
+  const { toolRules, ignoredPolicyWidening } = mergeProjectToolRules(
+    global,
+    project.toolRules
+  );
 
   const customTools: CustomToolEntry[] = [...global.customTools];
+  const ignoredCustomToolShadows: string[] = [];
+
   if (project.customTools) {
     for (const t of project.customTools) {
       if (!t.name?.trim()) continue;
-      const idx = customTools.findIndex((c) => c.name === t.name);
+      const name = t.name.trim();
+      if (BUILTIN_SET.has(name)) {
+        ignoredCustomToolShadows.push(name);
+        continue;
+      }
+      const idx = customTools.findIndex((c) => c.name === name);
       const entry: CustomToolEntry = {
-        name: t.name.trim(),
+        name,
         description: t.description?.trim() || "Custom tool",
         rule: t.rule ?? global.defaultRule,
         parametersJson: t.parametersJson?.trim() || EMPTY_PARAMETERS_JSON,
@@ -56,11 +121,15 @@ export function mergeProjectToolsLayer(
   }
 
   return {
-    ...global,
-    toolRules: { ...global.toolRules, ...(project.toolRules ?? {}) },
-    shellRules: project.shellRules
-      ? normalizeShellRules(project.shellRules)
-      : global.shellRules,
-    customTools,
+    state: {
+      ...global,
+      toolRules,
+      shellRules: project.shellRules
+        ? normalizeShellRules(project.shellRules)
+        : global.shellRules,
+      customTools,
+    },
+    ignoredPolicyWidening,
+    ignoredCustomToolShadows,
   };
 }

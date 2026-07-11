@@ -1,15 +1,19 @@
 /** Account balance for cloud API providers (where exposed). */
 
 import { DEEPSEEK_API_BASE } from "./providers/deepseek";
+import { KIMI_API_BASE } from "./providers/kimi";
 
 export type BalanceCurrency = "USD" | "CNY";
 
 export type ProviderAccountBalance = {
-  provider: "deepseek";
+  provider: "deepseek" | "kimi";
   currency: BalanceCurrency;
+  /** Spendable balance (DeepSeek: total; Kimi: available). */
   totalBalance: number;
-  grantedBalance: number;
-  toppedUpBalance: number;
+  grantedBalance?: number;
+  toppedUpBalance?: number;
+  voucherBalance?: number;
+  cashBalance?: number;
   isAvailable: boolean;
 };
 
@@ -73,6 +77,61 @@ export async function fetchDeepseekAccountBalance(apiKey: string): Promise<Provi
     toppedUpBalance: parseAmount(row.topped_up_balance),
     isAvailable: body.is_available !== false,
   };
+}
+
+type KimiBalanceResponse = {
+  code?: number;
+  status?: boolean;
+  data?: {
+    available_balance?: number;
+    voucher_balance?: number;
+    cash_balance?: number;
+  };
+  error?: { message?: string };
+};
+
+/** Kimi / Moonshot: GET /v1/users/me/balance (see https://platform.kimi.ai/docs/api/balance). */
+export async function fetchKimiAccountBalance(apiKey: string): Promise<ProviderAccountBalance> {
+  const key = apiKey.trim();
+  if (key.length < 10) {
+    throw new Error("Kimi API key is missing or too short");
+  }
+
+  const res = await fetch(`${KIMI_API_BASE}/v1/users/me/balance`, {
+    headers: {
+      Authorization: `Bearer ${key}`,
+      Accept: "application/json",
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Kimi balance API ${res.status}${text ? `: ${text.slice(0, 160)}` : ""}`);
+  }
+
+  const body = (await res.json()) as KimiBalanceResponse;
+  if (body.code !== 0 || body.status === false || !body.data) {
+    throw new Error(body.error?.message ?? "Kimi balance response was not successful");
+  }
+
+  const available = body.data.available_balance ?? 0;
+  return {
+    provider: "kimi",
+    currency: "USD",
+    totalBalance: available,
+    voucherBalance: body.data.voucher_balance ?? 0,
+    cashBalance: body.data.cash_balance ?? 0,
+    isAvailable: available > 0,
+  };
+}
+
+export async function fetchAccountBalance(
+  provider: "deepseek" | "kimi",
+  apiKey: string
+): Promise<ProviderAccountBalance> {
+  if (provider === "deepseek") return fetchDeepseekAccountBalance(apiKey);
+  return fetchKimiAccountBalance(apiKey);
 }
 
 export function formatBalanceAmount(amount: number, currency: BalanceCurrency): string {

@@ -107,11 +107,16 @@ export function buildProviderMessages(
           role: "assistant",
           content: msg.content || null,
           tool_calls,
+          ...(msg.thinking?.trim() ? { reasoning_content: msg.thinking } : {}),
         });
         pendingToolCalls = msg.rawToolCalls;
         respondedIds = new Set();
       } else {
-        out.push({ role: "assistant", content: msg.content });
+        out.push({
+          role: "assistant",
+          content: msg.content,
+          ...(msg.thinking?.trim() ? { reasoning_content: msg.thinking } : {}),
+        });
       }
       continue;
     }
@@ -136,7 +141,8 @@ export function buildProviderMessages(
 export function appendAssistantToolCalls(
   messages: ProviderMessage[],
   content: string,
-  toolCalls: StoredToolCall[]
+  toolCalls: StoredToolCall[],
+  thinking?: string
 ): ProviderMessage[] {
   const tool_calls: OpenAIToolCall[] = toolCalls.map((tc) => ({
     id: tc.id,
@@ -149,6 +155,7 @@ export function appendAssistantToolCalls(
       role: "assistant",
       content: content || null,
       tool_calls,
+      ...(thinking?.trim() ? { reasoning_content: thinking } : {}),
     },
   ];
 }

@@ -3,7 +3,9 @@
   import { settings } from "$lib/stores/settings";
   import { files } from "$lib/stores/files";
   import { normalizeFilePath } from "$lib/fsPath";
-  import { isTauriAvailable, ptyCreate } from "$lib/ipc";
+  import { isTauriAvailable } from "$lib/ipc";
+  import { requestBottomPanelOpen } from "$lib/stores/bottomPanel";
+  import { bottomTerminals } from "$lib/stores/bottomTerminals";
   import { tabStripScroll } from "$lib/actions/scrollOverflow";
   import { toast } from "svelte-sonner";
   import ShellTabBubble from "./ShellTabBubble.svelte";
@@ -64,9 +66,8 @@
       return;
     }
     try {
-      const cwd = $files.workspacePath ?? null;
-      const id = await ptyCreate(cwd);
-      workbench.addTerminalTab(id);
+      requestBottomPanelOpen();
+      await bottomTerminals.createTab({ source: "user" });
     } catch (e) {
       toast.error(String(e));
     }

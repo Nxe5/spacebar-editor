@@ -304,8 +304,8 @@
   <p class="group-label">Tools</p>
   <p class="note muted">
     Tool policies and definitions are stored globally on this machine. Per-project overrides
-    live in <code>.sidebar/tools.json</code> (tool rules and custom tools). The model sees
-    name, description, and parameters JSON in Agent/Plan modes.
+    live in <code>.sidebar/tools.json</code> — project rules may only <strong>narrow</strong>
+    permissions (never widen). Custom tools cannot shadow built-in tool names.
   </p>
 
   <label class="field">
@@ -316,7 +316,7 @@
       bind:value={webFetchAllowedHostsText}
       placeholder="github.com&#10;docs.rs"
     ></textarea>
-    <span class="hint">One hostname per line. Used by the web_fetch tool only.</span>
+    <span class="hint">One hostname per line. Used by the web_fetch tool only — not a hard network boundary; shell commands can still reach other hosts unless web access is disabled or shell policy blocks them.</span>
   </label>
   <div class="tool-policy-table">
     <div class="tool-policy-row tool-policy-row--head">

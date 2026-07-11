@@ -96,6 +96,7 @@ describe("openaiCompat", () => {
       expect(body.model).toBe("gpt-4");
       expect(body.messages).toEqual(messages);
       expect(body.stream).toBe(true);
+      expect(body.stream_options).toEqual({ include_usage: true });
     });
 
     it("includes tools in request when provided", async () => {
@@ -253,6 +254,38 @@ describe("openaiCompat", () => {
       expect(toolCalls[0].id).toBe("call_123");
       expect(toolCalls[0].name).toBe("read_file");
       expect(toolCalls[0].arguments).toBe('{"path":"test.txt"}');
+    });
+
+    it("yields usage from a final usage-only chunk", async () => {
+      const body =
+        sseChunk({
+          id: "1",
+          object: "chat.completion.chunk",
+          created: 123,
+          model: "test",
+          choices: [{ index: 0, delta: { content: "Hi" } }],
+        }) +
+        sseChunk({
+          id: "1",
+          object: "chat.completion.chunk",
+          created: 123,
+          model: "test",
+          choices: [],
+          usage: { prompt_tokens: 42, completion_tokens: 7, total_tokens: 49 },
+        }) +
+        "data: [DONE]\n\n";
+
+      global.fetch = vi.fn().mockResolvedValue(createMockResponse(body));
+
+      const events = await collect(streamChat("http://localhost:11434", "model", []));
+
+      const doneWithUsage = events.find(
+        (e): e is Extract<StreamEvent, { type: "done" }> => e.type === "done" && Boolean(e.usage)
+      );
+      expect(doneWithUsage?.usage).toEqual({
+        prompt_tokens: 42,
+        completion_tokens: 7,
+      });
     });
 
     it("yields usage when provided in chunk", async () => {

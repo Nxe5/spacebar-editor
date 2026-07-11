@@ -11,7 +11,8 @@
 | **v0.1.2** | Public beta | ✅ **Shipped** (2026-06-05) | Keychain (later reverted), Rust path enforcement, CSP, agent turn undo |
 | **v0.1.3** | Post-beta | ✅ **Shipped** (2026-06-09) | Browser tab, element inspector, drag-drop chips, compaction defaults |
 | **v0.1.4** | Patch | ✅ **Shipped** (2026-06-10) | Native OS drop, chip icons, click-to-open, spec audit |
-| **v0.1.5** | Next | 🔶 In progress | GLM + Kimi providers, API keys in app settings, PTY resize; MLX + activity steps remaining |
+| **v0.1.5** | Current | 🔶 In progress | GLM + Kimi providers, API keys in app settings, PTY resize |
+| **v0.1.6** | Next | 📋 Planned | Trust boundary release — [45](45-security-hardening-and-capability-expansion.md) (workspace trust, narrow-only policy, web access globe, P0 audits) |
 
 ---
 
@@ -62,7 +63,11 @@
 | File watcher → UI | ✅ Done | [24-filesystem-watcher.md](24-filesystem-watcher.md) |
 | Shortcut rebinding | ✅ Done | [37-shortcut-rebinding.md](37-shortcut-rebinding.md) |
 | Agent turn undo | ✅ Done | "↩ Undo last turn" button — git checkpoint restore |
-| **MLX provider** (Apple Silicon) | ❌ Planned (v0.1.3) | `mlx_lm.server` OpenAI-compat backend — [42](42-mlx-provider.md) |
+| **Workspace trust gate** | ❌ Planned (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §2.1 |
+| **Tool policy narrow-only (project)** | ❌ Planned (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §2.2 — confirmed bug in `mergeProjectToolsLayer` |
+| **Web access globe toggle** | ❌ Planned (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §4.7 |
+| **Patch-style edit tool (`str_replace`)** | ❌ Planned (v0.1.7) | [45](45-security-hardening-and-capability-expansion.md) §4.1 |
+| **MLX provider** (Apple Silicon) | ❌ Planned | `mlx_lm.server` OpenAI-compat backend — [42](42-mlx-provider.md) |
 | **Context compaction** | ✅ Done | [21-context-compaction.md](21-context-compaction.md) — enabled by default at 85% |
 
 ---

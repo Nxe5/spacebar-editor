@@ -1,6 +1,6 @@
 import { get, writable } from "svelte/store";
 import { files, type FileEntry } from "./stores/files";
-import { acquireWorkspaceLock, addRecentProject, listDir, watchWorkspace, isTauriAvailable, type LockInfo } from "./ipc";
+import { acquireWorkspaceLock, addRecentProject, listDir, watchWorkspace, isTauriAvailable, releaseWorkspaceLock, type LockInfo } from "./ipc";
 import { normalizeFilePath } from "./fsPath";
 
 /** IPC may return snake_case or camelCase; keep a single shape for the UI. */
@@ -124,6 +124,16 @@ export async function applyWorkspaceFolder(path: string): Promise<boolean> {
   }
 
   const { switchProjectWorkspace } = await import("./projectState");
+  const { resolveWorkspaceTrustOnOpen } = await import("./workspaceTrust");
+
+  const trust = await resolveWorkspaceTrustOnOpen(normalized);
+  if (trust === "cancel") {
+    if (isTauriAvailable()) {
+      await releaseWorkspaceLock(normalized).catch(() => {});
+    }
+    return false;
+  }
+
   await switchProjectWorkspace(normalized);
 
   if (isTauriAvailable()) {

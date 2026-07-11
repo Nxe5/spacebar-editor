@@ -87,8 +87,9 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.88
           targets: ${{ matrix.rust-targets }}
 
       - uses: Swatinem/rust-cache@v2

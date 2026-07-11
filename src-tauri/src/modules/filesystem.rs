@@ -36,7 +36,11 @@ pub fn canonicalize_workspace_path(
                 break;
             }
             if let Some(name) = existing.file_name() {
-                suffix = PathBuf::from(name).join(&suffix);
+                if suffix.as_os_str().is_empty() {
+                    suffix = PathBuf::from(name);
+                } else {
+                    suffix = PathBuf::from(name).join(&suffix);
+                }
             }
             match existing.parent() {
                 Some(p) => existing = p.to_path_buf(),
@@ -449,6 +453,54 @@ pub fn web_fetch(url: &str, allowed_hosts: &[String], max_bytes: usize) -> Resul
 #[cfg(test)]
 mod write_tests {
     use super::*;
+
+    #[test]
+    fn canonicalize_new_file_at_workspace_root_and_write() {
+        let base = std::env::temp_dir().join(format!(
+            "tl_ws_root_write_{}",
+            uuid::Uuid::new_v4()
+        ));
+        fs::create_dir_all(&base).unwrap();
+        let root = base.as_path();
+        let resolved =
+            canonicalize_workspace_path(root, Path::new("package.json")).expect("resolve");
+        write_file_contents(&resolved.to_string_lossy(), r#"{"name":"x"}"#).expect("write");
+        assert!(resolved.is_file());
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn canonicalize_new_file_with_absolute_path_under_root() {
+        let base = std::env::temp_dir().join(format!(
+            "tl_ws_abs_write_{}",
+            uuid::Uuid::new_v4()
+        ));
+        fs::create_dir_all(&base).unwrap();
+        let root = base.as_path();
+        let abs = base.join("package.json");
+        let resolved =
+            canonicalize_workspace_path(root, abs.as_path()).expect("resolve");
+        write_file_contents(&resolved.to_string_lossy(), "{}").expect("write");
+        assert_eq!(fs::read_to_string(&resolved).unwrap(), "{}");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn canonicalize_new_file_when_parent_dir_exists() {
+        let base = std::env::temp_dir().join(format!(
+            "tl_ws_nested_write_{}",
+            uuid::Uuid::new_v4()
+        ));
+        let src = base.join("src");
+        fs::create_dir_all(&src).unwrap();
+        let root = base.as_path();
+        let resolved =
+            canonicalize_workspace_path(root, Path::new("src/main.jsx")).expect("resolve");
+        assert!(!resolved.to_string_lossy().ends_with('/'));
+        write_file_contents(&resolved.to_string_lossy(), "export {}").expect("write");
+        assert!(resolved.is_file());
+        let _ = fs::remove_dir_all(&base);
+    }
 
     #[test]
     fn write_file_contents_creates_missing_parent_dirs() {

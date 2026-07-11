@@ -101,12 +101,13 @@ export function footerUsageToggleTitle(
   view: FooterUsageView,
   backend: "anthropic" | "deepseek" | "glm" | "kimi"
 ): string {
+  const balanceViaApi = backend === "deepseek" || backend === "kimi";
   if (view === "tokens") {
-    return backend === "deepseek"
+    return balanceViaApi
       ? "Click to show account balance remaining"
       : "Click to show account balance remaining · balance not available via API";
   }
-  if (backend === "deepseek") {
+  if (balanceViaApi) {
     return "Click to show monthly token usage";
   }
   return "Click to show monthly token usage · balance not available via API";
@@ -114,7 +115,7 @@ export function footerUsageToggleTitle(
 
 export function cloudContextBudgetTitle(contextMax: number, backend?: ChatBackend): string {
   const balanceNote =
-    backend === "deepseek"
+    backend === "deepseek" || backend === "kimi"
       ? "Click monthly usage in the footer to see account balance remaining."
       : "Providers do not expose remaining account balance in the API — check your dashboard for billing.";
   return (

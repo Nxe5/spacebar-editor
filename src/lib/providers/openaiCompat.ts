@@ -3,6 +3,8 @@ export interface Message {
   content: string | null;
   tool_call_id?: string;
   tool_calls?: ToolCall[];
+  /** Kimi K2 / DeepSeek reasoner: required on follow-up turns when tools were used. */
+  reasoning_content?: string | null;
 }
 
 export interface ToolParameter {
@@ -87,6 +89,13 @@ export type InferenceOptions = {
   think?: boolean;
 };
 
+export type ChatCompletionOptions = {
+  toolChoice?: "auto" | "none" | "required";
+  parallelToolCalls?: boolean;
+  /** Request a final SSE chunk with token usage (OpenAI / Moonshot / DeepSeek). */
+  includeUsage?: boolean;
+};
+
 export async function* streamChat(
   baseUrl: string,
   model: string,
@@ -98,7 +107,8 @@ export async function* streamChat(
   /** Set true only for Ollama — enables Ollama-specific body extensions (think, options). */
   isOllama = false,
   /** Override chat completions path (default OpenAI `/v1/chat/completions`; GLM uses `/chat/completions`). */
-  chatCompletionsPath = "/v1/chat/completions"
+  chatCompletionsPath = "/v1/chat/completions",
+  chatOptions?: ChatCompletionOptions
 ): AsyncGenerator<StreamEvent> {
   const url = `${baseUrl.replace(/\/$/, "")}${chatCompletionsPath}`;
 
@@ -106,10 +116,15 @@ export async function* streamChat(
     model,
     messages,
     stream: true,
+    stream_options: { include_usage: chatOptions?.includeUsage !== false },
   };
 
   if (tools && tools.length > 0) {
     body.tools = tools;
+    body.tool_choice = chatOptions?.toolChoice ?? "auto";
+    if (chatOptions?.parallelToolCalls !== undefined) {
+      body.parallel_tool_calls = chatOptions.parallelToolCalls;
+    }
   }
 
   if (isOllama && inferenceOptions?.think) {
@@ -185,7 +200,7 @@ export async function* streamChat(
           continue;
         }
 
-        for (const choice of chunk.choices) {
+        for (const choice of chunk.choices ?? []) {
           const delta = choice.delta;
           if (!delta) continue;
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolvePath, assertWithinWorkspace, resolveWorkspacePath, joinPath } from "../../src/lib/tools/pathUtils";
+import { resolvePath, assertWithinWorkspace, resolveWorkspacePath, joinPath, toWorkspaceRelativePath } from "../../src/lib/tools/pathUtils";
 
 describe("pathUtils", () => {
   const workspace = "/test/workspace";
@@ -43,5 +43,11 @@ describe("pathUtils", () => {
   it("resolveWorkspacePath allows create_file at workspace root", () => {
     expect(resolveWorkspacePath(workspace, "test.txt")).toBe("/test/workspace/test.txt");
     expect(resolveWorkspacePath(workspace, "/test.txt")).toBe("/test/workspace/test.txt");
+  });
+
+  it("toWorkspaceRelativePath converts absolute paths under workspace", () => {
+    expect(toWorkspaceRelativePath(workspace, "/test/workspace/package.json")).toBe("package.json");
+    expect(toWorkspaceRelativePath(workspace, "src/App.tsx")).toBe("src/App.tsx");
+    expect(toWorkspaceRelativePath(workspace, "/test/workspace")).toBe(".");
   });
 });

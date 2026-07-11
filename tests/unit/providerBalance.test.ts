@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   formatBalanceAmount,
   fetchDeepseekAccountBalance,
+  fetchKimiAccountBalance,
 } from "../../src/lib/providerBalance";
 
 describe("providerBalance", () => {
@@ -43,6 +44,44 @@ describe("providerBalance", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: "Bearer sk-test-key-1234567890",
+        }),
+      })
+    );
+
+    vi.unstubAllGlobals();
+  });
+
+  it("parses Kimi balance response", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          code: 0,
+          status: true,
+          data: {
+            available_balance: 12.5,
+            voucher_balance: 10,
+            cash_balance: 2.5,
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const balance = await fetchKimiAccountBalance("sk-kimi-test-key-1234567890");
+    expect(balance).toEqual({
+      provider: "kimi",
+      currency: "USD",
+      totalBalance: 12.5,
+      voucherBalance: 10,
+      cashBalance: 2.5,
+      isAvailable: true,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.moonshot.ai/v1/users/me/balance",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer sk-kimi-test-key-1234567890",
         }),
       })
     );

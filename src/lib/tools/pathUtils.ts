@@ -75,3 +75,21 @@ export function resolveWorkspacePath(
   }
   return resolved;
 }
+
+/** Workspace-relative path for IPC (avoids macOS /private prefix mismatches on absolute paths). */
+export function toWorkspaceRelativePath(workspacePath: string, resolvedOrRelative: string): string {
+  const root = normalizePath(workspacePath.trim());
+  const target = normalizePath(resolvedOrRelative.trim());
+  if (!root || root === "/") {
+    throw new Error("Workspace path is not set or invalid");
+  }
+  if (target === root) return ".";
+  const prefix = `${root}/`;
+  if (target.startsWith(prefix)) {
+    return target.slice(prefix.length);
+  }
+  if (!isAbsolutePath(target)) {
+    return target.replace(/^\.\//, "");
+  }
+  return target;
+}

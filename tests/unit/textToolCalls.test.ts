@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeToolName,
+  normalizeToolArguments,
   recoverToolCallsFromText,
   textLooksLikeFakeToolUse,
   findMalformedToolCallFragments,
@@ -24,6 +25,14 @@ describe("textToolCalls", () => {
 
   it("maps git status alias", () => {
     expect(normalizeToolName("git status")).toBe("get_git_status");
+  });
+
+  it("maps write_file file alias to path", () => {
+    expect(normalizeToolArguments("write_file", { file: "src/App.tsx", content: "x" })).toEqual({
+      file: "src/App.tsx",
+      content: "x",
+      path: "src/App.tsx",
+    });
   });
 
   it("ignores hallucinated result blocks", () => {

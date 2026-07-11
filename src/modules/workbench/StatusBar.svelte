@@ -16,6 +16,9 @@
   import SidebarIcon from "phosphor-svelte/lib/SidebarIcon";
   import RowsIcon from "phosphor-svelte/lib/RowsIcon";
   import AppWindowIcon from "phosphor-svelte/lib/AppWindowIcon";
+  import { chat, activeSession } from "$lib/stores/chat";
+  import Globe from "phosphor-svelte/lib/Globe";
+  import { workspaceRestricted } from "$lib/workspaceTrust";
   import { EXPLORER_PANEL_TABS, type ExplorerPanelTab } from "$lib/explorerPanel";
   import type { AppIconName } from "$lib/icons/appIcons";
 
@@ -43,6 +46,7 @@
     onOpenWorkspace,
     onOpenSettings,
     onOpenFeedback,
+    onToggleWebAccess,
   }: {
     showLeftPanel?: boolean;
     showRightPanel?: boolean;
@@ -58,6 +62,7 @@
     onOpenWorkspace?: () => void;
     onOpenSettings?: () => void;
     onOpenFeedback?: () => void;
+    onToggleWebAccess?: () => void;
   } = $props();
 
   function explorerTabPressed(tab: ExplorerPanelTab): boolean {
@@ -78,6 +83,7 @@
       isPrettierSupportedPath($activeEditorFile.path)
   );
   let wordWrapOn = $derived($settings.editor.wordWrap);
+  let webAccessOn = $derived($activeSession?.webAccessEnabled === true);
 
   async function refreshGit() {
     if (!isTauriAvailable()) {
@@ -240,6 +246,10 @@
       </span>
       <span class="status-sep" aria-hidden="true"></span>
     {/if}
+    {#if $workspaceRestricted}
+      <span class="restricted-pill" title="Agent context from this project is not loaded">Restricted</span>
+      <span class="status-sep" aria-hidden="true"></span>
+    {/if}
     <span class="status-label">{$backendStatus.label}</span>
     <span
       class="status-dot"
@@ -297,6 +307,19 @@
           <AppIcon name={EXPLORER_TAB_ICONS[tab.id]} size={16} />
         </button>
       {/each}
+      <button
+        type="button"
+        class="status-toggle workbench-icon-btn web-access-btn"
+        class:active={webAccessOn}
+        aria-pressed={webAccessOn}
+        title={webAccessOn
+          ? "Web access enabled — agent can fetch URLs"
+          : "Web access disabled — click to allow web_fetch for this session"}
+        aria-label={webAccessOn ? "Disable web access" : "Enable web access"}
+        onclick={() => onToggleWebAccess?.()}
+      >
+        <Globe size={16} weight={webAccessOn ? "fill" : "regular"} aria-hidden="true" />
+      </button>
     </div>
 
     <span class="status-sep" aria-hidden="true"></span>
@@ -399,6 +422,24 @@
 
   .git-dirty {
     color: #d29922;
+  }
+
+  .restricted-pill {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: color-mix(in srgb, #f59e0b 18%, transparent);
+    color: #fbbf24;
+    border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+    flex-shrink: 0;
+  }
+
+  .web-access-btn:not(.active) {
+    opacity: 0.45;
+  }
+
+  .web-access-btn.active {
+    color: var(--syntax-string, #98c379);
   }
 
   .status-sep {

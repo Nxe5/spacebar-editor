@@ -10,6 +10,24 @@ import {
 
 export type ToolRule = "allow" | "deny" | "ask";
 
+const TOOL_RULE_STRICTNESS: Record<ToolRule, number> = {
+  deny: 0,
+  ask: 1,
+  allow: 2,
+};
+
+/** Pick the more restrictive of two tool rules (deny < ask < allow). */
+export function strictestToolRule(a: ToolRule, b: ToolRule): ToolRule {
+  return TOOL_RULE_STRICTNESS[a] <= TOOL_RULE_STRICTNESS[b] ? a : b;
+}
+
+export function globalToolRule(state: ToolPolicyState, toolName: string): ToolRule {
+  const custom = state.customTools.find((t) => t.name === toolName);
+  if (custom) return custom.rule;
+  if (state.toolRules[toolName] != null) return state.toolRules[toolName];
+  return state.defaultRule;
+}
+
 export type BuiltinToolOverride = {
   description?: string;
   parametersJson?: string;

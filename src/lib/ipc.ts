@@ -1,5 +1,6 @@
 import type { FileEntry } from "./stores/files";
 import type { GitLogEntry, GitPathStatus } from "./gitTypes";
+import { toWorkspaceRelativePath } from "./tools/pathUtils";
 
 function detectTauri(): boolean {
   if (typeof window === "undefined") return false;
@@ -70,7 +71,12 @@ export async function readFileRanged(
 /** Returns an optional audit prefix (e.g. created parent directories) before the write. */
 export async function writeFile(workspaceRoot: string | null, path: string, contents: string): Promise<string> {
   await ensureTauriApi();
-  return invoke<string>("write_file", { workspaceRoot: workspaceRoot ?? null, path, contents });
+  const root = workspaceRoot?.trim();
+  if (root) {
+    const rel = toWorkspaceRelativePath(root, path);
+    return invoke<string>("write_file", { workspaceRoot: root, path: rel, contents });
+  }
+  return invoke<string>("write_file", { workspaceRoot: null, path, contents });
 }
 
 export async function createDir(workspaceRoot: string | null, path: string): Promise<void> {

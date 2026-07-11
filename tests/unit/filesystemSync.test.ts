@@ -46,12 +46,24 @@ describe("filesystemSync", () => {
     expect(tree.some((e) => e.name === "new.txt")).toBe(true);
   });
 
-  it("opens new file in editor after create_file", async () => {
+  it("does not open new file in editor after create_file", async () => {
     await syncUiAfterFilesystemTool(workspace, "create_file", { path: "new.txt", content: "x" }, true);
 
-    expect(mockReadFile).toHaveBeenCalledWith(null, "/proj/new.txt");
-    expect(get(files).openFiles.some((f) => f.path === "/proj/new.txt")).toBe(true);
-    expect(get(workbench).activeTabId).toBe("editor:/proj/new.txt");
+    expect(mockReadFile).not.toHaveBeenCalled();
+    expect(get(files).openFiles.some((f) => f.path === "/proj/new.txt")).toBe(false);
+    expect(get(workbench).activeTabId).toBeNull();
+  });
+
+  it("does not open unopened file after write_file", async () => {
+    await syncUiAfterFilesystemTool(
+      workspace,
+      "write_file",
+      { path: "new.txt", content: "fresh content" },
+      true
+    );
+
+    expect(mockReadFile).not.toHaveBeenCalled();
+    expect(get(files).openFiles.some((f) => f.path === "/proj/new.txt")).toBe(false);
   });
 
   it("reloads open buffer after write_file", async () => {

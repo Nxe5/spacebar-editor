@@ -48,6 +48,8 @@ export interface ChatSession {
   title: string;
   messages: Message[];
   updatedAt: number;
+  /** When false, web_fetch is excluded from the agent tool schema (default off). */
+  webAccessEnabled?: boolean;
   /** ISO timestamp of the last compaction (spec 21). */
   compactedAt?: string;
   /** Number of times this session has been compacted. */
@@ -74,7 +76,14 @@ const MAX_HISTORY = 80;
 
 function makeSession(title = "New chat"): ChatSession {
   const id = crypto.randomUUID();
-  return { id, title, messages: [], updatedAt: Date.now() };
+  return { id, title, messages: [], updatedAt: Date.now(), webAccessEnabled: false };
+}
+
+export function normalizeChatSession(session: ChatSession): ChatSession {
+  return {
+    ...session,
+    webAccessEnabled: session.webAccessEnabled === true,
+  };
 }
 
 function stripClosedAt(s: ChatSession): ChatSession {
@@ -117,6 +126,32 @@ function createChatStore() {
         };
       });
       return newId;
+    },
+    setWebAccessEnabled: (sessionId: string, enabled: boolean) => {
+      update((s) => ({
+        ...s,
+        sessions: s.sessions.map((sess) =>
+          sess.id === sessionId ? { ...sess, webAccessEnabled: enabled, updatedAt: Date.now() } : sess
+        ),
+      }));
+    },
+    toggleWebAccessForActiveSession: () => {
+      update((s) => {
+        const aid = s.activeSessionId;
+        if (!aid) return s;
+        return {
+          ...s,
+          sessions: s.sessions.map((sess) =>
+            sess.id === aid
+              ? {
+                  ...sess,
+                  webAccessEnabled: !(sess.webAccessEnabled === true),
+                  updatedAt: Date.now(),
+                }
+              : sess
+          ),
+        };
+      });
     },
     setActiveSession: (sessionId: string) => {
       update((s) => {
@@ -245,7 +280,7 @@ function createChatStore() {
       history: ChatSession[];
       activeSessionId: string | null;
     }) {
-      let sessions = snapshot.sessions;
+      let sessions = snapshot.sessions.map(normalizeChatSession);
       let activeSessionId = snapshot.activeSessionId;
       if (!sessions.length) {
         const s = makeSession();
@@ -256,7 +291,7 @@ function createChatStore() {
       }
       set({
         sessions,
-        history: snapshot.history ?? [],
+        history: (snapshot.history ?? []).map(normalizeChatSession),
         activeSessionId,
         isStreaming: false,
         currentToolCall: null,

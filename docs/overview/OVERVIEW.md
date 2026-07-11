@@ -32,7 +32,7 @@
 | Persistence | ✅ Complete | Per-project `.sidebar/state.json` |
 | Planning (`plans/`) | ❌ Not started | Plan mode is read-only + chat-only — [19](specs/19-planning-system.md) |
 | Skills | ✅ Complete (per-project) | CRUD UI + variable interpolation; Settings → Agent Context → Skills — [30](specs/30-agent-context-and-model-settings.md). Bundled pack/registry still planned. |
-| Security | ✅ Complete | App-settings API keys, Rust path enforcement, production CSP — [33](specs/33-rust-path-enforcement.md), [14](specs/14-security.md) |
+| Security | 🔶 Partial | App-settings API keys, Rust path enforcement, CSP — trust plan [45](specs/45-security-hardening-and-capability-expansion.md) |
 | Agent runtime | ✅ Complete | Webview agent loop + Rust IPC — **no Node sidecar** |
 
 ---
@@ -131,7 +131,8 @@ There is **no Node sidecar**. The agent loop runs in the webview; OS integration
 
 | Feature | Status |
 |---------|--------|
-| MLX provider (Apple Silicon) | ❌ Planned — v0.1.5 |
+| MLX provider (Apple Silicon) | ❌ Planned — v0.1.5+ |
+| Workspace trust + web access globe | ❌ Planned — v0.1.6 — [45](specs/45-security-hardening-and-capability-expansion.md) |
 | Agent activity step grouping | ❌ Planned — v0.1.5 |
 | Persistent plans (`plans/`) | ❌ Not started |
 | Cmd+K inline edit | ❌ Not started |

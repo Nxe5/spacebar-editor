@@ -1,6 +1,5 @@
 pub mod commands;
 pub mod filesystem;
-pub mod secrets;
 pub mod git;
 pub mod icon_pack;
 pub mod lsp;

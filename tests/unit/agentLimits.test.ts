@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clampAgentLimits,
+  CLOUD_AGENT_LIMITS,
   LOCAL_AGENT_LIMITS,
   UNLIMITED_AGENT_LIMITS,
   defaultAgentLimitsForBackend,
@@ -57,7 +58,15 @@ describe("normalizeAgentLimits", () => {
         parallelExecution: false,
         maxConcurrentTools: 4,
       })
-    ).toEqual(UNLIMITED_AGENT_LIMITS);
+    ).toEqual({ ...UNLIMITED_AGENT_LIMITS, parallelExecution: false });
+  });
+
+  it("enables parallel execution by default for new installs", () => {
+    expect(LOCAL_AGENT_LIMITS.parallelExecution).toBe(true);
+    expect(CLOUD_AGENT_LIMITS.parallelExecution).toBe(true);
+    expect(defaultAgentLimitsForBackend("ollama").parallelExecution).toBe(true);
+    expect(defaultAgentLimitsForBackend("anthropic").parallelExecution).toBe(true);
+    expect(normalizeAgentLimits(undefined, "ollama").parallelExecution).toBe(true);
   });
 
   it("defaultAgentLimitsForBackend", () => {

@@ -73,6 +73,13 @@ export function normalizeToolArguments(
   if (toolName === "read_file" && out.path == null && typeof out.file === "string") {
     out.path = out.file;
   }
+  if (
+    (toolName === "write_file" || toolName === "create_file") &&
+    out.path == null &&
+    typeof out.file === "string"
+  ) {
+    out.path = out.file;
+  }
   if (toolName === "list_dir") {
     if (out.path == null) {
       const p = out.directory ?? out.dir ?? out.folder ?? out.pathname;

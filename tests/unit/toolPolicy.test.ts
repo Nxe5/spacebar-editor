@@ -11,10 +11,17 @@ import {
   validateToolEditorPayload,
   getEditorPayloadForTool,
   DEFAULT_TOOL_POLICY,
+  strictestToolRule,
 } from "../../src/lib/toolPolicy";
 import { EMPTY_PARAMETERS_JSON } from "../../src/lib/toolSchema";
 
 describe("toolPolicy", () => {
+  it("strictestToolRule picks the more restrictive rule", () => {
+    expect(strictestToolRule("allow", "ask")).toBe("ask");
+    expect(strictestToolRule("ask", "allow")).toBe("ask");
+    expect(strictestToolRule("deny", "allow")).toBe("deny");
+  });
+
   it("resolveToolRule uses per-tool override", () => {
     const state = {
       ...DEFAULT_TOOL_POLICY,

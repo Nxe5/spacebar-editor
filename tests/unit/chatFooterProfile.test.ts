@@ -67,6 +67,8 @@ describe("footerUsageToggleTitle", () => {
   it("explains click to toggle views", () => {
     expect(footerUsageToggleTitle("tokens", "deepseek")).toContain("balance");
     expect(footerUsageToggleTitle("balance", "deepseek")).toContain("token");
+    expect(footerUsageToggleTitle("tokens", "kimi")).toContain("balance");
+    expect(footerUsageToggleTitle("balance", "kimi")).toContain("token");
   });
 });
 

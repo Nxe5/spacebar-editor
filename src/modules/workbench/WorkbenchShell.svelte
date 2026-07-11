@@ -13,10 +13,14 @@
   import WindowControls from "./WindowControls.svelte";
   import SettingsPane from "../settings/SettingsPane.svelte";
   import FeedbackDialog from "../feedback/FeedbackDialog.svelte";
+  import WorkspaceTrustDialog from "../workspace/WorkspaceTrustDialog.svelte";
   import WorkspaceLockDialog from "../workspace/WorkspaceLockDialog.svelte";
+  import { chat } from "$lib/stores/chat";
   import WorkspaceReadOnlyBanner from "../workspace/WorkspaceReadOnlyBanner.svelte";
   import WelcomeScreen from "../workspace/WelcomeScreen.svelte";
   import BottomDock from "./BottomDock.svelte";
+  import { bottomPanelOpenRequest } from "$lib/stores/bottomPanel";
+  import { bottomTerminals } from "$lib/stores/bottomTerminals";
   import { workbench } from "$lib/stores/workbench";
   import { layoutOverride } from "$lib/stores/layoutOverride";
   import { files } from "$lib/stores/files";
@@ -26,7 +30,6 @@
   import {
     isTauriAvailable,
     closeAuxiliaryWebviewWindows,
-    ptyCreate,
     pickWorkspaceFolder,
   } from "$lib/ipc";
   import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -282,15 +285,19 @@
     };
   });
 
+  $effect(() => {
+    const _req = $bottomPanelOpenRequest;
+    if (_req > 0) showBottomPanel = true;
+  });
+
   async function newTerminalTab() {
     if (!isTauriAvailable()) {
       toast.error("Terminal requires Tauri.");
       return;
     }
+    showBottomPanel = true;
     try {
-      const cwd = get(files).workspacePath ?? undefined;
-      const id = await ptyCreate(cwd ?? null);
-      workbench.addTerminalTab(id);
+      await bottomTerminals.createTab({ source: "user" });
     } catch (e) {
       toast.error(String(e));
     }
@@ -478,6 +485,7 @@
     onOpenWorkspace={() => void chooseWorkspaceFolder()}
     onOpenSettings={openSettingsModal}
     onOpenFeedback={openFeedbackModal}
+    onToggleWebAccess={() => chat.toggleWebAccessForActiveSession()}
   />
   {/if}
 </div>
@@ -485,6 +493,7 @@
 <SettingsPane open={settingsOpen} onClose={() => (settingsOpen = false)} />
 <FeedbackDialog open={feedbackOpen} onClose={() => (feedbackOpen = false)} />
 <WorkspaceLockDialog />
+<WorkspaceTrustDialog />
 
 <style>
   .workbench-root {

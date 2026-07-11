@@ -20,6 +20,7 @@ vi.mock("../../src/lib/ipc", () => ({
   listDir: (...args: unknown[]) => mockListDir(...args),
   grepWorkspace: (...args: unknown[]) => mockGrepWorkspace(...args),
   runShell: (...args: unknown[]) => mockRunShell(...args),
+  ptyWrite: vi.fn().mockResolvedValue(undefined),
   deleteEntry: (...args: unknown[]) => mockDeleteEntry(...args),
   renameEntry: (...args: unknown[]) => mockRenameEntry(...args),
   pathExists: (...args: unknown[]) => mockPathExists(...args),
@@ -27,6 +28,16 @@ vi.mock("../../src/lib/ipc", () => ({
   gitLog: (...args: unknown[]) => mockGitLog(...args),
   gitDiff: (...args: unknown[]) => mockGitDiff(...args),
   isTauriAvailable: () => mockIsTauriAvailable(),
+}));
+
+vi.mock("../../src/lib/stores/bottomTerminals", () => ({
+  bottomTerminals: {
+    createTab: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+vi.mock("../../src/lib/stores/bottomPanel", () => ({
+  requestBottomPanelOpen: vi.fn(),
 }));
 
 import { executeTool } from "../../src/lib/tools/toolRunner";

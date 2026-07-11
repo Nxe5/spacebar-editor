@@ -1,92 +1,131 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
-  import { get } from "svelte/store";
-  import { files } from "$lib/stores/files";
+  import { bottomTerminals } from "$lib/stores/bottomTerminals";
   import TerminalPane from "../terminal/TerminalPane.svelte";
-  import { isTauriAvailable, ptyCreate, ptyClose } from "$lib/ipc";
+  import AgentTerminalOutput from "../terminal/AgentTerminalOutput.svelte";
+  import { isTauriAvailable } from "$lib/ipc";
+  import Plus from "@lucide/svelte/icons/plus";
+  import X from "@lucide/svelte/icons/x";
 
   interface Props {
-    /** When false, dock is hidden and PTY is released */
+    /** When false, dock is hidden but PTY sessions stay alive. */
     open: boolean;
   }
 
   let { open }: Props = $props();
 
-  type DockTabId = "terminal" | "debug" | "serial";
+  type DockPanelId = "terminal" | "debug" | "serial";
 
-  let activeTab = $state<DockTabId>("terminal");
-  let dockSessionId = $state<string | null>(null);
+  let activePanel = $state<DockPanelId>("terminal");
   let terminalError = $state<string | null>(null);
-  let starting = $state(false);
+  let addingTerminal = $state(false);
 
-  function releasePty() {
-    if (dockSessionId) {
-      void ptyClose(dockSessionId);
-      dockSessionId = null;
-    }
-    terminalError = null;
-    starting = false;
-  }
-
-  $effect(() => {
-    if (!open) {
-      releasePty();
-      return;
-    }
-    if (activeTab !== "terminal") return;
-    if (!isTauriAvailable()) {
-      terminalError = null;
-      return;
-    }
-    if (dockSessionId || starting) return;
-
-    starting = true;
-    terminalError = null;
-    void (async () => {
-      try {
-        const cwd = get(files).workspacePath ?? undefined;
-        const id = await ptyCreate(cwd ?? null);
-        dockSessionId = id;
-      } catch (e) {
-        terminalError = String(e);
-      } finally {
-        starting = false;
-      }
-    })();
-  });
-
-  onDestroy(() => {
-    releasePty();
-  });
-
-  const tabs: { id: DockTabId; label: string }[] = [
+  const panelTabs: { id: DockPanelId; label: string }[] = [
     { id: "terminal", label: "Terminal" },
     { id: "debug", label: "Debug Console" },
     { id: "serial", label: "Serial" },
   ];
+
+  let activeTerminal = $derived(
+    $bottomTerminals.tabs.find((t) => t.id === $bottomTerminals.activeTabId) ?? null
+  );
+
+  async function ensureDefaultTerminal() {
+    if (!open || activePanel !== "terminal") return;
+    if (!isTauriAvailable()) return;
+    if ($bottomTerminals.tabs.length > 0) return;
+    await addTerminal();
+  }
+
+  $effect(() => {
+    if (open && activePanel === "terminal") {
+      void ensureDefaultTerminal();
+    }
+  });
+
+  async function addTerminal() {
+    if (!isTauriAvailable() || addingTerminal) return;
+    addingTerminal = true;
+    terminalError = null;
+    try {
+      await bottomTerminals.createTab({ source: "user" });
+    } catch (e) {
+      terminalError = String(e);
+    } finally {
+      addingTerminal = false;
+    }
+  }
+
+  function closeTerminalTab(tabId: string, e: MouseEvent) {
+    e.stopPropagation();
+    bottomTerminals.closeTab(tabId);
+  }
 </script>
 
 <div class="dock-root flex h-full min-h-0 flex-col bg-background">
-  <div class="dock-tablist" role="tablist" aria-label="Bottom panel">
-    {#each tabs as t (t.id)}
-      <div class="dock-tab-wrap" class:dock-tab-wrap--active={activeTab === t.id}>
+  <div class="dock-header">
+    <div class="dock-tablist" role="tablist" aria-label="Bottom panel">
+      {#each panelTabs as t (t.id)}
+        <div class="dock-tab-wrap" class:dock-tab-wrap--active={activePanel === t.id}>
+          <button
+            type="button"
+            role="tab"
+            class="dock-tab-main"
+            aria-selected={activePanel === t.id}
+            tabindex={activePanel === t.id ? 0 : -1}
+            title={t.label}
+            onclick={() => (activePanel = t.id)}
+          >
+            {t.label}
+          </button>
+        </div>
+      {/each}
+    </div>
+
+    {#if activePanel === "terminal"}
+      <div class="terminal-tablist" role="tablist" aria-label="Terminal sessions">
+        {#each $bottomTerminals.tabs as tab (tab.id)}
+          <div
+            class="dock-tab-wrap terminal-tab"
+            class:dock-tab-wrap--active={$bottomTerminals.activeTabId === tab.id}
+            class:terminal-tab--agent={tab.source === "agent"}
+          >
+            <button
+              type="button"
+              role="tab"
+              class="dock-tab-main terminal-tab__main"
+              aria-selected={$bottomTerminals.activeTabId === tab.id}
+              title={tab.title}
+              onclick={() => bottomTerminals.setActiveTab(tab.id)}
+            >
+              {tab.title}
+            </button>
+            <button
+              type="button"
+              class="terminal-tab__close"
+              aria-label="Close terminal"
+              title="Close"
+              onclick={(e) => closeTerminalTab(tab.id, e)}
+            >
+              <X size={12} aria-hidden="true" />
+            </button>
+          </div>
+        {/each}
         <button
           type="button"
-          role="tab"
-          class="dock-tab-main"
-          aria-selected={activeTab === t.id}
-          tabindex={activeTab === t.id ? 0 : -1}
-          title={t.label}
-          onclick={() => (activeTab = t.id)}
+          class="terminal-add-btn"
+          title="New terminal"
+          aria-label="New terminal"
+          disabled={addingTerminal}
+          onclick={() => void addTerminal()}
         >
-          {t.label}
+          <Plus size={14} aria-hidden="true" />
         </button>
       </div>
-    {/each}
+    {/if}
   </div>
 
   <div class="relative min-h-0 flex-1 overflow-hidden">
-    {#if activeTab === "terminal"}
+    {#if activePanel === "terminal"}
       {#if !isTauriAvailable()}
         <div class="flex h-full items-center justify-center p-4 text-center text-sm text-muted-foreground">
           Integrated terminal needs the desktop app. Run
@@ -97,16 +136,28 @@
         <div class="flex h-full items-center justify-center p-4 text-center text-sm text-destructive">
           {terminalError}
         </div>
-      {:else if starting || !dockSessionId}
-        <div class="flex h-full items-center justify-center text-sm text-muted-foreground">Starting terminal…</div>
-      {:else}
-        {#key dockSessionId}
+      {:else if !activeTerminal}
+        <div class="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+          <span>No terminal open.</span>
+          <button type="button" class="dock-link-btn" onclick={() => void addTerminal()}>New terminal</button>
+        </div>
+      {:else if activeTerminal.output != null}
+        {#key activeTerminal.id}
           <div class="absolute inset-0 flex min-h-0 flex-col">
-            <TerminalPane sessionId={dockSessionId} />
+            <AgentTerminalOutput output={activeTerminal.output} />
+          </div>
+        {/key}
+      {:else}
+        {#key activeTerminal.sessionId}
+          <div class="absolute inset-0 flex min-h-0 flex-col">
+            <TerminalPane
+              sessionId={activeTerminal.sessionId}
+              onExit={() => bottomTerminals.closeTab(activeTerminal.id)}
+            />
           </div>
         {/key}
       {/if}
-    {:else if activeTab === "debug"}
+    {:else if activePanel === "debug"}
       <div class="h-full overflow-auto p-3 font-mono text-xs text-muted-foreground">
         <p class="mb-2 text-foreground">Debug Console</p>
         <p>Harness logs, extension output, and DAP messages will show here.</p>
@@ -138,15 +189,20 @@
 </div>
 
 <style>
-  /**
-   * Top edge uses the same tone as the right activity strip (`sidebar-icons` / `--activity-bar-bg`).
-   */
   .dock-root {
     border: none;
     border-top: 1px solid var(--activity-bar-bg);
   }
 
-  .dock-tablist {
+  .dock-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .dock-tablist,
+  .terminal-tablist {
     display: flex;
     height: var(--workbench-row-header-height, 26px);
     flex-shrink: 0;
@@ -154,8 +210,12 @@
     gap: 4px;
     padding: 2px 6px 3px;
     background: transparent;
-    border: none;
     box-sizing: border-box;
+  }
+
+  .terminal-tablist {
+    padding-top: 0;
+    border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
   }
 
   .dock-tab-wrap {
@@ -181,6 +241,10 @@
     background: var(--muted);
   }
 
+  .terminal-tab--agent.dock-tab-wrap--active {
+    border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  }
+
   .dock-tab-main {
     display: flex;
     min-width: 0;
@@ -199,8 +263,69 @@
     white-space: nowrap;
   }
 
-  .dock-tab-main:focus-visible {
+  .terminal-tab__main {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 4px;
+  }
+
+  .terminal-tab__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-right: 2px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: inherit;
+    opacity: 0.65;
+    cursor: pointer;
+  }
+
+  .terminal-tab__close:hover {
+    opacity: 1;
+    background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  }
+
+  .terminal-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+  }
+
+  .terminal-add-btn:hover:not(:disabled) {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .terminal-add-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .dock-tab-main:focus-visible,
+  .terminal-add-btn:focus-visible,
+  .terminal-tab__close:focus-visible {
     outline: 1px solid var(--ring);
     outline-offset: 1px;
+  }
+
+  .dock-link-btn {
+    border: none;
+    background: none;
+    color: var(--primary);
+    font-size: inherit;
+    cursor: pointer;
+    text-decoration: underline;
   }
 </style>

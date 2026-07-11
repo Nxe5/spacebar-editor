@@ -28,12 +28,29 @@ vi.mock("../../src/lib/ipc", async (importOriginal) => {
   };
 });
 
-vi.mock("../../src/lib/stores/toolPolicy", () => ({
-  reloadProjectTools: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock("../../src/lib/stores/toolPolicy", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/lib/stores/toolPolicy")>();
+  return {
+    ...actual,
+    reloadProjectTools: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 vi.mock("../../src/lib/stores/systemPrompts", () => ({
-  systemPrompts: { load: vi.fn().mockResolvedValue(undefined) },
+  systemPrompts: { load: vi.fn().mockResolvedValue(undefined), clear: vi.fn() },
+}));
+
+vi.mock("../../src/lib/stores/skills", () => ({
+  skills: { load: vi.fn().mockResolvedValue(undefined), clear: vi.fn() },
+}));
+
+vi.mock("../../src/lib/workspaceTrust", async () => {
+  const { writable } = await import("svelte/store");
+  return { workspaceRestricted: writable(false) };
+});
+
+vi.mock("svelte-sonner", () => ({
+  toast: { message: vi.fn() },
 }));
 
 describe("projectState", () => {

@@ -116,19 +116,15 @@ export async function syncUiAfterFilesystemTool(
   if (toolName === "write_file") {
     for (const p of paths) {
       if (!p.endsWith("/")) {
-        const canon = normalizeFilePath(p);
-        const open = get(files).openFiles.find((f) => normalizeFilePath(f.path) === canon);
-        if (open) await reloadOpenFileIfVisible(p);
-        else await openFileFromDisk(p);
+        await reloadOpenFileIfVisible(p);
       }
     }
     return;
   }
 
   if (toolName === "create_file") {
-    for (const p of paths) {
-      if (!p.endsWith("/")) await openFileFromDisk(p);
-    }
+    /* Explorer refresh above is enough; do not auto-open agent-created files. */
+    return;
   }
 
   bumpGitRefresh();

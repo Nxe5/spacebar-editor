@@ -20,5 +20,16 @@ export async function* streamChat(
   tools?: Tool[],
   signal?: AbortSignal
 ): AsyncGenerator<StreamEvent> {
-  yield* streamOpenAI(KIMI_API_BASE, model, messages, tools, signal, undefined, apiKey);
+  yield* streamOpenAI(
+    KIMI_API_BASE,
+    model,
+    messages,
+    tools,
+    signal,
+    undefined,
+    apiKey,
+    false,
+    "/v1/chat/completions",
+    { toolChoice: "auto", parallelToolCalls: true }
+  );
 }
