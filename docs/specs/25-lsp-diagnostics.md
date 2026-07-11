@@ -129,7 +129,7 @@ New **Settings → LSP** section:
 - **Enable/disable** per language.
 - Status indicator per server (running / stopped / error).
 
-Settings shape (in `sidebar.settings.v3`):
+Settings shape (in `sidebar.settings.v4`):
 
 ```typescript
 interface LspServerConfig {

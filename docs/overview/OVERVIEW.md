@@ -6,7 +6,7 @@
 >
 > See also: [Architecture](../architecture/ARCHITECTURE.md) · [Specifications](../specs/README.md)
 
-**Spacebar Editor** is a minimal, local-first desktop IDE with an integrated AI coding agent. It targets developers who want a hackable Cursor-like shell without cloud lock-in: bring your own model (Ollama, llama.cpp, Anthropic, DeepSeek), keep code on disk, and control tool policy per project.
+**Spacebar Editor** is a minimal, local-first desktop IDE with an integrated AI coding agent. It targets developers who want a hackable Cursor-like shell without cloud lock-in: bring your own model (Ollama, llama.cpp, Anthropic, DeepSeek, GLM, Kimi), keep code on disk, and control tool policy per project.
 
 **Platform:** Tauri 2 desktop only (Linux, macOS, Windows). Web-only `pnpm dev:web` is supported for UI work but cannot run tools, git, or PTY.
 
@@ -18,7 +18,7 @@
 |------|--------|-------|
 | Workbench UI | ✅ Complete | Chat, editor, terminal, preview, explorer, git, search |
 | Welcome / recent projects | ✅ Complete | No-workspace screen — [36](specs/36-first-run-onboarding.md) |
-| AI Backends | ✅ Complete | Ollama, llama.cpp, Anthropic, DeepSeek |
+| AI Backends | ✅ Complete | Ollama, llama.cpp, Anthropic, DeepSeek, GLM (Z.ai), Kimi (Moonshot) |
 | Agent Loop | ✅ Complete | Multi-turn tool chains, parallel read-only tools, agent turn undo |
 | Context compaction | ✅ Complete | Manual + auto; enabled by default at 85%; Settings → Compaction — [21](specs/21-context-compaction.md) |
 | Context overflow UI | ✅ Complete | Amber/red bar — [34](specs/34-context-overflow-warnings.md) |
@@ -32,7 +32,7 @@
 | Persistence | ✅ Complete | Per-project `.sidebar/state.json` |
 | Planning (`plans/`) | ❌ Not started | Plan mode is read-only + chat-only — [19](specs/19-planning-system.md) |
 | Skills | ✅ Complete (per-project) | CRUD UI + variable interpolation; Settings → Agent Context → Skills — [30](specs/30-agent-context-and-model-settings.md). Bundled pack/registry still planned. |
-| Security | ✅ Complete | OS keychain, Rust path enforcement, production CSP — [33](specs/33-rust-path-enforcement.md), [14](specs/14-security.md) |
+| Security | ✅ Complete | App-settings API keys, Rust path enforcement, production CSP — [33](specs/33-rust-path-enforcement.md), [14](specs/14-security.md) |
 | Agent runtime | ✅ Complete | Webview agent loop + Rust IPC — **no Node sidecar** |
 
 ---
@@ -53,6 +53,8 @@
 | **llama.cpp** | OpenAI-compatible | `llama-server`; context from server config |
 | **Anthropic** | Messages API + SSE | API key in Settings; monthly token usage tracking |
 | **DeepSeek** | OpenAI-compatible API | API key in Settings |
+| **GLM** (Z.ai) | OpenAI-compatible API (`api.z.ai`) | API key in Settings; monthly usage tracking |
+| **Kimi** (Moonshot) | OpenAI-compatible API (`api.moonshot.ai`) | API key in Settings; monthly usage tracking |
 
 ### Agent Loop
 
@@ -138,7 +140,7 @@ There is **no Node sidecar**. The agent loop runs in the webview; OS integration
 | Skills registry (global / share / install) | ❌ Not started |
 | Multi-root workspaces | ❌ Not planned |
 | Cloud sync | ❌ Not planned |
-| LLM calls in Rust | ❌ Deferred (keys already in OS keychain) |
+| LLM calls in Rust | ❌ Deferred |
 | Node sidecar / Pi harness | ❌ **Removed** |
 
 ---
@@ -146,7 +148,7 @@ There is **no Node sidecar**. The agent loop runs in the webview; OS integration
 ## Configuration (Global)
 
 **Storage keys:**
-- `sidebar.settings.v4` — providers, themes, tool policy, agent limits, compaction
+- `sidebar.settings.v4` — providers (incl. GLM/Kimi), API keys, themes, tool policy, agent limits, compaction
 - `sidebar.keybindings.v1` — shortcut overrides
 - `sidebar.lsp.v1` — LSP server commands per language
 
@@ -174,8 +176,8 @@ Dev server default port: **14200**. No Node sidecar build step.
 | **[Overview](../overview/OVERVIEW.md)** (this file) | Short status snapshot |
 | **[Architecture](../architecture/ARCHITECTURE.md)** | System design deep dive |
 | **[Specifications](../specs/README.md)** | Detailed specs with completion status |
-| **[Spec 40 — Hardening & agent UX](../specs/40-product-hardening-and-agent-ux.md)** | v0.1.1: keychain, shell patterns, write audit, limits, workspace notice (done); Plan/Step UI (§5) + LSP agent tools (§9) remaining |
+| **[Spec 40 — Hardening & agent UX](../specs/40-product-hardening-and-agent-ux.md)** | v0.1.1: shell patterns, write audit, limits, workspace notice (done); Plan/Step UI (§5) remaining. API keys moved back to app settings in v0.1.5 (see §3 addendum). |
 
 ---
 
-*Last updated: 2026-06-10 · v0.1.4*
+*Last updated: 2026-07-10 · v0.1.5*

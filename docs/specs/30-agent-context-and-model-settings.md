@@ -91,6 +91,8 @@ providers-ollama
 providers-llamacpp
 providers-anthropic
 providers-deepseek
+providers-glm
+providers-kimi
 tools
 experimental-compaction
 experimental-autocomplete
@@ -106,6 +108,8 @@ providers-ollama
 providers-llamacpp
 providers-anthropic
 providers-deepseek
+providers-glm
+providers-kimi
 agent-context            ← NEW consolidated section
   agent-context-skills   ← replaces standalone prompts panel
   agent-context-prompts  ← existing prompts UI, reorganized
@@ -134,7 +138,7 @@ The `agent-context` nav item expands inline to show the two sub-items rather tha
 
 ### 3.1 Where It Lives
 
-Each provider section (Ollama, llama.cpp, Anthropic, DeepSeek) shows a model list. Each model row has a gear icon that expands an inline settings panel below the row. This avoids a separate settings page per model while keeping the settings discoverable.
+Each provider section (Ollama, llama.cpp, Anthropic, DeepSeek, GLM, Kimi) shows a model list. Each model row has a gear icon that expands an inline settings panel below the row. This avoids a separate settings page per model while keeping the settings discoverable.
 
 ### 3.2 Per-Model Settings Fields
 
@@ -168,7 +172,7 @@ Each provider section (Ollama, llama.cpp, Anthropic, DeepSeek) shows a model lis
 
 **Context window**
 - Type: number input
-- Default: provider-specific seed (Anthropic: 200k, DeepSeek: 64k, Ollama: 32k, llama.cpp: 32k)
+- Default: provider-specific seed (Anthropic: 200k, DeepSeek: 64k, GLM: 128k, Kimi: 262k, Ollama: 32k, llama.cpp: 32k)
 - Effect: drives `contextBudget.ts`, compaction auto-trigger threshold, context meter in status bar
 - Note shown in UI: "Set this to the actual context your hardware loaded the model with — check your Ollama pull or llama.cpp launch command"
 
@@ -210,7 +214,7 @@ interface ModelSettings {
 }
 ```
 
-> **Integration note (decision needed — see Discussion Note above):** the codebase already has a `ModelConfig` type in `src/lib/stores/settings.ts` with `id`, `showInPicker`, and `contextWindow`. The four arrays `ollamaModels`/`llamacppModels`/`anthropicModels`/`deepseekModels` are all `ModelConfig[]`. The cleanest integration is to **extend `ModelConfig` in place** with `toolCallFormat`, `parallelToolCalls`, `promptVerbosity` (all optional with defaults applied at read time) rather than introduce a parallel `ModelSettings` type. `inferenceOptionsForModel()` in `src/lib/inferenceOptions.ts` already reads `row.contextWindow`; `toolCallFormat`/`parallelToolCalls` would be read there and in `streamTurn.ts`.
+> **Integration note (decision needed — see Discussion Note above):** the codebase already has a `ModelConfig` type in `src/lib/stores/settings.ts` with `id`, `showInPicker`, and `contextWindow`. The six arrays `ollamaModels`/`llamacppModels`/`anthropicModels`/`deepseekModels`/`glmModels`/`kimiModels` are all `ModelConfig[]`. The cleanest integration is to **extend `ModelConfig` in place** with `toolCallFormat`, `parallelToolCalls`, `promptVerbosity` (all optional with defaults applied at read time) rather than introduce a parallel `ModelSettings` type. `resolveActiveModelSettings()` in `src/lib/modelSettings.ts` reads per-model and provider-default values; `toolCallFormat`/`parallelToolCalls` are read there and in `streamTurn.ts`.
 
 ### 3.5 Defaults Behavior
 
@@ -718,7 +722,7 @@ This derived value is what `buildSystemPrompt()` consumes — it never reads raw
 
 `settings.ts` store key upgrades from `sidebar.settings.v3` to `sidebar.settings.v4`. Migration adds default per-model fields to existing model entries using provider defaults. This migration runs once on load if v3 key is detected.
 
-> **Integration note (decision needed):** `src/lib/stores/settings.ts` currently pins `schemaVersion: 3` and key `sidebar.settings.v3`, and `normalizeLoaded` force-sets `schemaVersion: 3`. The v4 migration must: (a) read the v3 blob, (b) backfill `toolCallFormat: 'native'`, `parallelToolCalls: true`, `promptVerbosity: 'standard'` (and `contextWindow` if absent) on every entry of the four model arrays, (c) write under the v4 key, and (d) leave the v3 key intact for one release as a rollback safety net. Confirm rollback policy before implementing.
+> **Integration note:** v4 migration is **shipped** — `sidebar.settings.v4` with `schemaVersion: 4`. Migration from v3 backfills `toolCallFormat`, `parallelToolCalls`, `promptVerbosity`, and `contextWindow` on all model arrays (including `glmModels`/`kimiModels` added in v0.1.5).
 
 ### 11.5 Phase Boundary
 

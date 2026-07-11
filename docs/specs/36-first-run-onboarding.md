@@ -76,7 +76,7 @@ New component: `src/modules/workbench/WorkspaceEmptyState.svelte`
 
 ### 4.1 Trigger
 
-A workspace is open but no provider has any configured and enabled model. This is determined by checking all four model arrays (Ollama, llama.cpp, Anthropic, DeepSeek) for non-empty entries.
+A workspace is open but no provider has any configured and enabled model. This is determined by checking all six model arrays (Ollama, llama.cpp, Anthropic, DeepSeek, GLM, Kimi) for non-empty entries.
 
 ### 4.2 UI
 

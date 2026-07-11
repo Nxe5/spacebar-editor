@@ -77,7 +77,7 @@ In rough priority order:
 5. Autocomplete inference hook with local model (parity threshold)
 6. Read file chunking + context management for local models (quality)
 7. Visual compaction divider (trust)
-8. OS keychain for API keys (enterprise readiness)
+8. ~~OS keychain for API keys~~ — reverted v0.1.5; app settings used instead
 
 ---
 
@@ -505,9 +505,9 @@ The `ollamaClient.ts` has pull/delete helpers but there is no UI. Add to the Oll
 
 ### 9.1 OS Keychain for API Keys
 
-**Current risk:** API keys in localStorage are readable by any JavaScript running in the webview, including content in the preview iframe if the sandbox is insufficient.
+> **Status (v0.1.5):** Implemented in v0.1.2, then **reverted**. Cloud API keys are stored in app settings (`settings.apiKeys` in `sidebar.settings.v4`) to avoid OS permission prompts. See [14-security.md](docs/specs/14-security.md) §API Key Storage. Legacy Rust keychain commands remain but are unused.
 
-**Spec:**
+**Original spec (historical):**
 - Integrate `tauri-plugin-keychain` (or the Tauri stronghold plugin).
 - Migrate API key storage: write to OS keychain on settings save, read from keychain on settings load.
 - localStorage retains a `hasStoredKey: boolean` flag per provider (not the key itself).
@@ -549,7 +549,7 @@ This prevents the preview page from accessing `window.parent`, localStorage, or 
 | **Inline edit (Cmd+K)** | Not started | Large | P1 |
 | **LSP — TypeScript Phase 1** | Stub exists | Large | P1 |
 | **Autocomplete inference hook** | Settings UI only | Medium | P1 |
-| **OS keychain** | Not implemented | Medium | P2 |
+| **OS keychain** | Reverted v0.1.5 — keys in app settings | Medium | P2 (superseded) |
 | **Shortcut rebinding** | Display only | Small | P2 |
 | **LSP — additional languages** | Not started | Medium | P2 |
 | **Skills registry** | Not started | Large | P3 |
@@ -588,7 +588,7 @@ Features required to retain developers who come from Cursor:
 
 1. Inline edit (Cmd+K) — selection → chat with surrounding context, apply diff
 2. LSP Phase 2 — go-to-definition, rename, Rust/Python servers
-3. OS keychain for API keys
+3. ~~OS keychain for API keys~~ — reverted; app settings used instead (v0.1.5)
 4. Ollama model pull UI with capability recommendations
 5. Shortcut rebinding
 

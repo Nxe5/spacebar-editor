@@ -13,7 +13,7 @@ Spacebar Editor is a **minimal Cursor-like IDE** for **desktop** use:
 - **Git** panel for status, staging, commit, and change review
 - **Terminal** (xterm.js + native PTY)
 - **AI chat** with streaming and **agentic tool use** (Plan / Agent modes)
-- Swappable **LLM backends**: Anthropic (cloud), Ollama and llama.cpp (local)
+- Swappable **LLM backends**: Anthropic, DeepSeek, GLM (Z.ai), Kimi (Moonshot) (cloud); Ollama and llama.cpp (local)
 
 ---
 

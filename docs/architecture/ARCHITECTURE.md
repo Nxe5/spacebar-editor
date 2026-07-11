@@ -43,7 +43,7 @@ This document describes how **Spacebar Editor** works end-to-end: UI layout, sta
 │                                                                           │
 │  lib/agent/     conversation.ts, streamTurn.ts, systemPrompt/assemble.ts │
 │  lib/skills/    activeSkills.ts, skillVariables.ts                        │
-│  lib/providers/ openaiCompat.ts, anthropic.ts, deepseek.ts ──► fetch()    │
+│  lib/providers/ openaiCompat.ts, anthropic.ts, deepseek.ts, glm.ts, kimi.ts ──► fetch()
 │  lib/tools/     toolDefinitions.ts, toolRunner.ts ──► ipc.ts             │
 │  lib/lsp/       LSP client (JSON-RPC over Tauri events)                  │
 └───────────────────────────────┬──────────────────────────────────────────┘
@@ -71,8 +71,8 @@ This document describes how **Spacebar Editor** works end-to-end: UI layout, sta
 
 ### Security
 
-- **API keys** stored in the OS keychain via the `keyring` crate (`secrets.rs`). Settings JSON holds only a boolean flag; keys are retrieved from Rust on demand and never persisted to `localStorage`.
-- **Content Security Policy** enforced in `tauri.conf.json`: allows `api.anthropic.com`, `api.deepseek.com`, and `localhost:*` / `127.0.0.1:*` (local providers); blocks all other origins.
+- **API keys** stored in app settings (`settings.apiKeys` in `sidebar.settings.v4`). Cloud provider keys (Anthropic, DeepSeek, GLM, Kimi) are saved via `apiSecrets.ts` → `settings.setApiKey()`. Optional dev fallbacks from `.env` via `envApiKeys.ts` (dev only). Legacy Rust keychain commands (`secrets.rs`) remain registered but are no longer used by the frontend.
+- **Content Security Policy** enforced in `tauri.conf.json`: allows `api.anthropic.com`, `api.deepseek.com`, `api.z.ai`, `api.moonshot.ai`, and `localhost:*` / `127.0.0.1:*` (local providers); blocks all other origins.
 - **Filesystem sandbox**: double-enforced — TypeScript `pathUtils.ts` (fast-fail) + Rust `canonicalize_workspace_path()` in `filesystem.rs` (symlink-resolving, authoritative). See [Spec 33](../specs/33-rust-path-enforcement.md).
 
 ### No Node sidecar
@@ -180,10 +180,10 @@ Spacebar Editor uses **Svelte writable/derived stores** (not a global Redux-like
 
 | Field | Description |
 |-------|-------------|
-| `cloudApiKeyStored.anthropic`, `cloudApiKeyStored.deepseek` | Boolean flag — actual key is in OS keychain (`keyring` crate), never in `localStorage` |
-| `chatBackend` | `"anthropic"` \| `"ollama"` \| `"llamacpp"` \| `"deepseek"` |
+| `apiKeys.anthropic`, `apiKeys.deepseek`, `apiKeys.glm`, `apiKeys.kimi` | Cloud provider API keys (stored in settings) |
+| `chatBackend` | `"anthropic"` \| `"deepseek"` \| `"glm"` \| `"kimi"` \| `"ollama"` \| `"llamacpp"` |
 | `ollamaEndpoint`, `llamacppEndpoint`, `llamacppApiKey` | Local server URLs |
-| `selectedModel`, `ollamaModels`, `llamacppModels`, … | Active model + discovered lists |
+| `selectedModel`, `ollamaModels`, `llamacppModels`, `anthropicModels`, `deepseekModels`, `glmModels`, `kimiModels` | Active model + discovered lists |
 | `anthropicExtendedThinking` | Claude extended thinking stream |
 | `anthropicContextBudget` | Optional cap (`null` = full model window) |
 | `workbenchTheme` | Theme id (7 presets) |
@@ -230,7 +230,7 @@ Assembled by `src/lib/agent/systemPrompt/assemble.ts` (`assembleSystemPrompt`), 
 
 | Backend | File | Protocol |
 |---------|------|----------|
-| Ollama, llama.cpp, DeepSeek | `src/lib/providers/openaiCompat.ts` (DeepSeek catalog in `deepseek.ts`) | OpenAI-compatible `POST /v1/chat/completions` SSE |
+| Ollama, llama.cpp, DeepSeek, GLM, Kimi | `src/lib/providers/openaiCompat.ts` (catalogs in `deepseek.ts`, `glm.ts`, `kimi.ts`; shared fetch in `cloudModelCatalog.ts`) | OpenAI-compatible SSE |
 | Anthropic | `src/lib/providers/anthropic.ts` | Anthropic Messages API SSE |
 
 Provider dispatch and per-turn streaming go through `src/lib/agent/streamTurn.ts`.
@@ -245,7 +245,7 @@ The composer is a `<div contenteditable>` (not a `<textarea>`). **Attachment chi
 |---------|------|-------|
 | Ollama | tok/s, tokens, duration | Editable context budget |
 | llama.cpp | Same stream metrics | Read-only (`· server`) |
-| Anthropic | `X in · Y out this month` | Context estimate (read-only) |
+| Anthropic, DeepSeek, GLM, Kimi | `X in · Y out this month` | Context estimate (read-only) |
 
 ### Context Bar & Panel
 
@@ -370,7 +370,7 @@ Entry: `src-tauri/src/main.rs`
 | `icon_pack.rs` | Resolve bundled/custom icon pack directories |
 | `watcher.rs` | File system watching → debounced `fs:changed` events (drives explorer + git refresh) |
 | `lsp.rs` | Spawn language servers; JSON-RPC over stdio bridged to `lsp:*` Tauri events |
-| `secrets.rs` | OS keychain via `keyring` crate — `save_cloud_api_key`, `get_cloud_api_key`, `has_cloud_api_key`, `delete_cloud_api_key` |
+| `secrets.rs` | Legacy OS keychain commands (`keyring` crate) — registered but unused; keys now live in app settings |
 
 ### IPC Commands
 
@@ -388,7 +388,7 @@ Entry: `src-tauri/src/main.rs`
 | LSP | `spawn_lsp`, `lsp_send`, `lsp_stop` |
 | Workspace lock | `acquire_workspace_lock`, `read_workspace_lock`, `release_workspace_lock` |
 | Recent / launch | `get_recent_projects`, `add_recent_project`, `get_launch_args`, `get_workspace_path` |
-| Secrets | `save_cloud_api_key`, `get_cloud_api_key`, `has_cloud_api_key`, `delete_cloud_api_key` |
+| Secrets | `save_cloud_api_key`, `get_cloud_api_key`, `has_cloud_api_key`, `delete_cloud_api_key` (legacy — unused by frontend) |
 | Window | `pick_workspace_folder`, `pick_icon_pack_folder`, `open_settings_window` |
 | Icons | `icon_pack_get_dir`, `icon_pack_refresh_bundled` |
 
@@ -496,12 +496,13 @@ Custom highlight via `syntaxTheme.ts` + `--syntax-*` CSS variables (Settings →
 - xterm.js with FitAddon
 - Theme from CSS variables (`buildXtermTheme()`)
 - Listens to `pty:data` / `pty:exit` Tauri events
+- `ResizeObserver` on the terminal container calls `syncPtySize()` → `pty_resize` so the PTY matches panel dimensions
 
 ### Backend (`pty.rs`)
 
 - `PtyManager` holds sessions keyed by UUID
 - `pty_create(cwd?)` spawns shell in workspace or home
-- `pty_write`, `pty_resize`, `pty_close`
+- `pty_write`, `pty_resize` (cols/rows forwarded to portable-pty), `pty_close`
 
 **Tab integration:** `Alt+Shift+T` or status bar action → `ptyCreate()` → `workbench.addTerminalTab(id)`
 
@@ -532,7 +533,7 @@ spacebar-editor/
 │   │   ├── agent/           conversation, streamTurn, systemPrompt/assemble, workspaceContext
 │   │   ├── skills/          activeSkills, skillVariables
 │   │   ├── systemPrompts/   prompt manifest config + workspace context
-│   │   ├── providers/       openaiCompat, anthropic, deepseek
+│   │   ├── providers/       openaiCompat, anthropic, deepseek, glm, kimi, cloudModelCatalog
 │   │   ├── tools/           toolDefinitions, toolRunner, pathUtils
 │   │   ├── lsp/             LSP client (JSON-RPC over Tauri events)
 │   │   ├── stores/          chat, files, workbench, settings, toolPolicy, mode, iconTheme, skills, appearance
@@ -553,4 +554,4 @@ spacebar-editor/
 
 ---
 
-*Last updated: 2026-06-10 · v0.1.4. For implementation status, see [Specifications](../specs/README.md).*
+*Last updated: 2026-07-10 · v0.1.5. For implementation status, see [Specifications](../specs/README.md).*

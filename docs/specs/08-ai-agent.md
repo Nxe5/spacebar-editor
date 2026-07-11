@@ -10,7 +10,7 @@
 |-----------|----------|--------|
 | `runAgentLoop()` | `src/modules/agent/ChatPane.svelte` | ✅ |
 | `streamOneTurn()` | `src/lib/agent/streamTurn.ts` | ✅ |
-| Provider HTTP | `src/lib/providers/anthropic.ts`, `openaiCompat.ts` (`fetch` in webview) | ✅ |
+| Provider HTTP | `src/lib/providers/anthropic.ts`, `openaiCompat.ts`, `deepseek.ts`, `glm.ts`, `kimi.ts` (`fetch` in webview) | ✅ |
 | Tool execution | `src/lib/tools/toolRunner.ts` → Tauri `invoke` | ✅ |
 | Node sidecar / harness | — | ❌ Not used (removed) |
 
@@ -50,7 +50,12 @@ Final tool list = **mode tools ∩ effective policy** (denied/removed tools excl
 | Backend | Client | Streaming | Status |
 |---------|--------|-----------|--------|
 | `anthropic` | `src/lib/providers/anthropic.ts` | SSE | ✅ |
+| `deepseek` | `src/lib/providers/deepseek.ts` → `openaiCompat.ts` | SSE | ✅ |
+| `glm` | `src/lib/providers/glm.ts` → `openaiCompat.ts` | SSE | ✅ |
+| `kimi` | `src/lib/providers/kimi.ts` → `openaiCompat.ts` | SSE | ✅ |
 | `ollama`, `llamacpp` | `src/lib/providers/openaiCompat.ts` | SSE | ✅ |
+
+Cloud model catalogs are fetched via `src/lib/cloudModelCatalog.ts` (with static fallbacks when offline).
 
 ---
 
@@ -62,7 +67,10 @@ Defined in `src/lib/chatFooterProfile.ts`:
 |---------|----------------|-------------------|---------------|--------|
 | Ollama | Yes | Editable menu | No | ✅ |
 | llama.cpp | Yes | Read-only (`· server`) | No | ✅ |
-| Anthropic | No | Read-only estimate | Yes (`providerUsage` store) | ✅ |
+| Anthropic | Yes | Read-only estimate | Yes (`providerUsage` store) | ✅ |
+| DeepSeek | Yes | Read-only estimate | Yes | ✅ |
+| GLM | Yes | Read-only estimate | Yes | ✅ |
+| Kimi | Yes | Read-only estimate | Yes | ✅ |
 
 ---
 

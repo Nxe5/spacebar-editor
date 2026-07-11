@@ -130,7 +130,7 @@ Markdown **is** loaded as a grammar (`language: "markdown"` from `getLanguageFro
 
 - Bundle Prettier in app or Tauri side process for projects without local install
 
-### Settings (`sidebar.settings.v3` or `editor` subsection)
+### Settings (`sidebar.settings.v4` or `editor` subsection)
 
 | Setting | Default | Status |
 |---------|---------|--------|
@@ -177,7 +177,7 @@ EditorView.lineWrapping
 | `editor.wordWrap` | `"off"` \| `"on"` | ❌ |
 | `editor.wordWrapColumn` | optional (e.g. 80) — soft guide only, phase 2 | ❌ |
 
-Persist in `sidebar.settings.v3`.
+Persist in `sidebar.settings.v4`.
 
 ### UX
 

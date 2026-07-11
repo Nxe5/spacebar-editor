@@ -8,7 +8,7 @@
 
 | Store | Location | Persistence | Status |
 |-------|----------|-------------|--------|
-| `settings` | `src/lib/stores/settings.ts` | `localStorage` (v3) | ✅ |
+| `settings` | `src/lib/stores/settings.ts` | `localStorage` (v4) | ✅ |
 | `files` | `src/lib/stores/files.ts` | Runtime only | ✅ |
 | `chat` | `src/lib/stores/chat.ts` | `.sidebar/state.json` | ✅ |
 | `workbench` | `src/lib/stores/workbench.ts` | `localStorage` + per-project | ✅ |
@@ -21,14 +21,15 @@
 
 ---
 
-## Settings Store (`sidebar.settings.v3`)
+## Settings Store (`sidebar.settings.v4`)
 
 | Field | Type | Description | Status |
 |-------|------|-------------|--------|
-| `apiKeys.anthropic`, `apiKeys.openai` | `string` | API keys (OpenAI reserved) | ✅ |
-| `chatBackend` | `"anthropic"` \| `"ollama"` \| `"llamacpp"` | Active backend | ✅ |
+| `apiKeys.anthropic`, `apiKeys.deepseek`, `apiKeys.glm`, `apiKeys.kimi`, `apiKeys.openai` | `string` | Cloud API keys (OpenAI reserved) | ✅ |
+| `chatBackend` | `"anthropic"` \| `"deepseek"` \| `"glm"` \| `"kimi"` \| `"ollama"` \| `"llamacpp"` | Active backend | ✅ |
 | `ollamaEndpoint`, `llamacppEndpoint`, `llamacppApiKey` | `string` | Local server URLs/key | ✅ |
-| `selectedModel`, `ollamaModels`, `llamacppModels` | `string`, `ModelConfig[]` | Active + discovered | ✅ |
+| `selectedModel`, `ollamaModels`, `llamacppModels`, `anthropicModels`, `deepseekModels`, `glmModels`, `kimiModels` | `string`, `ModelConfig[]` | Active + discovered | ✅ |
+| `providerModelDefaults` | `ProviderModelDefaultsMap` | Per-provider defaults for context window, tool call format, verbosity | ✅ |
 | `anthropicExtendedThinking` | `boolean` | Claude extended thinking | ✅ |
 | `anthropicContextBudget` | `number | null` | Optional cap | ✅ |
 | `workbenchTheme` | `WorkbenchThemeId` | Theme id | ✅ |
@@ -80,7 +81,7 @@ Paths normalized via `normalizeFilePath` (`src/lib/fsPath.ts`).
 
 ## Provider Usage Store (`sidebar.providerUsage.v1`)
 
-Monthly input/output token totals per provider id (from API `usage` on responses). Used in Anthropic chat footer.
+Monthly input/output token totals per provider id (from API `usage` on responses). Used in cloud provider chat footers (Anthropic, DeepSeek, GLM, Kimi).
 
 ---
 

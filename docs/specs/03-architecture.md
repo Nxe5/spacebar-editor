@@ -11,7 +11,7 @@ Spacebar Editor does **not** spawn a separate Node process for chat, tools, or p
 | Responsibility | Runtime | Key modules |
 |----------------|---------|-------------|
 | Agent loop (multi-turn tools) | Svelte webview | `ChatPane.svelte` → `runAgentLoop()` |
-| LLM HTTP / SSE | Svelte webview | `streamTurn.ts` → `anthropic.ts`, `openaiCompat.ts` (`fetch`) |
+| LLM HTTP / SSE | Svelte webview | `streamTurn.ts` → `anthropic.ts`, `openaiCompat.ts`, `deepseek.ts`, `glm.ts`, `kimi.ts` (`fetch`) |
 | Tool policy + approval UI | Svelte webview | `toolPolicy.ts`, `ChatPane` approval strip |
 | Tool execution | Svelte → Rust IPC | `toolRunner.ts` → `ipc.ts` → `commands.rs` |
 | Filesystem, git, PTY, `web_fetch` | Rust | `src-tauri/src/modules/*` |
@@ -49,7 +49,7 @@ Legacy error mapping may still mention harness in `invokeSafe.ts` / `errors.ts`;
 │                   └── RightSidebar (explorer, search, git)                │
 │  Stores: chat, files, workbench, settings, toolPolicy, mode, iconTheme    │
 │  lib/agent/     conversation.ts, streamTurn.ts                            │
-│  lib/providers/ anthropic.ts, openaiCompat.ts  ──► fetch() to LLM APIs   │
+│  lib/providers/ anthropic.ts, openaiCompat.ts, deepseek.ts, glm.ts, kimi.ts  ──► fetch() to LLM APIs   │
 │  lib/tools/     toolDefinitions.ts, toolRunner.ts ──► ipc.ts              │
 └───────────────────────────────┬──────────────────────────────────────────┘
                                 │ Tauri invoke + events (pty:data, pty:exit)
@@ -69,9 +69,9 @@ Legacy error mapping may still mention harness in `invokeSafe.ts` / `errors.ts`;
 | Boundary | Current State | Status | Notes |
 |----------|---------------|--------|-------|
 | Tool path sandboxing | TS (`pathUtils.ts`) + Rust (`canonicalize_workspace_path`) | ✅ Complete | [33-rust-path-enforcement.md](33-rust-path-enforcement.md) |
-| Secrets storage | OS keychain for API keys; settings in `localStorage` | ✅ Complete | [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) §3 |
-| LLM HTTP | Webview `fetch` with per-request key retrieval | ✅ Working | Rust proxy deferred |
-| CSP | Restrictive allowlist in `tauri.conf.json` | ✅ Complete | Anthropic, DeepSeek, localhost |
+| Secrets storage | Cloud API keys in `settings.apiKeys` (`sidebar.settings.v4`) | ✅ Complete | Avoids OS keychain permission prompts; see [14-security.md](14-security.md) |
+| LLM HTTP | Webview `fetch` with keys from settings store | ✅ Working | Rust proxy deferred |
+| CSP | Restrictive allowlist in `tauri.conf.json` | ✅ Complete | Anthropic, DeepSeek, GLM (Z.ai), Kimi (Moonshot), localhost |
 
 ---
 

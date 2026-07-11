@@ -1,6 +1,6 @@
 # Spec 40 — Product Hardening & Agent UX
 
-> **Status:** 🔶 **Partial** — **v0.1.1 (done):** keychain, shell patterns, write audit, agent defaults, workspace prompt/notice. **Deferred:** §5 activity step grouping. **LSP agent tools:** see [41-lsp-agent-tools.md](41-lsp-agent-tools.md) (implemented).
+> **Status:** 🔶 **Partial** — **v0.1.1 (done):** shell patterns, write audit, agent defaults, workspace prompt/notice. **v0.1.5 (done):** GLM + Kimi providers, API keys back in app settings, PTY resize. **Deferred:** §5 activity step grouping. **LSP agent tools:** see [41-lsp-agent-tools.md](41-lsp-agent-tools.md) (implemented).
 > **Area:** Security · Workspace · Agent UI · Tool policy · LSP · Defaults
 > **Phase:** B → C (trust before broad distribution)
 > **Depends on:** [07-workspace.md](07-workspace.md) · [09-tool-system.md](09-tool-system.md) · [14-security.md](14-security.md) · [08-ai-agent.md](08-ai-agent.md) · [25-lsp-diagnostics.md](25-lsp-diagnostics.md) · [21-context-compaction.md](21-context-compaction.md)
@@ -57,6 +57,8 @@ Spacebar Editor’s core loop (local models, `.sidebar/` project metadata, 16 to
 ---
 
 ## 3. Phase 0 — Secrets in OS keychain (P0)
+
+> **Superseded (v0.1.5):** Cloud API keys are stored in app settings (`settings.apiKeys` in `sidebar.settings.v4`) to avoid OS keychain permission prompts. Current behavior: [14-security.md](14-security.md) §API Key Storage. The keychain design below is historical (shipped v0.1.2, reverted v0.1.5).
 
 > Supersedes the “planned” wording in [14-security.md](14-security.md) — this is **required before external users**, not optional polish.
 
@@ -268,7 +270,7 @@ Unlimited steps (`maxAgentSteps: 0`) is dangerous even with local models: time, 
 
 | Backend class | `maxAgentSteps` | `maxToolCallsPerRun` | Notes |
 |---------------|-----------------|----------------------|-------|
-| Cloud (Anthropic, DeepSeek) | **24** | **80** | Conservative |
+| Cloud (Anthropic, DeepSeek, GLM, Kimi) | **24** | **80** | Conservative |
 | Local (Ollama, llama.cpp) | **40** | **120** | Higher; still bounded |
 | User override | 0 = unlimited | 0 = unlimited | Explicit opt-in in Settings → Tools |
 
@@ -333,7 +335,7 @@ Track as **Spec 41+** when Phase 0–2 of this spec are stable. No implementatio
 
 | Order | Item | Spec § | Est. |
 |-------|------|--------|------|
-| 1 | Keychain storage + migration | §3 | ✅ |
+| 1 | Keychain storage + migration | §3 | ❌ Superseded — reverted v0.1.5 (app settings) |
 | 2 | Activity step grouping UI | §5 | **v0.1.1** (remaining) |
 | 3 | Workspace prompt + nested scaffold notice | §4 | ✅ v0.1.1 |
 | 4 | Write tool parent-dir audit log | §7 | ✅ v0.1.1 |
@@ -347,7 +349,7 @@ Track as **Spec 41+** when Phase 0–2 of this spec are stable. No implementatio
 
 | Doc | Update |
 |-----|--------|
-| [14-security.md](14-security.md) | Keychain ✅; remove “prototype OK” for keys |
+| [14-security.md](14-security.md) | App-settings keys ✅; keychain superseded |
 | [07-workspace.md](07-workspace.md) | Single root; nested scaffold notice |
 | [09-tool-system.md](09-tool-system.md) | Shell patterns; write audit line |
 | [08-ai-agent.md](08-ai-agent.md) | Defaults table; activity steps cross-link |
@@ -358,7 +360,7 @@ Track as **Spec 41+** when Phase 0–2 of this spec are stable. No implementatio
 
 ## 14. Acceptance (program-level)
 
-- [ ] No API keys in `localStorage` after Phase 0.
+- [ ] No API keys in project files under `.sidebar/` (global settings only).
 - [ ] Agent session with repeated shell shows grouped steps, expandable to full trace.
 - [ ] User opening `my-repo` is not left with unexplained `tester/minimal-ai/` without a notice.
 - [ ] `write_file` to nested path documents created directories in tool output.

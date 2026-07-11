@@ -58,6 +58,8 @@ For Ollama tests, set `RUN_OLLAMA_TESTS=1` environment variable.
 |-------|------|--------|
 | Anthropic Provider | `providers/anthropic.test.ts` | ✅ |
 | OpenAI Compat | `providers/openaiCompat.test.ts` | ✅ |
+| GLM Provider | `providers/glm.test.ts` | ✅ |
+| Kimi Provider | `providers/kimi.test.ts` | ✅ |
 | Conversation | `conversation.test.ts` | ✅ |
 | Chat Context | `chatContext.test.ts` | ✅ |
 | Chat Footer Profile | `chatFooterProfile.test.ts` | ✅ |

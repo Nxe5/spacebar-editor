@@ -15,7 +15,7 @@
 | **Tool call run** | All steps for a single user message until stop or limit |
 | **Tool call** | Single invocation of a tool by the model |
 | **Diff mode** | Editor showing working tree with highlights vs `diffBase` (HEAD) |
-| **Provider** | LLM backend service (Anthropic, Ollama, llama.cpp) |
+| **Provider** | LLM backend service (Anthropic, DeepSeek, GLM, Kimi, Ollama, llama.cpp) |
 | **Provider usage** | Local monthly token tallies from API responses |
 | **Context budget** | Maximum tokens for a conversation (model window or custom limit) |
 | **Tool policy** | Rules governing tool execution (`allow`, `ask`, `deny`) |
@@ -42,7 +42,7 @@
 | `.sidebar/prompt.md` | Custom system prompt additions |
 | `.sidebar/tools.json` | Project tool rules and custom tools |
 | `.sidebar/state.json` | Persisted chat sessions and editor tabs |
-| `sidebar.settings.v3` | localStorage key for global settings |
+| `sidebar.settings.v4` | localStorage key for global settings (incl. API keys) |
 | `sidebar.toolPolicy.v2` | localStorage key for global tool policy |
 | `sidebar.iconTheme.v2` | localStorage key for icon theme selection |
 | `sidebar.providerUsage.v1` | localStorage key for monthly usage |

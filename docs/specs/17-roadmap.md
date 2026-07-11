@@ -8,10 +8,10 @@
 
 | Version | Target | Status | Scope |
 |---------|--------|--------|-------|
-| **v0.1.2** | Public beta | ✅ **Shipped** (2026-06-05) | Keychain, Rust path enforcement, CSP, agent turn undo |
+| **v0.1.2** | Public beta | ✅ **Shipped** (2026-06-05) | Keychain (later reverted), Rust path enforcement, CSP, agent turn undo |
 | **v0.1.3** | Post-beta | ✅ **Shipped** (2026-06-09) | Browser tab, element inspector, drag-drop chips, compaction defaults |
 | **v0.1.4** | Patch | ✅ **Shipped** (2026-06-10) | Native OS drop, chip icons, click-to-open, spec audit |
-| **v0.1.5** | Next | ❌ Planned | MLX provider, agent activity step grouping |
+| **v0.1.5** | Next | 🔶 In progress | GLM + Kimi providers, API keys in app settings, PTY resize; MLX + activity steps remaining |
 
 ---
 
@@ -73,9 +73,13 @@
 
 | Item | Status | Notes |
 |------|--------|-------|
-| OS keychain / keyring | ✅ Done | [40](40-product-hardening-and-agent-ux.md) §3; keys never in `localStorage`, "Stored in system keychain" UI hint |
-| LLM calls in Rust | ❌ Deferred | `reqwest` + stream events — keys retrieved from keychain per-request in JS is sufficient |
-| Production CSP | ✅ Done | `tauri.conf.json` — Anthropic, DeepSeek, localhost allowlist |
+| OS keychain / keyring | ❌ Reverted (v0.1.5) | Keys now in app settings — avoids OS permission prompts |
+| Cloud API keys in app settings | ✅ Done (v0.1.5) | `settings.apiKeys` in `sidebar.settings.v4` |
+| LLM calls in Rust | ❌ Deferred | `reqwest` + stream events |
+| Production CSP | ✅ Done | `tauri.conf.json` — Anthropic, DeepSeek, GLM (Z.ai), Kimi (Moonshot), localhost |
+| GLM provider (Z.ai) | ✅ Done (v0.1.5) | Settings → GLM; `glm.ts` + catalog in `cloudModelCatalog.ts` |
+| Kimi provider (Moonshot) | ✅ Done (v0.1.5) | Settings → Kimi; `kimi.ts` + catalog |
+| PTY resize on panel resize | ✅ Done (v0.1.5) | `TerminalPane` ResizeObserver → `pty_resize` |
 
 ---
 
@@ -86,6 +90,8 @@
 | LSP Phase 1 | 🔶 Partial | [25-lsp-diagnostics.md](25-lsp-diagnostics.md) — transport, diagnostics, hover shipped |
 | Cmd+K inline edit | ❌ Spec ready | [28-inline-edit-autocomplete.md](28-inline-edit-autocomplete.md) — CodeMirror decorations |
 | DeepSeek | ✅ | `deepseek` chat backend; Settings → DeepSeek |
+| GLM (Z.ai) | ✅ | `glm` chat backend; Settings → GLM |
+| Kimi (Moonshot) | ✅ | `kimi` chat backend; Settings → Kimi |
 | Mistral, Perplexity | ❌ Not started | OpenAI-compat + provider registry |
 | Custom tool shell executor | ❌ Not started | Optional `.sidebar` command templates |
 | Context compaction | ✅ Done | [21-context-compaction.md](21-context-compaction.md) |
@@ -132,7 +138,8 @@
 |------|------|--------|
 | Inline edit (Cmd+K) | [28](28-inline-edit-autocomplete.md) §3 | ❌ Not started |
 | LSP Phase 2 — go-to-def, rename, more languages | [25](25-lsp-diagnostics.md) §6 | ❌ Not started |
-| OS keychain for API keys | [14](14-security.md) §A | ✅ Done |
+| OS keychain for API keys | [14](14-security.md) §A | ❌ Superseded — reverted v0.1.5 |
+| GLM + Kimi providers | — | ✅ Done (v0.1.5) |
 | Rust path enforcement | [33](33-rust-path-enforcement.md) | ✅ Done |
 | Shortcut rebinding | [37](37-shortcut-rebinding.md) | ✅ Done |
 | Editor wrap + Prettier | [20](20-editor-formatting-and-theming.md) | ✅ Done |
@@ -170,7 +177,8 @@
 | 2026-06-10 | **Attachment chip polish** — native Tauri drag-drop, type icons, click-to-open (editor/explorer/OS), element source grep — [43](43-v-next-release-fixes.md) §3 |
 | 2026-06-10 | **Editor actions + browser tab** — `···` menu, preview nav, element inspector — [44](44-editor-actions-browser-tab.md) |
 | 2026-06-10 | **v-next release fixes** — model selector, compaction defaults, settings polish — [43](43-v-next-release-fixes.md) |
-| 2026-06-05 | **v0.1.2 public beta** — OS keychain, Rust path enforcement (Spec 33), production CSP, agent turn undo |
+| 2026-07-10 | **v0.1.5** — GLM + Kimi providers, API keys in app settings (keychain reverted), PTY resize, CSP for Z.ai/Moonshot |
+| 2026-06-05 | **v0.1.2 public beta** — OS keychain (later reverted), Rust path enforcement (Spec 33), production CSP, agent turn undo |
 | 2026-05 | Git checkpoint infrastructure (Rust backend) |
 | 2026-05 | Provider server config templates |
 | 2026-05 | Chat appearance customization |

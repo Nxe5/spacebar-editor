@@ -16,7 +16,7 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | Welcome screen + recent projects (no folder open) | Shipped |
 | Multi-tab chat with session history | Shipped |
 | Agent loop with streaming + tool calling | Shipped |
-| Ollama, llama.cpp, Anthropic, DeepSeek providers | Shipped |
+| Ollama, llama.cpp, Anthropic, DeepSeek, GLM, Kimi providers | Shipped |
 | 16 built-in agent tools + custom tools | Shipped |
 | Tool policy system (allow / ask / deny) | Shipped |
 | Parallel read-only tool execution | Shipped |
@@ -47,7 +47,7 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | Bundled skill starter pack + global/shared skills registry | Planned |
 | Rust path sandbox (defense in depth) | Shipped — TS layer + Rust `canonicalize_workspace_path` |
 | Agent turn undo (↩ Undo last turn) | Shipped — git checkpoint restore |
-| OS keychain for API keys | Shipped — keys never stored in `localStorage` |
+| Cloud API keys in app settings | Shipped — stored in `sidebar.settings.v4` (avoids OS keychain permission prompts) |
 | Production CSP (Tauri `tauri.conf.json`) | Shipped |
 | Cmd+K inline edit | Planned |
 
@@ -89,8 +89,10 @@ There is no Node.js sidecar at runtime. Node is used only during build (Vite, Vi
 | **llama.cpp** | OpenAI-compatible (`llama-server`) | SSE | Set per model in provider settings |
 | **Anthropic** | Anthropic Messages API | SSE | Model max; optional budget cap |
 | **DeepSeek** | OpenAI-compatible | SSE | Chat and Reasoner models from catalog |
+| **GLM** (Z.ai) | OpenAI-compatible (`api.z.ai`) | SSE | GLM-4 Flash/Plus, GLM-5.2; catalog fetch with static fallbacks |
+| **Kimi** (Moonshot) | OpenAI-compatible (`api.moonshot.ai`) | SSE | Kimi K2.5, K2 Turbo; catalog fetch with static fallbacks |
 
-All providers stream tokens into the chat pane in real time. Local providers (Ollama, llama.cpp) show tok/s and time-to-first-token in the footer. Anthropic tracks cumulative input/output tokens.
+All providers stream tokens into the chat pane in real time. Local providers (Ollama, llama.cpp) show tok/s and time-to-first-token in the footer. Cloud providers (Anthropic, DeepSeek, GLM, Kimi) track cumulative monthly input/output tokens in the chat footer.
 
 **Models without native tool support:** some local models emit tool calls as plain text. The app recovers them via `textToolCalls.ts` and can run a synthesis pass for a final natural-language summary after tool-heavy turns.
 
@@ -225,7 +227,7 @@ Agent tools that mutate files (`write_file`, `create_file`, `delete_file`, `move
 Stored in `localStorage` under `sidebar.settings.v4` (migrates from v1–v3):
 
 - Provider endpoints, model lists with per-model context window and tool call settings
-- **API keys** are stored in the **OS keychain** (Keychain on macOS, libsecret on Linux, Credential Manager on Windows) — never in `localStorage`. The settings file stores only a `cloudApiKeyStored` flag per provider.
+- **API keys** for cloud providers (Anthropic, DeepSeek, GLM, Kimi) in `settings.apiKeys` — persisted in `localStorage` under `sidebar.settings.v4`. Password-style fields in Settings; optional dev fallbacks via `.env` (see `.env.example`).
 - Workbench theme, icon theme, editor/syntax/chat/explorer appearance
 - Tool policy defaults, agent limits, parallel execution, web fetch hostname allowlist
 - Compaction settings, model role assignments
@@ -248,7 +250,7 @@ Optional environment variable fallbacks: see `.env.example`.
 | `.sidebar/skills/<id>/` | Project-scoped skills (`skill.json` manifest + `skill.md` body) |
 | `.sidebar/prompt.md` | Legacy single prompt — auto-migrated to `prompts/agent.md` |
 
-API keys stay in the OS keychain — never in the project files or environment variables. See [Security spec](docs/specs/14-security.md).
+API keys are global app settings — never written to project files under `.sidebar/`. Optional dev-only key injection via `.env` is documented in `.env.example`. See [Security spec](docs/specs/14-security.md).
 
 ---
 

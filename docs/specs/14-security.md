@@ -1,6 +1,6 @@
 # Security and Secrets
 
-> **Status:** 🔶 **PARTIAL** — Production hardening shipped (v0.1.2): OS keychain, Rust path enforcement, restrictive CSP. Remaining: LLM HTTP in Rust (deferred), preview iframe `sandbox` (intentionally omitted on Linux/WebKitGTK).
+> **Status:** 🔶 **PARTIAL** — Production hardening shipped (v0.1.2): Rust path enforcement, restrictive CSP. **v0.1.5:** cloud API keys moved back to app settings (see §API Key Storage). Remaining: LLM HTTP in Rust (deferred), preview iframe `sandbox` (intentionally omitted on Linux/WebKitGTK).
 
 See also: [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) · [33-rust-path-enforcement.md](33-rust-path-enforcement.md)
 
@@ -10,9 +10,9 @@ See also: [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-
 
 | Topic | Current Implementation | Status |
 |-------|------------------------|--------|
-| API keys | OS keychain (`keyring`) — `localStorage` cleared after migration | ✅ Complete — [40](40-product-hardening-and-agent-ux.md) §3 |
-| LLM HTTP | Webview `fetch` (keys retrieved from Rust per-request) | ✅ Working |
-| CSP | Strict allowlist in `tauri.conf.json` (Anthropic, DeepSeek, localhost) | ✅ Complete |
+| API keys | App settings (`settings.apiKeys` in `sidebar.settings.v4`) | ✅ Complete — v0.1.5 |
+| LLM HTTP | Webview `fetch` (keys read from settings store) | ✅ Working |
+| CSP | Strict allowlist in `tauri.conf.json` (Anthropic, DeepSeek, GLM, Kimi, localhost) | ✅ Complete |
 | Path sandbox | TS layer (`pathUtils.ts`) + Rust `canonicalize_workspace_path` | ✅ Complete — [33](33-rust-path-enforcement.md) |
 | Chat XSS | Plain text messages (no markdown HTML) | ✅ Safe |
 
@@ -20,15 +20,21 @@ See also: [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-
 
 ## API Key Storage
 
-### Current (shipped v0.1.2)
+### Current (shipped v0.1.5)
 
-- Anthropic and DeepSeek API keys stored in the **OS keychain** via Tauri keyring plugin
-- `localStorage` (`sidebar.settings.v4`) holds only non-secret settings; legacy keys migrated and cleared on upgrade
-- Settings UI shows "Stored in system keychain" hint; password-style fields
+- Cloud provider API keys (Anthropic, DeepSeek, GLM, Kimi) stored in **`settings.apiKeys`** and persisted in `localStorage` under `sidebar.settings.v4`
+- Saved via `src/lib/apiSecrets.ts` → `settings.setApiKey()` from Settings → Providers
+- Password-style fields in Settings UI
+- **Dev only:** optional fallbacks from `.env` via `envApiKeys.ts` / Vite `define` (see `.env.example` — `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `GLM_API_KEY`/`ZAI_API_KEY`, `KIMI_API_KEY`/`MOONSHOT_API_KEY`)
 
-### Deferred
+**Why not OS keychain?** v0.1.2 briefly stored keys in the OS keychain via Tauri's keyring plugin, but this triggered repeated permission prompts on some platforms. v0.1.5 reverted to app settings for a smoother UX. Legacy Rust keychain commands (`secrets.rs`) remain registered but are unused by the frontend.
 
-- Moving LLM HTTP entirely to Rust so keys never enter JavaScript memory during requests ([40](40-product-hardening-and-agent-ux.md) §3 follow-on)
+**Trade-off:** keys live in the webview's persisted settings and may appear in devtools network headers during active requests. Moving LLM HTTP to Rust (deferred) would reduce JS exposure.
+
+### Historical (v0.1.2 — superseded)
+
+- Anthropic and DeepSeek keys in OS keychain; `localStorage` held only a boolean `cloudApiKeyStored` flag
+- See [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) §3 for the original design
 
 ---
 
@@ -37,8 +43,8 @@ See also: [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-
 ### Current
 
 - Direct `fetch()` from webview to provider APIs
-- API keys retrieved from Rust keychain per-request (not persisted in `localStorage`)
-- Keys may still appear in devtools network headers during active requests
+- API keys read from `settings.apiKeys` at stream time (`getCloudApiKey()` in `apiSecrets.ts`)
+- Keys may appear in devtools network headers during active requests
 
 ### Deferred
 
@@ -63,10 +69,10 @@ See also: [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-
 
 ## Content Security Policy
 
-### Current (shipped v0.1.2)
+### Current (shipped v0.1.5)
 
 `tauri.conf.json` uses a restrictive CSP with explicit allowlists for:
-- Provider APIs (Anthropic, DeepSeek)
+- Provider APIs: `api.anthropic.com`, `api.deepseek.com`, `api.z.ai`, `api.moonshot.ai`
 - Local inference endpoints (`localhost`, `127.0.0.1`)
 - `frame-src` for preview iframes on local dev ports
 
@@ -93,7 +99,7 @@ See also: [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-
 | Item | Priority | Status |
 |------|----------|--------|
 | Rust workspace path enforcement | Phase B | ✅ Complete — [33](33-rust-path-enforcement.md) |
-| OS keychain | Phase C | ✅ Complete — [40](40-product-hardening-and-agent-ux.md) §3 |
+| App-settings API key storage | Phase C | ✅ Complete — v0.1.5 |
 | Production CSP | Phase C | ✅ Complete |
 | LLM calls in Rust | Phase C | ❌ Deferred |
 | Preview iframe `sandbox` | Phase B | ❌ Intentionally omitted — WebKitGTK renders sandboxed cross-port iframes blank ([44](44-editor-actions-browser-tab.md) §4.1) |
@@ -125,9 +131,9 @@ See also: [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-
 
 ## Enhancement Addenda (from `extension.md` §9)
 
-### A. OS Keychain for API Keys — ✅ Complete (v0.1.2)
+### A. OS Keychain for API Keys — ❌ Superseded (v0.1.5)
 
-Implemented via Tauri keyring plugin. Keys migrated from `localStorage` on upgrade. See [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md) §3.
+Originally implemented in v0.1.2 via Tauri keyring plugin. Reverted in v0.1.5 — keys now in app settings. See §API Key Storage above.
 
 ### B. Preview Iframe Sandbox — ❌ Intentionally omitted
 
@@ -137,6 +143,7 @@ Preview URLs are gated to `localhost` / `127.0.0.1` (`previewUrl.ts`). Explicit 
 
 | Item | Priority | Status |
 |------|----------|--------|
-| OS keychain + migration | Phase C | ✅ Complete |
+| App-settings API key storage | Phase C | ✅ Complete (v0.1.5) |
+| OS keychain + migration | Phase C | ❌ Superseded — reverted v0.1.5 |
 | Preview iframe `sandbox` attributes | Phase B | ❌ Omitted (WebKitGTK limitation) |
 | LLM HTTP in Rust | Phase C | ❌ Deferred |

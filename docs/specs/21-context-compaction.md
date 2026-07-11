@@ -249,7 +249,7 @@ The manual **Compact** button in the chat footer calls `triggerCompaction()` dir
 
 ## 6. Settings
 
-Extend agent-related settings in `sidebar.settings.v3` (alongside `agentLimits` today). Suggested shape:
+Extend agent-related settings in `sidebar.settings.v4` (alongside `agentLimits` today). Suggested shape:
 
 ```typescript
 interface AgentCompactionSettings {
