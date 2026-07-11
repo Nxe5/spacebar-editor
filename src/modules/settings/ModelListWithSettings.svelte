@@ -21,6 +21,10 @@
         return $settings.anthropicModels;
       case "deepseek":
         return $settings.deepseekModels;
+      case "glm":
+        return $settings.glmModels;
+      case "kimi":
+        return $settings.kimiModels;
       case "ollama":
         return $settings.ollamaModels;
       case "llamacpp":

@@ -96,9 +96,11 @@ export async function* streamChat(
   inferenceOptions?: InferenceOptions,
   apiKey?: string,
   /** Set true only for Ollama — enables Ollama-specific body extensions (think, options). */
-  isOllama = false
+  isOllama = false,
+  /** Override chat completions path (default OpenAI `/v1/chat/completions`; GLM uses `/chat/completions`). */
+  chatCompletionsPath = "/v1/chat/completions"
 ): AsyncGenerator<StreamEvent> {
-  const url = `${baseUrl.replace(/\/$/, "")}/v1/chat/completions`;
+  const url = `${baseUrl.replace(/\/$/, "")}${chatCompletionsPath}`;
 
   const body: Record<string, unknown> = {
     model,

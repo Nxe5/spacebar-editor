@@ -46,12 +46,11 @@ describe("modelPicker", () => {
     const models = [
       { id: "deepseek-chat", name: "Chat", provider: "deepseek" as const, contextWindow: 65_536 },
     ];
-    expect(cloudProviderMenuReady("sk-" + "x".repeat(24), false, models, true)).toBe(true);
-    expect(cloudProviderMenuReady("", false, models, true)).toBe(false);
-    expect(cloudProviderMenuReady("", true, models, true)).toBe(true);
-    expect(cloudProviderMenuReady("sk-" + "x".repeat(24), false, models, false)).toBe(false);
+    expect(cloudProviderMenuReady("sk-" + "x".repeat(24), models, true)).toBe(true);
+    expect(cloudProviderMenuReady("", models, true)).toBe(false);
+    expect(cloudProviderMenuReady("sk-" + "x".repeat(24), models, false)).toBe(false);
     expect(
-      cloudProviderMenuReady("sk-" + "x".repeat(24), false, [{ ...models[0], showInPicker: false }], true)
+      cloudProviderMenuReady("sk-" + "x".repeat(24), [{ ...models[0], showInPicker: false }], true)
     ).toBe(false);
   });
 });

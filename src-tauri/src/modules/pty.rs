@@ -1,6 +1,6 @@
 //! PTY sessions for integrated terminal (spec §6).
 
-use portable_pty::{Child, CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use portable_pty::{Child, CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter, State};
 pub struct PtyManager(pub Mutex<HashMap<String, Arc<PtySession>>>);
 
 pub struct PtySession {
+    master: Mutex<Box<dyn MasterPty + Send>>,
     writer: Mutex<Box<dyn Write + Send>>,
     child: Mutex<Option<Box<dyn Child + Send + Sync>>>,
 }
@@ -29,6 +30,14 @@ struct PtyExitPayload {
     code: Option<i32>,
 }
 
+fn shell_command() -> CommandBuilder {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    let mut cmd = CommandBuilder::new(shell);
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("COLORTERM", "truecolor");
+    cmd
+}
+
 #[tauri::command]
 pub fn pty_create(app: AppHandle, manager: State<'_, PtyManager>, cwd: Option<String>) -> Result<String, String> {
     let id = uuid::Uuid::new_v4().to_string();
@@ -42,8 +51,7 @@ pub fn pty_create(app: AppHandle, manager: State<'_, PtyManager>, cwd: Option<St
         })
         .map_err(|e| e.to_string())?;
 
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-    let mut cmd = CommandBuilder::new(&shell);
+    let mut cmd = shell_command();
     if let Some(ref dir) = cwd {
         cmd.cwd(dir.as_str());
     } else if let Ok(ws) = std::env::current_dir() {
@@ -55,8 +63,9 @@ pub fn pty_create(app: AppHandle, manager: State<'_, PtyManager>, cwd: Option<St
         .spawn_command(cmd)
         .map_err(|e| format!("Failed to spawn shell: {}", e))?;
 
-    let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
-    let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
+    let master = pair.master;
+    let mut reader = master.try_clone_reader().map_err(|e| e.to_string())?;
+    let writer = master.take_writer().map_err(|e| e.to_string())?;
 
     let app2 = app.clone();
     let id2 = id.clone();
@@ -88,6 +97,7 @@ pub fn pty_create(app: AppHandle, manager: State<'_, PtyManager>, cwd: Option<St
     });
 
     let session = Arc::new(PtySession {
+        master: Mutex::new(master),
         writer: Mutex::new(writer),
         child: Mutex::new(Some(child)),
     });
@@ -107,9 +117,21 @@ pub fn pty_write(manager: State<'_, PtyManager>, id: String, data: String) -> Re
 }
 
 #[tauri::command]
-pub fn pty_resize(_manager: State<'_, PtyManager>, _id: String, _cols: u16, _rows: u16) -> Result<(), String> {
-    // Resize requires holding `MasterPty` alongside `take_writer`; revisit with a dedicated IO thread.
-    Ok(())
+pub fn pty_resize(manager: State<'_, PtyManager>, id: String, cols: u16, rows: u16) -> Result<(), String> {
+    if cols == 0 || rows == 0 {
+        return Ok(());
+    }
+    let map = manager.0.lock().map_err(|e| e.to_string())?;
+    let session = map.get(&id).ok_or_else(|| "Unknown PTY session".to_string())?;
+    let master = session.master.lock().map_err(|e| e.to_string())?;
+    master
+        .resize(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

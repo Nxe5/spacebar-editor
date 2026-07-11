@@ -248,7 +248,6 @@
     } catch (e) {
       console.error("[workbench] appearance init failed:", e);
     }
-    void import("$lib/apiSecrets").then((m) => m.migrateCloudApiKeysFromSettings());
     initProjectStateAutosave();
     const onBeforeUnload = () => {
       void persistCurrentProjectState();

@@ -2,7 +2,7 @@
 
 import { READ_ONLY_TOOLS } from "./tools/toolDefinitions";
 
-export type AgentLimitsBackend = "anthropic" | "deepseek" | "ollama" | "llamacpp";
+export type AgentLimitsBackend = "anthropic" | "deepseek" | "glm" | "kimi" | "ollama" | "llamacpp";
 
 export type AgentLimits = {
   /** LLM ↔ tool round trips per user message. 0 = unlimited. */
@@ -60,7 +60,7 @@ export const UNLIMITED_AGENT_LIMITS: AgentLimits = {
 };
 
 export function isCloudChatBackend(backend: AgentLimitsBackend): boolean {
-  return backend === "anthropic" || backend === "deepseek";
+  return backend === "anthropic" || backend === "deepseek" || backend === "glm" || backend === "kimi";
 }
 
 export function defaultAgentLimitsForBackend(backend: AgentLimitsBackend): AgentLimits {

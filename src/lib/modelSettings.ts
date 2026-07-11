@@ -25,6 +25,18 @@ export const DEFAULT_PROVIDER_MODEL_DEFAULTS: ProviderModelDefaultsMap = {
     parallelToolCalls: true,
     promptVerbosity: "standard",
   },
+  glm: {
+    contextWindow: 128_000,
+    toolCallFormat: "native",
+    parallelToolCalls: true,
+    promptVerbosity: "standard",
+  },
+  kimi: {
+    contextWindow: 262_144,
+    toolCallFormat: "native",
+    parallelToolCalls: true,
+    promptVerbosity: "standard",
+  },
   ollama: {
     contextWindow: 32_768,
     toolCallFormat: "text_fallback",
@@ -74,6 +86,8 @@ export function normalizeProviderModelDefaults(
   return {
     anthropic: pick("anthropic"),
     deepseek: pick("deepseek"),
+    glm: pick("glm"),
+    kimi: pick("kimi"),
     ollama: pick("ollama"),
     llamacpp: pick("llamacpp"),
   };
@@ -115,6 +129,10 @@ export function modelsForBackend(state: SettingsState, backend: ChatBackend): Mo
       return state.anthropicModels;
     case "deepseek":
       return state.deepseekModels;
+    case "glm":
+      return state.glmModels;
+    case "kimi":
+      return state.kimiModels;
     case "ollama":
       return state.ollamaModels;
     case "llamacpp":

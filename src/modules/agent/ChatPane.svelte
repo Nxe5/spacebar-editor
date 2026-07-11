@@ -6,6 +6,8 @@
   import {
     fetchAnthropicModelCatalog,
     fetchDeepseekModelCatalog,
+    fetchGlmModelCatalog,
+    fetchKimiModelCatalog,
   } from "$lib/cloudModelCatalog";
   import { mergeCloudModelCatalog, modelsVisibleInPicker } from "$lib/modelPicker";
   import {
@@ -410,6 +412,10 @@ import {
     buildMenuRows(modelsVisibleInPicker($settings.deepseekModels))
   );
 
+  let glmMenuRows = $derived(buildMenuRows(modelsVisibleInPicker($settings.glmModels)));
+
+  let kimiMenuRows = $derived(buildMenuRows(modelsVisibleInPicker($settings.kimiModels)));
+
   let showOllamaInModelMenu = $derived(
     ollamaProviderMenuReady(ollamaCatalogStatus === "ok", $settings.ollamaModels)
   );
@@ -417,7 +423,6 @@ import {
   let showAnthropicInModelMenu = $derived(
     cloudProviderMenuReady(
       $settings.apiKeys.anthropic,
-      $settings.cloudApiKeyStored.anthropic,
       $settings.anthropicModels,
       $settings.anthropicCatalogFetched
     )
@@ -426,9 +431,24 @@ import {
   let showDeepseekInModelMenu = $derived(
     cloudProviderMenuReady(
       $settings.apiKeys.deepseek,
-      $settings.cloudApiKeyStored.deepseek,
       $settings.deepseekModels,
       $settings.deepseekCatalogFetched
+    )
+  );
+
+  let showGlmInModelMenu = $derived(
+    cloudProviderMenuReady(
+      $settings.apiKeys.glm,
+      $settings.glmModels,
+      $settings.glmCatalogFetched
+    )
+  );
+
+  let showKimiInModelMenu = $derived(
+    cloudProviderMenuReady(
+      $settings.apiKeys.kimi,
+      $settings.kimiModels,
+      $settings.kimiCatalogFetched
     )
   );
 
@@ -451,6 +471,20 @@ import {
     return m?.contextWindow ?? 65536;
   }
 
+  function glmModelCap(): number {
+    const m = $settings.glmModels.find(
+      (x) => x.id === $settings.selectedModel && x.provider === "glm"
+    );
+    return m?.contextWindow ?? 128000;
+  }
+
+  function kimiModelCap(): number {
+    const m = $settings.kimiModels.find(
+      (x) => x.id === $settings.selectedModel && x.provider === "kimi"
+    );
+    return m?.contextWindow ?? 262144;
+  }
+
   function contextBudgetCeiling(): number {
     if ($settings.chatBackend === "ollama") {
       const row = $settings.ollamaModels.find((m) => m.id === $settings.selectedModel);
@@ -469,6 +503,12 @@ import {
     if ($settings.chatBackend === "deepseek") {
       return deepseekModelCap();
     }
+    if ($settings.chatBackend === "glm") {
+      return glmModelCap();
+    }
+    if ($settings.chatBackend === "kimi") {
+      return kimiModelCap();
+    }
     return anthropicModelCap();
   }
 
@@ -482,6 +522,8 @@ import {
       llamacppModels: $settings.llamacppModels,
       anthropicModels: $settings.anthropicModels,
       deepseekModels: $settings.deepseekModels,
+      glmModels: $settings.glmModels,
+      kimiModels: $settings.kimiModels,
       anthropicContextBudget: $settings.anthropicContextBudget,
     })
   );
@@ -498,8 +540,12 @@ import {
         : $settings.chatBackend === "deepseek"
           ? ($settings.deepseekModels.find((x) => x.id === $settings.selectedModel)?.name ??
               "DeepSeek")
-          : ($settings.anthropicModels.find((x) => x.id === $settings.selectedModel)?.name ??
-              "Anthropic")
+          : $settings.chatBackend === "glm"
+            ? ($settings.glmModels.find((x) => x.id === $settings.selectedModel)?.name ?? "GLM")
+            : $settings.chatBackend === "kimi"
+              ? ($settings.kimiModels.find((x) => x.id === $settings.selectedModel)?.name ?? "Kimi")
+              : ($settings.anthropicModels.find((x) => x.id === $settings.selectedModel)?.name ??
+                  "Anthropic")
   );
 
   // --- Skills (spec 30 §5, §10) -------------------------------------------
@@ -660,7 +706,7 @@ import {
       return formatMonthlyUsageLabel(totals.inputTokens, totals.outputTokens);
     }
     const backend = $settings.chatBackend;
-    if (backend !== "anthropic" && backend !== "deepseek") {
+    if (backend !== "anthropic" && backend !== "deepseek" && backend !== "glm" && backend !== "kimi") {
       return formatMonthlyUsageLabel(totals.inputTokens, totals.outputTokens);
     }
     if (footerBalanceLoading) {
@@ -671,7 +717,7 @@ import {
 
   let footerUsageTitle = $derived(() => {
     const backend = $settings.chatBackend;
-    if (backend !== "anthropic" && backend !== "deepseek") {
+    if (backend !== "anthropic" && backend !== "deepseek" && backend !== "glm" && backend !== "kimi") {
       return "Monthly API token usage (stored locally on this device)";
     }
     return footerUsageToggleTitle(footerUsageView, backend);
@@ -944,6 +990,26 @@ import {
         settings.setDeepseekModels(mergeCloudModelCatalog(st2.deepseekModels, rows));
       } catch (e) {
         console.warn("DeepSeek model catalog:", e);
+      }
+    }
+    const st3 = get(settings);
+    const glmKey = await getCloudApiKey("glm");
+    if (glmKey.length >= 10 && !st3.glmCatalogFetched) {
+      try {
+        const rows = await fetchGlmModelCatalog(glmKey);
+        settings.setGlmModels(mergeCloudModelCatalog(st3.glmModels, rows));
+      } catch (e) {
+        console.warn("GLM model catalog:", e);
+      }
+    }
+    const st4 = get(settings);
+    const kimiKey = await getCloudApiKey("kimi");
+    if (kimiKey.length >= 10 && !st4.kimiCatalogFetched) {
+      try {
+        const rows = await fetchKimiModelCatalog(kimiKey);
+        settings.setKimiModels(mergeCloudModelCatalog(st4.kimiModels, rows));
+      } catch (e) {
+        console.warn("Kimi model catalog:", e);
       }
     }
   }
@@ -1871,6 +1937,8 @@ import {
       llamacppModels: st.llamacppModels,
       anthropicModels: st.anthropicModels,
       deepseekModels: st.deepseekModels,
+      glmModels: st.glmModels,
+      kimiModels: st.kimiModels,
       anthropicContextBudget: st.anthropicContextBudget,
     });
   }
@@ -2331,6 +2399,18 @@ import {
 
   function pickDeepseekModelRow(modelId: string) {
     settings.setChatBackend("deepseek");
+    settings.setSelectedModel(modelId);
+    modelMenuOpen = false;
+  }
+
+  function pickGlmModelRow(modelId: string) {
+    settings.setChatBackend("glm");
+    settings.setSelectedModel(modelId);
+    modelMenuOpen = false;
+  }
+
+  function pickKimiModelRow(modelId: string) {
+    settings.setChatBackend("kimi");
     settings.setSelectedModel(modelId);
     modelMenuOpen = false;
   }
@@ -3147,6 +3227,50 @@ import {
                         $settings.selectedModel === row.id}
                       aria-selected={$settings.chatBackend === "deepseek" && $settings.selectedModel === row.id}
                       onclick={() => pickDeepseekModelRow(row.id)}
+                    >
+                      {row.name}
+                    </button>
+                  {/each}
+                {:else}
+                  <span class="model-popup-unavailable">No models available</span>
+                {/if}
+              </div>
+              <div class="model-popup-section">
+                <div class="model-popup-section-head">
+                  <span>GLM</span>
+                </div>
+                {#if showGlmInModelMenu && glmMenuRows.length > 0}
+                  {#each glmMenuRows as row (row.id)}
+                    <button
+                      type="button"
+                      role="option"
+                      class="model-popup-option"
+                      class:model-popup-option--current={$settings.chatBackend === "glm" &&
+                        $settings.selectedModel === row.id}
+                      aria-selected={$settings.chatBackend === "glm" && $settings.selectedModel === row.id}
+                      onclick={() => pickGlmModelRow(row.id)}
+                    >
+                      {row.name}
+                    </button>
+                  {/each}
+                {:else}
+                  <span class="model-popup-unavailable">No models available</span>
+                {/if}
+              </div>
+              <div class="model-popup-section">
+                <div class="model-popup-section-head">
+                  <span>Kimi</span>
+                </div>
+                {#if showKimiInModelMenu && kimiMenuRows.length > 0}
+                  {#each kimiMenuRows as row (row.id)}
+                    <button
+                      type="button"
+                      role="option"
+                      class="model-popup-option"
+                      class:model-popup-option--current={$settings.chatBackend === "kimi" &&
+                        $settings.selectedModel === row.id}
+                      aria-selected={$settings.chatBackend === "kimi" && $settings.selectedModel === row.id}
+                      onclick={() => pickKimiModelRow(row.id)}
                     >
                       {row.name}
                     </button>

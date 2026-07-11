@@ -8,6 +8,8 @@
   import {
     fetchAnthropicModelCatalog,
     fetchDeepseekModelCatalog,
+    fetchGlmModelCatalog,
+    fetchKimiModelCatalog,
   } from "$lib/cloudModelCatalog";
   import { mergeCloudModelCatalog, modelsVisibleInPicker } from "$lib/modelPicker";
   import {
@@ -98,6 +100,8 @@
     | "providers-llamacpp"
     | "providers-anthropic"
     | "providers-deepseek"
+    | "providers-glm"
+    | "providers-kimi"
     | "tools"
     | "experimental-compaction"
     | "experimental-autocomplete"
@@ -111,6 +115,8 @@
     llamacpp: "providers-llamacpp",
     anthropic: "providers-anthropic",
     deepseek: "providers-deepseek",
+    glm: "providers-glm",
+    kimi: "providers-kimi",
   };
 
   let activeSection = $state<Section>("general");
@@ -144,14 +150,20 @@
 
   let anthropicKey = $state("");
   let deepseekKey = $state("");
-  let anthropicKeyFromKeychain = $state(false);
-  let deepseekKeyFromKeychain = $state(false);
+  let glmKey = $state("");
+  let kimiKey = $state("");
   let anthropicModels = $state<ModelConfig[]>([]);
   let deepseekModels = $state<ModelConfig[]>([]);
+  let glmModels = $state<ModelConfig[]>([]);
+  let kimiModels = $state<ModelConfig[]>([]);
   let loadingAnthropicCatalog = $state(false);
   let loadingDeepseekCatalog = $state(false);
+  let loadingGlmCatalog = $state(false);
+  let loadingKimiCatalog = $state(false);
   let anthropicCatalogError = $state("");
   let deepseekCatalogError = $state("");
+  let glmCatalogError = $state("");
+  let kimiCatalogError = $state("");
   let openaiKey = $state("");
   let ollamaEndpoint = $state("");
   let ollamaApiKey = $state("");
@@ -246,6 +258,8 @@
     { id: "providers-llamacpp", label: "llama.cpp", group: "Providers" },
     { id: "providers-anthropic", label: "Anthropic", group: "Providers" },
     { id: "providers-deepseek", label: "DeepSeek", group: "Providers" },
+    { id: "providers-glm", label: "GLM", group: "Providers" },
+    { id: "providers-kimi", label: "Kimi", group: "Providers" },
     { id: "tools", label: "Tools" },
     { id: "experimental-compaction", label: "Compaction", group: "Experimental", experimental: true },
     { id: "experimental-autocomplete", label: "Autocomplete", group: "Experimental", experimental: true },
@@ -270,8 +284,8 @@
 
     anthropicKey = $settings.apiKeys.anthropic;
     deepseekKey = $settings.apiKeys.deepseek;
-    anthropicKeyFromKeychain = false;
-    deepseekKeyFromKeychain = false;
+    glmKey = $settings.apiKeys.glm;
+    kimiKey = $settings.apiKeys.kimi;
     openaiKey = $settings.apiKeys.openai;
     ollamaEndpoint = $settings.ollamaEndpoint;
     ollamaApiKey = $settings.ollamaApiKey;
@@ -281,8 +295,12 @@
     ollamaModels = $settings.ollamaModels;
     anthropicModels = $settings.anthropicModels;
     deepseekModels = $settings.deepseekModels;
+    glmModels = $settings.glmModels;
+    kimiModels = $settings.kimiModels;
     anthropicCatalogError = "";
     deepseekCatalogError = "";
+    glmCatalogError = "";
+    kimiCatalogError = "";
     chatBackend = $settings.chatBackend;
     anthropicExtendedThinking = $settings.anthropicExtendedThinking;
     workbenchTheme = $settings.workbenchTheme;
@@ -299,25 +317,7 @@
     activeSection = "general";
     void connectOllama();
     void connectLlamacpp();
-    void loadKeychainKeys();
   });
-
-  async function loadKeychainKeys() {
-    const { getCloudApiKey } = await import("$lib/apiSecrets");
-    const st = get(settings);
-    if (st.cloudApiKeyStored?.anthropic && !anthropicKey.trim()) {
-      try {
-        const k = await getCloudApiKey("anthropic");
-        if (k) { anthropicKey = k; anthropicKeyFromKeychain = true; }
-      } catch { /* keychain unavailable */ }
-    }
-    if (st.cloudApiKeyStored?.deepseek && !deepseekKey.trim()) {
-      try {
-        const k = await getCloudApiKey("deepseek");
-        if (k) { deepseekKey = k; deepseekKeyFromKeychain = true; }
-      } catch { /* keychain unavailable */ }
-    }
-  }
 
   function setAsChatProvider(backend: ChatBackend) {
     chatBackend = backend;
@@ -455,6 +455,56 @@
     }
   }
 
+  async function connectGlmCatalog(force = false) {
+    const key = glmKey.trim();
+    if (key.length < 10) {
+      glmCatalogError = "Add a valid API key first.";
+      return;
+    }
+    const st = get(settings);
+    if (st.glmCatalogFetched && !force) return;
+
+    loadingGlmCatalog = true;
+    glmCatalogError = "";
+    try {
+      const rows = await fetchGlmModelCatalog(key);
+      const merged = mergeCloudModelCatalog(st.glmModels, rows);
+      glmModels = merged;
+      settings.setGlmModels(merged);
+    } catch (e) {
+      glmCatalogError = e instanceof Error ? e.message : String(e);
+      glmModels = [];
+      settings.setGlmModels([]);
+    } finally {
+      loadingGlmCatalog = false;
+    }
+  }
+
+  async function connectKimiCatalog(force = false) {
+    const key = kimiKey.trim();
+    if (key.length < 10) {
+      kimiCatalogError = "Add a valid API key first.";
+      return;
+    }
+    const st = get(settings);
+    if (st.kimiCatalogFetched && !force) return;
+
+    loadingKimiCatalog = true;
+    kimiCatalogError = "";
+    try {
+      const rows = await fetchKimiModelCatalog(key);
+      const merged = mergeCloudModelCatalog(st.kimiModels, rows);
+      kimiModels = merged;
+      settings.setKimiModels(merged);
+    } catch (e) {
+      kimiCatalogError = e instanceof Error ? e.message : String(e);
+      kimiModels = [];
+      settings.setKimiModels([]);
+    } finally {
+      loadingKimiCatalog = false;
+    }
+  }
+
   function toggleOllamaPicker(modelId: string, show: boolean) {
     settings.setModelShowInPicker("ollama", modelId, show);
     ollamaModels = get(settings).ollamaModels;
@@ -468,6 +518,16 @@
   function toggleDeepseekPicker(modelId: string, show: boolean) {
     settings.setModelShowInPicker("deepseek", modelId, show);
     deepseekModels = get(settings).deepseekModels;
+  }
+
+  function toggleGlmPicker(modelId: string, show: boolean) {
+    settings.setModelShowInPicker("glm", modelId, show);
+    glmModels = get(settings).glmModels;
+  }
+
+  function toggleKimiPicker(modelId: string, show: boolean) {
+    settings.setModelShowInPicker("kimi", modelId, show);
+    kimiModels = get(settings).kimiModels;
   }
 
   async function connectLlamacpp() {
@@ -651,6 +711,8 @@
     const { saveCloudApiKey } = await import("$lib/apiSecrets");
     await saveCloudApiKey("anthropic", anthropicKey);
     await saveCloudApiKey("deepseek", deepseekKey);
+    await saveCloudApiKey("glm", glmKey);
+    await saveCloudApiKey("kimi", kimiKey);
     settings.setApiKey("openai", openaiKey);
     settings.setOllamaEndpoint(ollamaEndpoint);
     settings.setOllamaApiKey(ollamaApiKey);
@@ -746,7 +808,7 @@
               onclick={() => selectSettingsSection(s.id)}
             >
               <span class="nav-item-label">{s.label}</span>
-              {#if (s.id === "providers-ollama" && chatBackend === "ollama") || (s.id === "providers-llamacpp" && chatBackend === "llamacpp") || (s.id === "providers-anthropic" && chatBackend === "anthropic") || (s.id === "providers-deepseek" && chatBackend === "deepseek")}
+              {#if (s.id === "providers-ollama" && chatBackend === "ollama") || (s.id === "providers-llamacpp" && chatBackend === "llamacpp") || (s.id === "providers-anthropic" && chatBackend === "anthropic") || (s.id === "providers-deepseek" && chatBackend === "deepseek") || (s.id === "providers-glm" && chatBackend === "glm") || (s.id === "providers-kimi" && chatBackend === "kimi")}
                 <span class="nav-active-dot" title="Active chat provider"></span>
               {/if}
             </button>
@@ -1196,15 +1258,10 @@
 
             <label class="field">
               <span class="name">API Key</span>
-              {#if anthropicKeyFromKeychain}
-                <span class="hint hint-keychain">Stored in system keychain</span>
-              {:else}
-                <span class="hint">Required for Claude models</span>
-              {/if}
+              <span class="hint">Required for Claude models</span>
               <input
                 type="password"
                 bind:value={anthropicKey}
-                oninput={() => { anthropicKeyFromKeychain = false; }}
                 placeholder="sk-ant-…"
                 class="input"
                 autocomplete="off"
@@ -1275,15 +1332,10 @@
 
             <label class="field">
               <span class="name">API Key</span>
-              {#if deepseekKeyFromKeychain}
-                <span class="hint hint-keychain">Stored in system keychain</span>
-              {:else}
-                <span class="hint">Required for DeepSeek Chat and Reasoner</span>
-              {/if}
+              <span class="hint">Required for DeepSeek Chat and Reasoner</span>
               <input
                 type="password"
                 bind:value={deepseekKey}
-                oninput={() => { deepseekKeyFromKeychain = false; }}
                 placeholder="sk-…"
                 class="input"
                 autocomplete="off"
@@ -1323,6 +1375,138 @@
                 </select>
               </label>
             {:else if !loadingDeepseekCatalog}
+              <p class="note muted">Connect to load models available to your API key.</p>
+            {/if}
+          </div>
+
+        {:else if activeSection === "providers-glm"}
+          <div class="stack">
+            <div class="provider-page-head">
+              <h3 class="provider-page-title">GLM</h3>
+              {#if chatBackend === "glm"}
+                <span class="active-provider-pill">Active chat provider</span>
+              {:else}
+                <button type="button" class="btn secondary" onclick={() => setAsChatProvider("glm")}>
+                  Use for chat
+                </button>
+              {/if}
+            </div>
+            <p class="note">
+              Zhipu GLM models via the OpenAI-compatible API. Requires an API key from
+              <a href="https://docs.z.ai" target="_blank" rel="noreferrer">docs.z.ai</a>.
+            </p>
+
+            <label class="field">
+              <span class="name">API Key</span>
+              <span class="hint">Required for GLM cloud models</span>
+              <input
+                type="password"
+                bind:value={glmKey}
+                placeholder="…"
+                class="input"
+                autocomplete="off"
+              />
+            </label>
+
+            <div class="provider-connect-row">
+              <button
+                type="button"
+                class="btn secondary"
+                disabled={loadingGlmCatalog || glmKey.trim().length < 10}
+                onclick={() => connectGlmCatalog(true)}
+              >
+                {loadingGlmCatalog
+                  ? "…"
+                  : $settings.glmCatalogFetched
+                    ? "Refresh models"
+                    : "Connect"}
+              </button>
+            </div>
+            {#if glmCatalogError}
+              <p class="note catalog-error">{glmCatalogError}</p>
+            {/if}
+
+            {#if glmModels.length > 0}
+              <p class="group-label">Models in chat picker</p>
+              <p class="note muted">Fetched from your API key. Toggle which appear in the chat menu.</p>
+              <ProviderModelDefaultsPanel backend="glm" />
+              <ModelListWithSettings backend="glm" onTogglePicker={toggleGlmPicker} />
+
+              <label class="field">
+                <span class="name">Chat model</span>
+                <select bind:value={selectedModel} class="input">
+                  {#each modelsVisibleInPicker(glmModels) as model}
+                    <option value={model.id}>{model.name}</option>
+                  {/each}
+                </select>
+              </label>
+            {:else if !loadingGlmCatalog}
+              <p class="note muted">Connect to load models available to your API key.</p>
+            {/if}
+          </div>
+
+        {:else if activeSection === "providers-kimi"}
+          <div class="stack">
+            <div class="provider-page-head">
+              <h3 class="provider-page-title">Kimi</h3>
+              {#if chatBackend === "kimi"}
+                <span class="active-provider-pill">Active chat provider</span>
+              {:else}
+                <button type="button" class="btn secondary" onclick={() => setAsChatProvider("kimi")}>
+                  Use for chat
+                </button>
+              {/if}
+            </div>
+            <p class="note">
+              Moonshot Kimi K2 models via the OpenAI-compatible API. Requires an API key from
+              <a href="https://platform.moonshot.ai" target="_blank" rel="noreferrer">platform.moonshot.ai</a>.
+            </p>
+
+            <label class="field">
+              <span class="name">API Key</span>
+              <span class="hint">Required for Kimi K2 models</span>
+              <input
+                type="password"
+                bind:value={kimiKey}
+                placeholder="sk-…"
+                class="input"
+                autocomplete="off"
+              />
+            </label>
+
+            <div class="provider-connect-row">
+              <button
+                type="button"
+                class="btn secondary"
+                disabled={loadingKimiCatalog || kimiKey.trim().length < 10}
+                onclick={() => connectKimiCatalog(true)}
+              >
+                {loadingKimiCatalog
+                  ? "…"
+                  : $settings.kimiCatalogFetched
+                    ? "Refresh models"
+                    : "Connect"}
+              </button>
+            </div>
+            {#if kimiCatalogError}
+              <p class="note catalog-error">{kimiCatalogError}</p>
+            {/if}
+
+            {#if kimiModels.length > 0}
+              <p class="group-label">Models in chat picker</p>
+              <p class="note muted">Fetched from your API key. Toggle which appear in the chat menu.</p>
+              <ProviderModelDefaultsPanel backend="kimi" />
+              <ModelListWithSettings backend="kimi" onTogglePicker={toggleKimiPicker} />
+
+              <label class="field">
+                <span class="name">Chat model</span>
+                <select bind:value={selectedModel} class="input">
+                  {#each modelsVisibleInPicker(kimiModels) as model}
+                    <option value={model.id}>{model.name}</option>
+                  {/each}
+                </select>
+              </label>
+            {:else if !loadingKimiCatalog}
               <p class="note muted">Connect to load models available to your API key.</p>
             {/if}
           </div>
@@ -1856,10 +2040,6 @@
   .hint {
     font-size: 11px;
     color: #666;
-  }
-
-  .hint-keychain {
-    color: #4ade80;
   }
 
   .input {

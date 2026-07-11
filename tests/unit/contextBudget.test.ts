@@ -24,6 +24,8 @@ describe("contextBudget", () => {
         llamacppModels: [],
         anthropicModels: [],
         deepseekModels: [],
+        glmModels: [],
+        kimiModels: [],
         anthropicContextBudget: null,
       })
     ).toBe(4096);

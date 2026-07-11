@@ -28,6 +28,8 @@ describe("compactionModel", () => {
       llamacppModels: [{ id: "qwen", name: "Qwen", provider: "llamacpp", contextWindow: 4096 }],
       anthropicModels,
       deepseekModels: [],
+      glmModels: [],
+      kimiModels: [],
     });
     expect(opts.map((o) => o.value)).toContain("ollama:phi4");
     expect(opts.map((o) => o.value)).toContain("anthropic:claude-sonnet");
@@ -43,7 +45,9 @@ describe("compactionModel", () => {
       llamacppModels: [],
       anthropicModels: [],
       deepseekModels: [],
-      apiKeys: { anthropic: "", deepseek: "" },
+      glmModels: [],
+      kimiModels: [],
+      apiKeys: { anthropic: "", deepseek: "", glm: "", kimi: "" },
     });
     expect(target.usesActiveChatModel).toBe(true);
     expect(target.backend).toBe("ollama");
@@ -60,7 +64,9 @@ describe("compactionModel", () => {
       llamacppModels: [],
       anthropicModels,
       deepseekModels: [],
-      apiKeys: { anthropic: "key", deepseek: "" },
+      glmModels: [],
+      kimiModels: [],
+      apiKeys: { anthropic: "key", deepseek: "", glm: "", kimi: "" },
     });
     expect(target.usesActiveChatModel).toBe(false);
     expect(target.backend).toBe("anthropic");

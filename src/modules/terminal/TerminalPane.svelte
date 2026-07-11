@@ -71,6 +71,13 @@
     fit = null;
   }
 
+  function syncPtySize() {
+    if (!fit || !term) return;
+    fit.fit();
+    const dims = fit.proposeDimensions();
+    if (dims) void ptyResize(sessionId, dims.cols, dims.rows);
+  }
+
   onMount(async () => {
     await tick();
     if (!isTauriAvailable() || !rootEl) return;
@@ -84,7 +91,7 @@
     fit = new FitAddon();
     term.loadAddon(fit);
     term.open(rootEl);
-    fit.fit();
+    syncPtySize();
     term.focus();
 
     term.onData((data) => {
@@ -100,10 +107,7 @@
     });
 
     observer = new ResizeObserver(() => {
-      if (!fit || !term) return;
-      fit.fit();
-      const dims = fit.proposeDimensions();
-      if (dims) void ptyResize(sessionId, dims.cols, dims.rows);
+      syncPtySize();
     });
     observer.observe(rootEl);
   });

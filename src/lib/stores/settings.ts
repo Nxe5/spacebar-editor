@@ -30,8 +30,12 @@ import { normalizeWorkbenchTheme, type WorkbenchThemeId } from "../workbench-the
 import {
   ANTHROPIC_MODEL_FALLBACKS,
   DEEPSEEK_MODEL_FALLBACKS,
+  GLM_MODEL_FALLBACKS,
+  KIMI_MODEL_FALLBACKS,
   seedAnthropicModels,
   seedDeepseekModels,
+  seedGlmModels,
+  seedKimiModels,
 } from "../cloudModelCatalog";
 import { modelsVisibleInPicker } from "../modelPicker";
 import {
@@ -73,7 +77,7 @@ export {
 export { DEFAULT_AUTOCOMPLETE, AUTOCOMPLETE_BOUNDS } from "../autocompleteSettings";
 export { DEFAULT_MODEL_ROLES } from "../modelRoles";
 
-export type ChatBackend = "anthropic" | "deepseek" | "ollama" | "llamacpp";
+export type ChatBackend = "anthropic" | "deepseek" | "glm" | "kimi" | "ollama" | "llamacpp";
 
 export type EditorSettings = {
   wordWrap: boolean;
@@ -103,7 +107,7 @@ function normalizeEditorSettings(parsed: Partial<EditorSettings> | undefined): E
 export interface ModelConfig {
   id: string;
   name: string;
-  provider: "anthropic" | "deepseek" | "openai" | "ollama" | "llamacpp";
+  provider: "anthropic" | "deepseek" | "glm" | "kimi" | "openai" | "ollama" | "llamacpp";
   contextWindow: number;
   contextLimitMax?: number;
   /** When false, hidden from the chat model picker (default: shown). */
@@ -117,6 +121,8 @@ export interface ModelConfig {
 export const AVAILABLE_MODELS: ModelConfig[] = [
   ...ANTHROPIC_MODEL_FALLBACKS,
   ...DEEPSEEK_MODEL_FALLBACKS,
+  ...GLM_MODEL_FALLBACKS,
+  ...KIMI_MODEL_FALLBACKS,
 ];
 
 const SETTINGS_STORAGE_KEY = "sidebar.settings.v4";
@@ -127,12 +133,16 @@ export type SettingsState = {
   apiKeys: {
     anthropic: string;
     deepseek: string;
+    glm: string;
+    kimi: string;
     openai: string;
   };
-  /** Desktop: key lives in OS keychain; never persist secret in localStorage. */
+  /** @deprecated Keys are stored in settings; kept for settings schema compatibility. */
   cloudApiKeyStored: {
     anthropic: boolean;
     deepseek: boolean;
+    glm: boolean;
+    kimi: boolean;
   };
   chatBackend: ChatBackend;
   ollamaEndpoint: string;
@@ -145,8 +155,12 @@ export type SettingsState = {
   llamacppModels: ModelConfig[];
   anthropicModels: ModelConfig[];
   deepseekModels: ModelConfig[];
+  glmModels: ModelConfig[];
+  kimiModels: ModelConfig[];
   anthropicCatalogFetched: boolean;
   deepseekCatalogFetched: boolean;
+  glmCatalogFetched: boolean;
+  kimiCatalogFetched: boolean;
   anthropicExtendedThinking: boolean;
   workbenchTheme: WorkbenchThemeId;
   anthropicContextBudget: number | null;
@@ -179,11 +193,15 @@ function createSettingsStore() {
     apiKeys: {
       anthropic: "",
       deepseek: "",
+      glm: "",
+      kimi: "",
       openai: "",
     },
     cloudApiKeyStored: {
       anthropic: false,
       deepseek: false,
+      glm: false,
+      kimi: false,
     },
     chatBackend: "ollama",
     ollamaEndpoint: "http://127.0.0.1:11434",
@@ -196,8 +214,12 @@ function createSettingsStore() {
     llamacppModels: [],
     anthropicModels: [],
     deepseekModels: [],
+    glmModels: [],
+    kimiModels: [],
     anthropicCatalogFetched: false,
     deepseekCatalogFetched: false,
+    glmCatalogFetched: false,
+    kimiCatalogFetched: false,
     anthropicExtendedThinking: true,
     workbenchTheme: "spacebar",
     anthropicContextBudget: null,
@@ -243,13 +265,17 @@ function createSettingsStore() {
       ...parsed,
       schemaVersion: 4,
       apiKeys: {
-        anthropic: parsed.cloudApiKeyStored?.anthropic ? "" : api.anthropic,
-        deepseek: parsed.cloudApiKeyStored?.deepseek ? "" : api.deepseek,
+        anthropic: api.anthropic,
+        deepseek: api.deepseek,
+        glm: api.glm,
+        kimi: api.kimi,
         openai: api.openai,
       },
       cloudApiKeyStored: {
-        anthropic: parsed.cloudApiKeyStored?.anthropic === true,
-        deepseek: parsed.cloudApiKeyStored?.deepseek === true,
+        anthropic: false,
+        deepseek: false,
+        glm: false,
+        kimi: false,
       },
       ollamaEndpoint: parsed.ollamaEndpoint ?? defaultState.ollamaEndpoint,
       ollamaApiKey: parsed.ollamaApiKey ?? defaultState.ollamaApiKey,
@@ -269,8 +295,16 @@ function createSettingsStore() {
       deepseekModels: seedDeepseekModels(
         normalizeModelList(parsed.deepseekModels, "deepseek", providerDefaults.deepseek)
       ),
+      glmModels: seedGlmModels(
+        normalizeModelList(parsed.glmModels, "glm", providerDefaults.glm)
+      ),
+      kimiModels: seedKimiModels(
+        normalizeModelList(parsed.kimiModels, "kimi", providerDefaults.kimi)
+      ),
       anthropicCatalogFetched: parsed.anthropicCatalogFetched === true,
       deepseekCatalogFetched: parsed.deepseekCatalogFetched === true,
+      glmCatalogFetched: parsed.glmCatalogFetched === true,
+      kimiCatalogFetched: parsed.kimiCatalogFetched === true,
       workbenchTheme: normalizeWorkbenchTheme(parsed.workbenchTheme),
       anthropicContextBudget:
         parsed.anthropicContextBudget === null || parsed.anthropicContextBudget === undefined
@@ -339,7 +373,7 @@ function createSettingsStore() {
 
   return {
     subscribe,
-    setApiKey: (provider: "anthropic" | "deepseek" | "openai", key: string) => {
+    setApiKey: (provider: "anthropic" | "deepseek" | "glm" | "kimi" | "openai", key: string) => {
       update((state) => {
         const prevKey = state.apiKeys[provider];
         const nextKeys = { ...state.apiKeys, [provider]: key };
@@ -362,15 +396,27 @@ function createSettingsStore() {
             deepseekCatalogFetched: false,
           };
         }
+        if (provider === "glm") {
+          return {
+            ...state,
+            apiKeys: nextKeys,
+            glmModels: [],
+            glmCatalogFetched: false,
+          };
+        }
+        if (provider === "kimi") {
+          return {
+            ...state,
+            apiKeys: nextKeys,
+            kimiModels: [],
+            kimiCatalogFetched: false,
+          };
+        }
         return { ...state, apiKeys: nextKeys };
       });
     },
-    setCloudApiKeyStored: (provider: "anthropic" | "deepseek", stored: boolean) => {
-      update((state) => ({
-        ...state,
-        cloudApiKeyStored: { ...state.cloudApiKeyStored, [provider]: stored },
-        apiKeys: { ...state.apiKeys, [provider]: "" },
-      }));
+    setCloudApiKeyStored: (_provider: "anthropic" | "deepseek" | "glm" | "kimi", _stored: boolean) => {
+      /* no-op — keys live in settings.apiKeys */
     },
     setOllamaEndpoint: (endpoint: string) => {
       update((state) => ({
@@ -436,6 +482,20 @@ function createSettingsStore() {
         }
         if (chatBackend === "deepseek") {
           const cloud = modelsVisibleInPicker(state.deepseekModels);
+          const selected = cloud.some((m) => m.id === state.selectedModel)
+            ? state.selectedModel
+            : (cloud[0]?.id ?? state.selectedModel);
+          return { ...state, chatBackend, selectedModel: selected };
+        }
+        if (chatBackend === "glm") {
+          const cloud = modelsVisibleInPicker(state.glmModels);
+          const selected = cloud.some((m) => m.id === state.selectedModel)
+            ? state.selectedModel
+            : (cloud[0]?.id ?? state.selectedModel);
+          return { ...state, chatBackend, selectedModel: selected };
+        }
+        if (chatBackend === "kimi") {
+          const cloud = modelsVisibleInPicker(state.kimiModels);
           const selected = cloud.some((m) => m.id === state.selectedModel)
             ? state.selectedModel
             : (cloud[0]?.id ?? state.selectedModel);
@@ -522,8 +582,42 @@ function createSettingsStore() {
         };
       });
     },
+    setGlmModels: (models: ModelConfig[]) => {
+      update((state) => {
+        const visible = modelsVisibleInPicker(models);
+        let selectedModel = state.selectedModel;
+        if (state.chatBackend === "glm") {
+          if (!visible.some((m) => m.id === selectedModel)) {
+            selectedModel = visible[0]?.id ?? selectedModel;
+          }
+        }
+        return {
+          ...state,
+          glmModels: models,
+          glmCatalogFetched: models.length > 0,
+          selectedModel,
+        };
+      });
+    },
+    setKimiModels: (models: ModelConfig[]) => {
+      update((state) => {
+        const visible = modelsVisibleInPicker(models);
+        let selectedModel = state.selectedModel;
+        if (state.chatBackend === "kimi") {
+          if (!visible.some((m) => m.id === selectedModel)) {
+            selectedModel = visible[0]?.id ?? selectedModel;
+          }
+        }
+        return {
+          ...state,
+          kimiModels: models,
+          kimiCatalogFetched: models.length > 0,
+          selectedModel,
+        };
+      });
+    },
     setModelShowInPicker: (
-      provider: "anthropic" | "deepseek" | "ollama",
+      provider: "anthropic" | "deepseek" | "glm" | "kimi" | "ollama",
       modelId: string,
       showInPicker: boolean
     ) => {
@@ -535,6 +629,12 @@ function createSettingsStore() {
         }
         if (provider === "deepseek") {
           return { ...state, deepseekModels: patch(state.deepseekModels) };
+        }
+        if (provider === "glm") {
+          return { ...state, glmModels: patch(state.glmModels) };
+        }
+        if (provider === "kimi") {
+          return { ...state, kimiModels: patch(state.kimiModels) };
         }
         return { ...state, ollamaModels: patch(state.ollamaModels) };
       });
@@ -658,6 +758,12 @@ function createSettingsStore() {
         }
         if (backend === "deepseek") {
           return { ...state, deepseekModels: apply(state.deepseekModels) };
+        }
+        if (backend === "glm") {
+          return { ...state, glmModels: apply(state.glmModels) };
+        }
+        if (backend === "kimi") {
+          return { ...state, kimiModels: apply(state.kimiModels) };
         }
         if (backend === "ollama") {
           return { ...state, ollamaModels: apply(state.ollamaModels) };

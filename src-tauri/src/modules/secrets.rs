@@ -6,7 +6,7 @@ const SERVICE: &str = "spacebar-editor";
 
 fn account_id(provider: &str) -> Result<String, String> {
     match provider {
-        "anthropic" | "deepseek" => Ok(format!("cloud-api-key.{provider}")),
+        "anthropic" | "deepseek" | "glm" | "kimi" => Ok(format!("cloud-api-key.{provider}")),
         _ => Err(format!("Unsupported provider for keychain: {provider}")),
     }
 }

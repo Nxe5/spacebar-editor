@@ -42,6 +42,12 @@
     if (st.chatBackend === "deepseek") {
       return st.deepseekModels.find((m) => m.id === st.selectedModel)?.name ?? "DeepSeek";
     }
+    if (st.chatBackend === "glm") {
+      return st.glmModels.find((m) => m.id === st.selectedModel)?.name ?? "GLM";
+    }
+    if (st.chatBackend === "kimi") {
+      return st.kimiModels.find((m) => m.id === st.selectedModel)?.name ?? "Kimi";
+    }
     if (st.chatBackend === "anthropic") {
       return st.anthropicModels.find((m) => m.id === st.selectedModel)?.name ?? "Anthropic";
     }
@@ -54,6 +60,8 @@
       llamacppModels: $settings.llamacppModels,
       anthropicModels: $settings.anthropicModels,
       deepseekModels: $settings.deepseekModels,
+      glmModels: $settings.glmModels,
+      kimiModels: $settings.kimiModels,
     })
   );
 

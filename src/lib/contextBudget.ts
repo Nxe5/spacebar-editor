@@ -13,6 +13,8 @@ export type ContextWindowSource = {
   llamacppModels: ModelConfig[];
   anthropicModels: ModelConfig[];
   deepseekModels: ModelConfig[];
+  glmModels: ModelConfig[];
+  kimiModels: ModelConfig[];
   anthropicContextBudget: number | null;
 };
 
@@ -36,6 +38,18 @@ export function resolveModelContextWindow(source: ContextWindowSource): number {
     return (
       source.deepseekModels.find((m) => m.id === source.selectedModel && m.provider === "deepseek")
         ?.contextWindow ?? 65_536
+    );
+  }
+  if (source.chatBackend === "glm") {
+    return (
+      source.glmModels.find((m) => m.id === source.selectedModel && m.provider === "glm")
+        ?.contextWindow ?? 128_000
+    );
+  }
+  if (source.chatBackend === "kimi") {
+    return (
+      source.kimiModels.find((m) => m.id === source.selectedModel && m.provider === "kimi")
+        ?.contextWindow ?? 262_144
     );
   }
   const cap =

@@ -39,6 +39,10 @@ export default defineConfig(({ mode }) => {
     env.DEEPSEEK_API_KEY ?? env.deepseek_api_key ?? env.VITE_DEEPSEEK_API_KEY ?? "";
   const anthropicApiKey =
     env.ANTHROPIC_API_KEY ?? env.anthropic_api_key ?? env.VITE_ANTHROPIC_API_KEY ?? "";
+  const glmApiKey =
+    env.GLM_API_KEY ?? env.glm_api_key ?? env.ZAI_API_KEY ?? env.VITE_GLM_API_KEY ?? "";
+  const kimiApiKey =
+    env.KIMI_API_KEY ?? env.kimi_api_key ?? env.MOONSHOT_API_KEY ?? env.VITE_KIMI_API_KEY ?? "";
 
   return {
   /** VS Code icon pack and other shipped static assets (`static/icon-packs/…`). */
@@ -48,6 +52,8 @@ export default defineConfig(({ mode }) => {
   define: {
     __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__: JSON.stringify(deepseekApiKey),
     __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__: JSON.stringify(anthropicApiKey),
+    __SPACEBAR_EDITOR_ENV_GLM_API_KEY__: JSON.stringify(glmApiKey),
+    __SPACEBAR_EDITOR_ENV_KIMI_API_KEY__: JSON.stringify(kimiApiKey),
   },
   clearScreen: false,
   /** esbuild 0.28+ errors on Safari <14.1 in Vite's default targets; Tauri WebViews are modern. */

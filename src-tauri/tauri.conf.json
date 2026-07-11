@@ -50,7 +50,7 @@
         "style-src": "'self' 'unsafe-inline' tauri: asset:",
         "img-src": "'self' data: tauri: asset: blob: http://localhost:* http://127.0.0.1:*",
         "font-src": "'self' tauri: asset: data:",
-        "connect-src": "'self' tauri: asset: https://api.anthropic.com https://api.deepseek.com http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
+        "connect-src": "'self' tauri: asset: https://api.anthropic.com https://api.deepseek.com https://api.z.ai https://api.moonshot.ai http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
         "media-src": "'self' tauri: asset: blob:",
         "worker-src": "'self' blob:",
         "frame-src": "'self' tauri: asset: http://localhost:* http://127.0.0.1:*"

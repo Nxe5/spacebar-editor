@@ -26,11 +26,29 @@ export type CompactionSettingsSlice = {
   llamacppModels: ModelConfig[];
   anthropicModels: ModelConfig[];
   deepseekModels: ModelConfig[];
-  apiKeys: { anthropic: string; deepseek: string };
-  cloudApiKeyStored?: { anthropic: boolean; deepseek: boolean };
+  glmModels: ModelConfig[];
+  kimiModels: ModelConfig[];
+  apiKeys: { anthropic: string; deepseek: string; glm: string; kimi: string };
+  cloudApiKeyStored?: { anthropic: boolean; deepseek: boolean; glm: boolean; kimi: boolean };
 };
 
-const BACKENDS: StreamChatBackend[] = ["ollama", "llamacpp", "anthropic", "deepseek"];
+const BACKENDS: StreamChatBackend[] = [
+  "ollama",
+  "llamacpp",
+  "anthropic",
+  "deepseek",
+  "glm",
+  "kimi",
+];
+
+const PROVIDER_LABELS: Record<StreamChatBackend, string> = {
+  ollama: "Ollama",
+  llamacpp: "llama.cpp",
+  anthropic: "Anthropic",
+  deepseek: "DeepSeek",
+  glm: "GLM",
+  kimi: "Kimi",
+};
 
 export function encodeCompactionModelRef(backend: ChatBackend, modelId: string): string {
   return `${backend}${REF_SEP}${modelId}`;
@@ -49,28 +67,30 @@ function modelLabel(models: ModelConfig[], modelId: string, fallback: string): s
   return models.find((m) => m.id === modelId)?.name ?? modelId ?? fallback;
 }
 
+function modelsForBackend(settings: CompactionSettingsSlice, backend: StreamChatBackend): ModelConfig[] {
+  switch (backend) {
+    case "ollama":
+      return settings.ollamaModels;
+    case "llamacpp":
+      return settings.llamacppModels;
+    case "anthropic":
+      return settings.anthropicModels;
+    case "deepseek":
+      return settings.deepseekModels;
+    case "glm":
+      return settings.glmModels;
+    case "kimi":
+      return settings.kimiModels;
+  }
+}
+
 function activeChatTarget(settings: CompactionSettingsSlice): CompactionTarget {
   const { chatBackend, selectedModel } = settings;
-  const providerLabel =
-    chatBackend === "ollama"
-      ? "Ollama"
-      : chatBackend === "llamacpp"
-        ? "llama.cpp"
-        : chatBackend === "anthropic"
-          ? "Anthropic"
-          : "DeepSeek";
-  const models =
-    chatBackend === "ollama"
-      ? settings.ollamaModels
-      : chatBackend === "llamacpp"
-        ? settings.llamacppModels
-        : chatBackend === "anthropic"
-          ? settings.anthropicModels
-          : settings.deepseekModels;
+  const models = modelsForBackend(settings, chatBackend);
   return {
     backend: chatBackend,
     modelId: selectedModel,
-    label: `${modelLabel(models, selectedModel, selectedModel)} (${providerLabel})`,
+    label: `${modelLabel(models, selectedModel, selectedModel)} (${PROVIDER_LABELS[chatBackend]})`,
     usesActiveChatModel: true,
   };
 }
@@ -80,6 +100,8 @@ export function buildCompactionModelOptions(settings: {
   llamacppModels: ModelConfig[];
   anthropicModels: ModelConfig[];
   deepseekModels: ModelConfig[];
+  glmModels: ModelConfig[];
+  kimiModels: ModelConfig[];
 }): CompactionModelOption[] {
   const out: CompactionModelOption[] = [];
   for (const m of modelsVisibleInPicker(settings.ollamaModels)) {
@@ -106,6 +128,18 @@ export function buildCompactionModelOptions(settings: {
       label: `${m.name} (DeepSeek)`,
     });
   }
+  for (const m of modelsVisibleInPicker(settings.glmModels)) {
+    out.push({
+      value: encodeCompactionModelRef("glm", m.id),
+      label: `${m.name} (GLM)`,
+    });
+  }
+  for (const m of modelsVisibleInPicker(settings.kimiModels)) {
+    out.push({
+      value: encodeCompactionModelRef("kimi", m.id),
+      label: `${m.name} (Kimi)`,
+    });
+  }
   return out.sort((a, b) => a.label.localeCompare(b.label));
 }
 
@@ -127,45 +161,34 @@ export function resolveCompactionTarget(settings: CompactionSettingsSlice): Comp
   }
 
   const { backend, modelId } = parsed;
-  const models =
-    backend === "ollama"
-      ? settings.ollamaModels
-      : backend === "llamacpp"
-        ? settings.llamacppModels
-        : backend === "anthropic"
-          ? settings.anthropicModels
-          : settings.deepseekModels;
+  const models = modelsForBackend(settings, backend);
 
   if (!models.some((m) => m.id === modelId)) {
     throw new Error(`Compaction model "${modelId}" is not available — pick another in Settings.`);
   }
 
-  const providerLabel =
-    backend === "ollama"
-      ? "Ollama"
-      : backend === "llamacpp"
-        ? "llama.cpp"
-        : backend === "anthropic"
-          ? "Anthropic"
-          : "DeepSeek";
-
   return {
     backend,
     modelId,
-    label: `${modelLabel(models, modelId, modelId)} (${providerLabel})`,
+    label: `${modelLabel(models, modelId, modelId)} (${PROVIDER_LABELS[backend]})`,
     usesActiveChatModel: false,
   };
 }
 
 export function assertCompactionCredentials(settings: CompactionSettingsSlice, backend: StreamChatBackend): void {
-  const anthropicOk =
-    settings.apiKeys.anthropic.trim().length > 0 || settings.cloudApiKeyStored?.anthropic === true;
-  const deepseekOk =
-    settings.apiKeys.deepseek.trim().length > 0 || settings.cloudApiKeyStored?.deepseek === true;
-  if (backend === "anthropic" && !anthropicOk) {
+  const keyOk = (slot: keyof CompactionSettingsSlice["apiKeys"]) =>
+    settings.apiKeys[slot].trim().length > 0;
+
+  if (backend === "anthropic" && !keyOk("anthropic")) {
     throw new Error("Anthropic API key required for the selected compaction model.");
   }
-  if (backend === "deepseek" && !deepseekOk) {
+  if (backend === "deepseek" && !keyOk("deepseek")) {
     throw new Error("DeepSeek API key required for the selected compaction model.");
+  }
+  if (backend === "glm" && !keyOk("glm")) {
+    throw new Error("GLM API key required for the selected compaction model.");
+  }
+  if (backend === "kimi" && !keyOk("kimi")) {
+    throw new Error("Kimi API key required for the selected compaction model.");
   }
 }

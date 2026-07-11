@@ -113,6 +113,8 @@
       llamacppApiKey: $settings.llamacppApiKey,
       anthropicApiKey: cloudKeys.anthropic,
       deepseekApiKey: cloudKeys.deepseek,
+      glmApiKey: cloudKeys.glm,
+      kimiApiKey: cloudKeys.kimi,
     });
     backendStatus.set(line);
   }
@@ -164,8 +166,10 @@
       $settings.ollamaApiKey,
       $settings.llamacppEndpoint,
       $settings.llamacppApiKey,
-      $settings.cloudApiKeyStored.anthropic,
-      $settings.cloudApiKeyStored.deepseek,
+      $settings.apiKeys.anthropic,
+      $settings.apiKeys.deepseek,
+      $settings.apiKeys.glm,
+      $settings.apiKeys.kimi,
       $files.workspacePath,
     ];
     void tick();

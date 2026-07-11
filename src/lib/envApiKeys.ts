@@ -1,11 +1,11 @@
 /** Optional dev API keys from project `.env` (see vite.config.ts `define`). */
 
-import { isTauriAvailable } from "./ipc";
-
 declare const __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__: string | undefined;
 declare const __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__: string | undefined;
+declare const __SPACEBAR_EDITOR_ENV_GLM_API_KEY__: string | undefined;
+declare const __SPACEBAR_EDITOR_ENV_KIMI_API_KEY__: string | undefined;
 
-export type EnvApiKeySlot = "anthropic" | "deepseek";
+export type EnvApiKeySlot = "anthropic" | "deepseek" | "glm" | "kimi";
 
 function injectedKey(slot: EnvApiKeySlot): string {
   if (!import.meta.env.DEV) return "";
@@ -14,22 +14,34 @@ function injectedKey(slot: EnvApiKeySlot): string {
       ? typeof __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__ !== "undefined"
         ? __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__
         : ""
-      : typeof __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__ !== "undefined"
-        ? __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__
-        : "";
+      : slot === "deepseek"
+        ? typeof __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__ !== "undefined"
+          ? __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__
+          : ""
+        : slot === "glm"
+          ? typeof __SPACEBAR_EDITOR_ENV_GLM_API_KEY__ !== "undefined"
+            ? __SPACEBAR_EDITOR_ENV_GLM_API_KEY__
+            : ""
+          : typeof __SPACEBAR_EDITOR_ENV_KIMI_API_KEY__ !== "undefined"
+            ? __SPACEBAR_EDITOR_ENV_KIMI_API_KEY__
+            : "";
   return typeof raw === "string" ? raw.trim() : "";
 }
 
-/** Fill empty stored keys from `.env` in web dev only — never in Tauri (keychain). */
+/** Fill empty stored keys from `.env` in dev when Settings fields are empty. */
 export function mergeApiKeysFromEnv(apiKeys: {
   anthropic: string;
   deepseek: string;
+  glm: string;
+  kimi: string;
   openai: string;
-}): { anthropic: string; deepseek: string; openai: string } {
-  if (!import.meta.env.DEV || isTauriAvailable()) return apiKeys;
+}): { anthropic: string; deepseek: string; glm: string; kimi: string; openai: string } {
+  if (!import.meta.env.DEV) return apiKeys;
   return {
     anthropic: apiKeys.anthropic.trim() || injectedKey("anthropic"),
     deepseek: apiKeys.deepseek.trim() || injectedKey("deepseek"),
+    glm: apiKeys.glm.trim() || injectedKey("glm"),
+    kimi: apiKeys.kimi.trim() || injectedKey("kimi"),
     openai: apiKeys.openai,
   };
 }
@@ -52,6 +64,26 @@ export function anthropicApiKeyFromProcessEnv(): string {
     process.env.ANTHROPIC_API_KEY ??
     process.env.anthropic_api_key ??
     process.env.VITE_ANTHROPIC_API_KEY ??
+    "";
+  return raw.trim();
+}
+
+export function glmApiKeyFromProcessEnv(): string {
+  const raw =
+    process.env.GLM_API_KEY ??
+    process.env.glm_api_key ??
+    process.env.ZAI_API_KEY ??
+    process.env.VITE_GLM_API_KEY ??
+    "";
+  return raw.trim();
+}
+
+export function kimiApiKeyFromProcessEnv(): string {
+  const raw =
+    process.env.KIMI_API_KEY ??
+    process.env.kimi_api_key ??
+    process.env.MOONSHOT_API_KEY ??
+    process.env.VITE_KIMI_API_KEY ??
     "";
   return raw.trim();
 }

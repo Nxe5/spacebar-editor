@@ -45,6 +45,20 @@ const FOOTER_PROFILES: Record<ChatBackend, ChatFooterProfile> = {
     showMonthlyUsage: true,
     usageProviderId: "deepseek",
   },
+  glm: {
+    showStreamMetrics: true,
+    showContextBar: true,
+    contextBudgetEditable: false,
+    showMonthlyUsage: true,
+    usageProviderId: "glm",
+  },
+  kimi: {
+    showStreamMetrics: true,
+    showContextBar: true,
+    contextBudgetEditable: false,
+    showMonthlyUsage: true,
+    usageProviderId: "kimi",
+  },
 };
 
 export function chatFooterProfile(backend: ChatBackend): ChatFooterProfile {
@@ -67,7 +81,7 @@ export function formatMonthlyUsageLabel(inputTokens: number, outputTokens: numbe
 /** Balance footer row — remaining account credit only. */
 export function formatFooterBalanceLabel(
   balance: ProviderAccountBalance | null,
-  backend: "anthropic" | "deepseek",
+  backend: "anthropic" | "deepseek" | "glm" | "kimi",
   balanceError?: string | null
 ): string {
   if (balanceError === "loading") return "…";
@@ -85,15 +99,17 @@ export function formatFooterBalanceLabel(
 
 export function footerUsageToggleTitle(
   view: FooterUsageView,
-  backend: "anthropic" | "deepseek"
+  backend: "anthropic" | "deepseek" | "glm" | "kimi"
 ): string {
   if (view === "tokens") {
-    return "Click to show account balance remaining";
+    return backend === "deepseek"
+      ? "Click to show account balance remaining"
+      : "Click to show account balance remaining · balance not available via API";
   }
   if (backend === "deepseek") {
     return "Click to show monthly token usage";
   }
-  return "Click to show monthly token usage · balance not available via Anthropic API";
+  return "Click to show monthly token usage · balance not available via API";
 }
 
 export function cloudContextBudgetTitle(contextMax: number, backend?: ChatBackend): string {
@@ -113,7 +129,7 @@ export function contextBudgetTitle(profile: ChatFooterProfile, backend: ChatBack
   if (backend === "llamacpp") {
     return "Context size is fixed in llama.cpp server config — change it there and restart";
   }
-  if (backend === "anthropic" || backend === "deepseek") {
+  if (backend === "anthropic" || backend === "deepseek" || backend === "glm" || backend === "kimi") {
     return "Estimated chat size vs model context limit";
   }
   return "Estimated context for this chat";

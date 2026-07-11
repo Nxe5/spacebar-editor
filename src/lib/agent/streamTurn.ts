@@ -3,6 +3,8 @@ import type { Message as ProviderMessage, StreamEvent, InferenceOptions } from "
 import { streamChat as streamChatOpenAI } from "../providers/openaiCompat";
 import { streamChat as streamChatAnthropic } from "../providers/anthropic";
 import { streamChat as streamChatDeepseek, DEEPSEEK_API_BASE } from "../providers/deepseek";
+import { streamChat as streamChatGlm, GLM_API_BASE } from "../providers/glm";
+import { streamChat as streamChatKimi, KIMI_API_BASE } from "../providers/kimi";
 import type { StoredToolCall } from "../stores/chat";
 
 export type StreamTurnResult = {
@@ -12,11 +14,11 @@ export type StreamTurnResult = {
   usage?: { prompt_tokens: number; completion_tokens: number };
 };
 
-export type StreamChatBackend = "anthropic" | "deepseek" | "ollama" | "llamacpp";
+export type StreamChatBackend = "anthropic" | "deepseek" | "glm" | "kimi" | "ollama" | "llamacpp";
 
 export function resolveStreamCredentials(input: {
   backend: StreamChatBackend;
-  apiKeys: { anthropic: string; deepseek: string };
+  apiKeys: { anthropic: string; deepseek: string; glm: string; kimi: string };
   ollamaEndpoint: string;
   ollamaApiKey: string;
   llamacppEndpoint: string;
@@ -27,6 +29,10 @@ export function resolveStreamCredentials(input: {
       return { apiKey: input.apiKeys.anthropic, baseUrl: "" };
     case "deepseek":
       return { apiKey: input.apiKeys.deepseek, baseUrl: DEEPSEEK_API_BASE };
+    case "glm":
+      return { apiKey: input.apiKeys.glm, baseUrl: GLM_API_BASE };
+    case "kimi":
+      return { apiKey: input.apiKeys.kimi, baseUrl: KIMI_API_BASE };
     case "ollama":
       return { apiKey: input.ollamaApiKey, baseUrl: input.ollamaEndpoint };
     case "llamacpp":
@@ -95,6 +101,24 @@ export async function streamOneTurn(options: {
     await processStream(stream);
   } else if (options.backend === "deepseek") {
     const stream = streamChatDeepseek(
+      options.apiKey,
+      options.model,
+      options.messages,
+      options.tools,
+      options.signal
+    );
+    await processStream(stream);
+  } else if (options.backend === "glm") {
+    const stream = streamChatGlm(
+      options.apiKey,
+      options.model,
+      options.messages,
+      options.tools,
+      options.signal
+    );
+    await processStream(stream);
+  } else if (options.backend === "kimi") {
+    const stream = streamChatKimi(
       options.apiKey,
       options.model,
       options.messages,
