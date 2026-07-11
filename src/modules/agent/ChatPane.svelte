@@ -87,7 +87,7 @@ import {
   findMalformedToolCallFragments,
   formatToolParseError,
 } from "$lib/agent/textToolCalls";
-  import { syncUiAfterFilesystemTool, openWorkspaceFile } from "$lib/filesystemSync";
+  import { syncUiAfterFilesystemTool, openWorkspaceFile, openWorkspaceFileWithDiff } from "$lib/filesystemSync";
   import { openableFilePaths } from "$lib/agent/toolDisplay";
   import {
     createLiveTurn,
@@ -146,10 +146,18 @@ import {
   import {
     chatFooterProfile,
     formatMonthlyUsageLabel,
+    formatFooterBalanceLabel,
+    footerUsageToggleTitle,
     contextBudgetTitle,
     cloudContextBudgetTitle,
+    type FooterUsageView,
   } from "$lib/chatFooterProfile";
   import { providerUsage } from "$lib/stores/providerUsage";
+  import { getCloudApiKey } from "$lib/apiSecrets";
+  import {
+    fetchDeepseekAccountBalance,
+    type ProviderAccountBalance,
+  } from "$lib/providerBalance";
   import AppIcon from "$lib/components/AppIcon.svelte";
 
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -293,6 +301,35 @@ import {
     await openWorkspaceFile(path);
   }
 
+  async function openToolFileDiff(relPath: string, diffBase: string) {
+    const ws = get(files).workspacePath;
+    if (!ws?.trim()) return;
+    try {
+      const abs = resolveWorkspacePath(ws, relPath);
+      await openWorkspaceFileWithDiff(abs, diffBase);
+    } catch {
+      /* ignore bad paths */
+    }
+  }
+
+  async function captureFileDiffBefore(
+    toolName: string,
+    args: Record<string, unknown>,
+    workspacePath: string
+  ): Promise<string | undefined> {
+    if (toolName !== "write_file" && toolName !== "create_file") return undefined;
+    const path = typeof args.path === "string" ? args.path.trim() : "";
+    if (!path) return undefined;
+    if (toolName === "create_file") return "";
+    try {
+      const resolved = resolveWorkspacePath(workspacePath, path);
+      if (!(await pathExists(workspacePath, resolved))) return "";
+      return await readFile(null, resolved);
+    } catch {
+      return "";
+    }
+  }
+
   let composerFocused = $state(false);
   let userMessageFocusId = $state<string | null>(null);
   let composerChromeState = $derived(
@@ -331,6 +368,11 @@ import {
   let modeMenuAnchorEl: HTMLDivElement | undefined = $state();
   let contextBudgetMenuOpen = $state(false);
   let contextBudgetMenuEl: HTMLDivElement | undefined = $state();
+  let footerUsageView = $state<FooterUsageView>("tokens");
+  let footerBalance = $state<ProviderAccountBalance | null>(null);
+  let footerBalanceError = $state<string | null>(null);
+  let footerBalanceLoading = $state(false);
+  let footerBalanceKey = $state<string | null>(null);
   let attachInputEl = $state<HTMLInputElement | undefined>(undefined);
   let chatDropActive = $state(false);
   let chatDropCounter = 0;
@@ -614,7 +656,68 @@ import {
       inputTokens: 0,
       outputTokens: 0,
     };
-    return formatMonthlyUsageLabel(totals.inputTokens, totals.outputTokens);
+    if (footerUsageView === "tokens") {
+      return formatMonthlyUsageLabel(totals.inputTokens, totals.outputTokens);
+    }
+    const backend = $settings.chatBackend;
+    if (backend !== "anthropic" && backend !== "deepseek") {
+      return formatMonthlyUsageLabel(totals.inputTokens, totals.outputTokens);
+    }
+    if (footerBalanceLoading) {
+      return formatFooterBalanceLabel(null, backend, "loading");
+    }
+    return formatFooterBalanceLabel(footerBalance, backend, footerBalanceError);
+  });
+
+  let footerUsageTitle = $derived(() => {
+    const backend = $settings.chatBackend;
+    if (backend !== "anthropic" && backend !== "deepseek") {
+      return "Monthly API token usage (stored locally on this device)";
+    }
+    return footerUsageToggleTitle(footerUsageView, backend);
+  });
+
+  async function refreshFooterBalance(force = false) {
+    const backend = get(settings).chatBackend;
+    if (backend !== "deepseek") {
+      footerBalance = null;
+      footerBalanceError = null;
+      footerBalanceKey = backend;
+      return;
+    }
+    if (!force && footerBalanceKey === backend && footerBalance && !footerBalanceError) {
+      return;
+    }
+    footerBalanceLoading = true;
+    footerBalanceError = null;
+    try {
+      const apiKey = await getCloudApiKey("deepseek");
+      footerBalance = await fetchDeepseekAccountBalance(apiKey);
+      footerBalanceKey = backend;
+    } catch (err) {
+      footerBalance = null;
+      footerBalanceError = err instanceof Error ? err.message : String(err);
+      footerBalanceKey = backend;
+    } finally {
+      footerBalanceLoading = false;
+    }
+  }
+
+  async function toggleFooterUsageView() {
+    if (footerUsageView === "tokens") {
+      footerUsageView = "balance";
+      await refreshFooterBalance(true);
+      return;
+    }
+    footerUsageView = "tokens";
+  }
+
+  $effect(() => {
+    const backend = $settings.chatBackend;
+    footerUsageView = "tokens";
+    footerBalance = null;
+    footerBalanceError = null;
+    footerBalanceKey = null;
   });
 
   let footerAriaLabel = $derived(() => {
@@ -1450,6 +1553,7 @@ import {
     input: Record<string, unknown>;
     success: boolean;
     paths: string[];
+    fileDiffBefore?: string;
   };
 
   async function maybeNotifyNestedScaffold(
@@ -1504,6 +1608,7 @@ import {
       upsertLiveTool(t, { id: tc.id, name: tc.name, input: args, status: "running" })
     );
     const st = get(settings);
+    const fileDiffBefore = await captureFileDiffBefore(tc.name, args, workspacePath);
     const result = await executeTool(tc.name, args, workspacePath, {
       webFetchAllowedHosts,
       readFileMaxLines,
@@ -1511,6 +1616,7 @@ import {
       readOnly: get(workspaceReadOnly),
       lspToolTimeout: st.agentLimits.lspToolTimeout,
       lspWorkspaceSymbolTimeout: st.agentLimits.lspWorkspaceSymbolTimeout,
+      onSwitchMode: (mode) => currentMode.setMode(mode),
     });
     await syncUiAfterFilesystemTool(workspacePath, tc.name, args, result.success);
     const toolResult: ToolExecResult = {
@@ -1520,6 +1626,7 @@ import {
       input: args,
       success: result.success,
       paths: openableFilePaths(tc.name, args, workspacePath, result.success),
+      fileDiffBefore,
     };
     patchLiveTurn((t) =>
       upsertLiveTool(t, {
@@ -1530,6 +1637,7 @@ import {
         content: toolResult.content,
         success: toolResult.success,
         paths: toolResult.paths,
+        fileDiffBefore: toolResult.fileDiffBefore,
       })
     );
     if (nestedScaffoldNotified) {
@@ -1697,6 +1805,19 @@ import {
       const stall = options?.stallTracker?.record(tc.name, args);
       if (stall === "abort") {
         await flushBatch();
+        const responded = new Set(results.map((r) => r.id));
+        for (const tc of toRun) {
+          if (!responded.has(tc.id)) {
+            results.push({
+              id: tc.id,
+              name: tc.name,
+              content: "Error: Agent stopped — repeated the same tool call without progress.",
+              input: {},
+              success: false,
+              paths: [],
+            });
+          }
+        }
         return { results, hitRunCap: false, stallAbort: true };
       }
       if (stall === "nudge") {
@@ -1759,10 +1880,10 @@ import {
     const mode = get(currentMode);
     const modeConfig = MODE_CONFIG[mode];
     const policyState = get(effectiveToolPolicy);
-    const tools = getToolsForPolicy(policyState, modeConfig.tools);
+    let tools = getToolsForPolicy(policyState, modeConfig.tools);
     const modelSettings = resolveActiveModelSettings(st);
     const nativeTools = usesNativeToolCalls(modelSettings);
-    const systemPromptText = buildSystemPrompt(tools.length > 0);
+    let systemPromptText = buildSystemPrompt(tools.length > 0);
     const workspacePath = get(files).workspacePath;
     if (!workspacePath?.trim()) {
       chat.addMessage({
@@ -1905,21 +2026,20 @@ import {
             const malformed = findMalformedToolCallFragments(turn.content);
             if (malformed.length > 0) {
               parseAttempts += 1;
-              for (const raw of malformed) {
-                chat.addMessage({
-                  role: "tool",
-                  content: formatToolParseError(raw),
-                  toolName: "parse_error",
-                  toolSuccess: false,
-                });
-              }
-              providerMessages = appendToolResults(
-                providerMessages,
-                malformed.map((raw, i) => ({
-                  id: `parse-err-${step}-${i}`,
-                  content: formatToolParseError(raw),
-                }))
-              );
+              const parseNote = malformed
+                .map((raw) => formatToolParseError(raw))
+                .join("\n\n");
+              chat.addMessage({
+                role: "user",
+                content: `Tool call parse error — use the API tool_call mechanism, not JSON in text:\n\n${parseNote}`,
+              });
+              providerMessages = [
+                ...providerMessages,
+                {
+                  role: "user",
+                  content: `Tool call parse error — use the API tool_call mechanism, not JSON in text:\n\n${parseNote}`,
+                },
+              ];
               if (parseAttempts >= 3) {
                 showCompactionNotice(
                   "Agent stalled: the model is not producing valid tool calls. Try a different model or simplify the request."
@@ -1992,12 +2112,6 @@ import {
           }
         );
         hitRunCap = toolRound.hitRunCap;
-        if (toolRound.stallAbort) {
-          showCompactionNotice(
-            "Agent stopped: repeated the same tool call without progress."
-          );
-          break;
-        }
 
         for (const r of toolRound.results) {
           executedToolOutcomes.push({ name: r.name, success: r.success });
@@ -2009,10 +2123,36 @@ import {
             toolInput: r.input,
             toolSuccess: r.success,
             toolPaths: r.paths,
+            fileDiffBefore: r.fileDiffBefore,
           });
         }
 
-        providerMessages = appendToolResults(providerMessages, toolRound.results);
+        providerMessages = appendToolResults(
+          providerMessages,
+          toolRound.results,
+          activeToolCalls
+        );
+
+        if (toolRound.stallAbort) {
+          showCompactionNotice(
+            "Agent stopped: repeated the same tool call without progress."
+          );
+          break;
+        }
+
+        const modeSwitched = toolRound.results.some(
+          (r) => r.name === "switch_mode" && r.success
+        );
+        if (modeSwitched) {
+          const nextMode = get(currentMode);
+          const nextModeConfig = MODE_CONFIG[nextMode];
+          tools = getToolsForPolicy(policyState, nextModeConfig.tools);
+          systemPromptText = buildSystemPrompt(tools.length > 0);
+          providerMessages = [
+            { role: "system", content: systemPromptText },
+            ...providerMessages.slice(1),
+          ];
+        }
 
         if (hitRunCap) break;
 
@@ -2609,6 +2749,7 @@ import {
               onToggleResponse={() => toggleResponseSection(block.id)}
               onToggleTool={(toolId) => toggleTool(block.id, toolId)}
               onOpenFile={(path) => void openToolFile(path)}
+              onOpenFileDiff={(relPath, diffBase) => void openToolFileDiff(relPath, diffBase)}
             />
           </div>
         {/if}
@@ -2632,6 +2773,7 @@ import {
           onToggleResponse={() => toggleResponseSection(lt.id)}
           onToggleTool={(toolId) => toggleTool(lt.id, toolId)}
           onOpenFile={(path) => void openToolFile(path)}
+          onOpenFileDiff={(relPath, diffBase) => void openToolFileDiff(relPath, diffBase)}
         />
       </div>
     {/if}
@@ -3257,12 +3399,16 @@ import {
     <div class="context-meta">
       <div class="context-meta-start">
         {#if footerProfile().showMonthlyUsage}
-          <span
+          <button
+            type="button"
             class="context-monthly-usage"
-            title="Input and output tokens from API responses this calendar month (stored locally on this device)"
+            class:context-monthly-usage--balance={footerUsageView === "balance"}
+            title={footerUsageTitle()}
+            aria-pressed={footerUsageView === "balance"}
+            onclick={() => void toggleFooterUsageView()}
           >
             {monthlyUsageLabel()}
-          </span>
+          </button>
         {/if}
         {#if footerProfile().showStreamMetrics}
           <span
@@ -3286,7 +3432,7 @@ import {
               aria-expanded={contextBudgetMenuOpen}
               aria-haspopup="listbox"
             title={footerProfile().showMonthlyUsage
-              ? cloudContextBudgetTitle(maxContextTokens())
+              ? cloudContextBudgetTitle(maxContextTokens(), $settings.chatBackend)
               : contextBudgetTitle(footerProfile(), $settings.chatBackend)}
           >
             <span class="context-numbers-text"
@@ -3315,7 +3461,7 @@ import {
               class:context-numbers--warning={usageLevel() === "warning"}
               class:context-numbers--critical={usageLevel() === "critical"}
             title={footerProfile().showMonthlyUsage
-              ? cloudContextBudgetTitle(maxContextTokens())
+              ? cloudContextBudgetTitle(maxContextTokens(), $settings.chatBackend)
               : contextBudgetTitle(footerProfile(), $settings.chatBackend)}
           >
             <span class="context-numbers-text">
@@ -5102,6 +5248,29 @@ import {
 
   .context-monthly-usage {
     color: #9cdcfe;
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    cursor: pointer;
+    transition:
+      color var(--motion-fast, 140ms),
+      background-color var(--motion-fast, 140ms);
+  }
+
+  .context-monthly-usage:hover {
+    color: #b8e6ff;
+    background: color-mix(in srgb, var(--foreground) 6%, transparent);
+    border-radius: 4px;
+  }
+
+  .context-monthly-usage--balance {
+    color: #c5e478;
+  }
+
+  .context-monthly-usage--balance:hover {
+    color: #d4f088;
   }
 
   .context-budget-row {

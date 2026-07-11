@@ -313,6 +313,30 @@ export const TOOL_DEFINITIONS: Record<string, Tool> = {
     },
   },
 
+  switch_mode: {
+    type: "function",
+    function: {
+      name: "switch_mode",
+      description:
+        "Request switching between Plan and Agent modes. Plan is read-only analysis; Agent has full write and shell access. Requires user approval before the mode changes.",
+      parameters: {
+        type: "object",
+        properties: {
+          target_mode: {
+            type: "string",
+            enum: ["plan", "agent"],
+            description: "The mode to switch to",
+          },
+          explanation: {
+            type: "string",
+            description: "Brief reason for requesting the mode switch",
+          },
+        },
+        required: ["target_mode", "explanation"],
+      },
+    },
+  },
+
   run_shell: {
     type: "function",
     function: {
@@ -428,6 +452,9 @@ export const TOOL_DEFINITIONS: Record<string, Tool> = {
 };
 
 export const ALL_TOOL_NAMES = Object.keys(TOOL_DEFINITIONS);
+
+/** Meta tools available in Plan and Agent modes (not read-only file ops). */
+export const MODE_CONTROL_TOOLS = ["switch_mode"] as const;
 
 export const READ_ONLY_TOOLS = [
   "read_file",

@@ -25,6 +25,8 @@ export interface Message {
   toolSuccess?: boolean;
   /** Workspace file paths touched (for open-in-editor links). */
   toolPaths?: string[];
+  /** Pre-write content for write_file / create_file diff bubbles. */
+  fileDiffBefore?: string;
   /** Set on assistant messages that requested tools. */
   rawToolCalls?: StoredToolCall[];
   /** Git snapshot of the workspace immediately before this user message was sent. */

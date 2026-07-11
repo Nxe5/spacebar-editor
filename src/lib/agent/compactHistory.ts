@@ -99,6 +99,7 @@ export function buildCompactedMessages(
     const earliestToolIdx = toolIndices[toolIndices.length - keepRecentToolMessages];
     startIdx = Math.min(startIdx, earliestToolIdx);
   }
+  startIdx = alignCompactionSliceStart(priorMessages, startIdx);
   const recent = priorMessages.slice(startIdx);
   const now = Date.now();
   const userMsg: Message = {
@@ -115,6 +116,19 @@ export function buildCompactedMessages(
     timestamp: now + 1,
   };
   return [userMsg, assistantMsg, ...recent];
+}
+
+/** Don't start a compacted slice mid tool-call turn (breaks OpenAI/DeepSeek APIs). */
+export function alignCompactionSliceStart(messages: Message[], startIdx: number): number {
+  let idx = Math.max(0, Math.min(startIdx, messages.length));
+  while (idx > 0 && messages[idx]?.role === "tool") {
+    idx--;
+  }
+  const prev = messages[idx - 1];
+  if (messages[idx]?.role === "tool" && prev?.role === "assistant" && prev.rawToolCalls?.length) {
+    idx -= 1;
+  }
+  return Math.max(0, idx);
 }
 
 export async function runCompactionSummary(options: {

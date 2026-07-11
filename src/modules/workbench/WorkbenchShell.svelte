@@ -527,6 +527,8 @@
     padding: 0 var(--workbench-edge-inset) var(--workbench-tab-strip-inset-bottom)
       var(--workbench-edge-inset);
     background: var(--workbench-shell-bg, var(--background));
+    border-top: 1px solid var(--chat-panel-border);
+    border-bottom: 1px solid var(--chat-panel-border);
   }
 
   .workbench-tab-strip {
@@ -535,10 +537,10 @@
     min-width: 0;
     height: var(--workbench-tab-row-height);
     min-height: var(--workbench-tab-row-height);
-    border-radius: var(--workbench-tab-strip-radius);
-    border: 1px solid var(--chat-panel-border);
+    border-radius: 0;
+    border: none;
     background: var(--workbench-tab-strip-bg);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+    box-shadow: none;
     overflow: hidden;
   }
 
@@ -562,17 +564,21 @@
     background: var(--workbench-shell-bg, var(--background));
   }
 
-  .chat-column,
-  .center-column {
+  .chat-column {
     box-sizing: border-box;
     padding: var(--chat-panel-inset-block-top) var(--workbench-edge-inset)
       var(--chat-panel-inset-block-bottom) var(--workbench-edge-inset);
     background: var(--workbench-shell-bg, var(--background));
+    border: none;
+    border-right: 1px solid var(--chat-panel-border);
+    border-radius: 0;
+    overflow: hidden;
   }
 
   .center-column {
-    padding-left: 0;
-    padding-right: 0;
+    box-sizing: border-box;
+    padding: 0;
+    background: var(--workbench-shell-bg, var(--background));
   }
 
   .chat-column__panel {
@@ -582,10 +588,7 @@
     min-height: 0;
     min-width: 0;
     overflow: hidden;
-    border-radius: var(--chat-panel-radius);
-    border: 1px solid var(--chat-panel-border);
     background: var(--chat-panel-bg);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
   }
 
   .explorer-column {

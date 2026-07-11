@@ -554,7 +554,6 @@
     align-items: center;
     gap: 4px;
     padding: 4px 6px 4px 12px;
-    border-bottom: 1px solid color-mix(in srgb, var(--sidebar-border, var(--border)) 55%, transparent);
     font-size: calc(var(--explorer-font-size, 12px) - 1px);
     font-weight: 600;
     text-transform: uppercase;

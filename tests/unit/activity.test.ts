@@ -22,8 +22,22 @@ describe("activity", () => {
 
   it("formats activity lines", () => {
     expect(formatToolActivityLine("read_file", { path: "src/main.ts" })).toBe(
-      "Read  src/main.ts"
+      "Read  main.ts"
     );
+    expect(
+      formatToolActivityLine(
+        "read_file",
+        { path: "/Users/gamb1t/Desktop/Nxe5/deep-seeker/test.md" },
+        "/Users/gamb1t/Desktop/Nxe5/deep-seeker"
+      )
+    ).toBe("Read  test.md");
+    expect(
+      formatToolActivityLine(
+        "list_dir",
+        { path: "." },
+        "/Users/gamb1t/Desktop/Nxe5/deep-seeker"
+      )
+    ).toBe("Listed  /Users/gamb1t/Desktop/Nxe5/deep-seeker");
   });
 
   it("formats thought preview for collapsed rows", () => {

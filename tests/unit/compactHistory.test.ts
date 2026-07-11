@@ -3,6 +3,7 @@ import {
   buildCompactedMessages,
   buildCompactionUserPrompt,
   COMPACTION_ACK,
+  alignCompactionSliceStart,
   sliceMessagesForCompactionPrompt,
 } from "../../src/lib/agent/compactHistory";
 import type { Message } from "../../src/lib/stores/chat";
@@ -40,5 +41,26 @@ describe("compactHistory", () => {
     const prompt = buildCompactionUserPrompt([msg("u1", "user", "Hi")], 87, null);
     expect(prompt).toContain("compacted at 87%");
     expect(prompt).toContain("No active plan.");
+  });
+
+  it("aligns compaction slice to full tool-call turns", () => {
+    const prior: Message[] = [
+      msg("u1", "user", "start"),
+      {
+        id: "a1",
+        role: "assistant",
+        content: "run",
+        timestamp: 1,
+        rawToolCalls: [{ id: "tc1", name: "read_file", arguments: "{}" }],
+      },
+      { id: "t1", role: "tool", content: "ok", timestamp: 2, toolCallId: "tc1", toolName: "read_file" },
+      msg("u2", "user", "next"),
+      msg("a2", "assistant", "done"),
+    ];
+    expect(alignCompactionSliceStart(prior, 2)).toBe(1);
+    const compacted = buildCompactedMessages("summary", prior, 3, 5);
+    const ids = compacted.slice(2).map((m) => m.id);
+    expect(ids[0]).toBe("a1");
+    expect(ids).toContain("t1");
   });
 });

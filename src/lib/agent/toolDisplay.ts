@@ -74,6 +74,27 @@ export function workspaceRelativePath(workspacePath: string, absPath: string): s
   return file.split("/").pop() ?? file;
 }
 
+/** Short chip label for collapsed shell rows (e.g. `cd`, `git status`) — not full paths. */
+export function shellCommandShortLabel(command: string): string {
+  const segment = command.split(/\s*(?:&&|;|\|)\s*/)[0]?.trim() ?? "";
+  if (!segment) return "shell";
+  if (/^cd\b/i.test(segment)) return "cd";
+  const tokens = segment.match(/[^\s]+/g) ?? [];
+  if (tokens.length === 0) return "shell";
+  if (tokens.length <= 2) return segment;
+  const [first, second] = tokens;
+  if (
+    second &&
+    !second.startsWith("/") &&
+    !second.startsWith(".") &&
+    !second.startsWith("~") &&
+    !second.includes("/")
+  ) {
+    return `${first} ${second}`;
+  }
+  return first ?? "shell";
+}
+
 export function formatToolSummary(toolName: string, input: Record<string, unknown>): string {
   switch (toolName) {
     case "write_file":
@@ -87,7 +108,11 @@ export function formatToolSummary(toolName: string, input: Record<string, unknow
       return `${from} → ${to}`;
     }
     case "run_shell":
-      return typeof input.command === "string" ? truncate(input.command, 72) : "";
+      return typeof input.command === "string" ? shellCommandShortLabel(input.command) : "";
+    case "switch_mode": {
+      const target = typeof input.target_mode === "string" ? input.target_mode : "";
+      return target ? `→ ${target}` : "";
+    }
     case "run_script":
       return typeof input.script === "string" ? truncate(input.script, 72) : "";
     case "grep":
@@ -121,7 +146,7 @@ export function toolFileLine(
 ): string | null {
   const summary = formatToolSummary(toolName, input);
   if (!summary) return null;
-  if (toolName === "move_file" || toolName === "web_fetch" || toolName === "run_shell") {
+  if (toolName === "move_file" || toolName === "web_fetch") {
     return summary;
   }
   if (!isFileTool(toolName) && toolName !== "list_dir") return null;
@@ -174,6 +199,11 @@ export function formatToolInput(toolName: string, input: Record<string, unknown>
   if (toolName === "run_shell" && typeof input.command === "string") {
     return input.command;
   }
+  if (toolName === "switch_mode") {
+    const target = typeof input.target_mode === "string" ? input.target_mode : "?";
+    const why = typeof input.explanation === "string" ? input.explanation : "";
+    return why ? `mode: ${target}\n\n${why}` : `mode: ${target}`;
+  }
   if (toolName === "run_script" && typeof input.script === "string") {
     return input.script;
   }
@@ -197,6 +227,42 @@ export function formatToolInput(toolName: string, input: Record<string, unknown>
 
 export function isFileTool(toolName: string): boolean {
   return FILE_TOOLS.has(toolName);
+}
+
+/** Read-only browse tools — one-line preview only (no expand / file dump). */
+const CONDENSED_PREVIEW_TOOLS = new Set(["read_file", "list_dir"]);
+
+export function isCondensedPreviewTool(toolName: string): boolean {
+  return CONDENSED_PREVIEW_TOOLS.has(toolName);
+}
+
+/** Path string for collapsed Read / Listed activity rows. */
+export function toolActivityDetailPath(
+  toolName: string,
+  input: Record<string, unknown>,
+  workspacePath: string
+): string {
+  const summary = formatToolSummary(toolName, input);
+  if (!summary) return "";
+  if (toolName === "read_file") {
+    try {
+      const resolved = workspacePath.trim()
+        ? normalizeFilePath(resolveWorkspacePath(workspacePath, summary))
+        : normalizeFilePath(summary);
+      return resolved.split("/").pop() ?? resolved;
+    } catch {
+      return summary.split("/").pop() ?? summary;
+    }
+  }
+  if (toolName !== "list_dir") return summary;
+  if (!workspacePath.trim()) return summary;
+  try {
+    let resolved = normalizeFilePath(resolveWorkspacePath(workspacePath, summary));
+    resolved = resolved.replace(/\/+\.$/, "").replace(/\/+$/, "");
+    return resolved;
+  } catch {
+    return summary;
+  }
 }
 
 function truncate(text: string, max: number): string {

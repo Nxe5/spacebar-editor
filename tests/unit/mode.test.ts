@@ -20,8 +20,8 @@ describe("mode store", () => {
       expect(MODE_CONFIG.chat.tools).toHaveLength(0);
     });
 
-    it("plan mode has read-only tools", () => {
-      expect(MODE_CONFIG.plan.tools).toEqual(READ_ONLY_TOOLS);
+    it("plan mode has read-only tools plus mode control", () => {
+      expect(MODE_CONFIG.plan.tools).toEqual([...READ_ONLY_TOOLS, "switch_mode"]);
       expect(MODE_CONFIG.plan.tools).toContain("read_file");
       expect(MODE_CONFIG.plan.tools).toContain("get_git_status");
       expect(MODE_CONFIG.plan.tools).not.toContain("write_file");
@@ -52,9 +52,9 @@ describe("mode store", () => {
       expect(getModeTools("chat")).toEqual([]);
     });
 
-    it("returns read-only tools for plan mode", () => {
+    it("returns read-only tools plus switch_mode for plan mode", () => {
       const tools = getModeTools("plan");
-      expect(tools).toEqual(READ_ONLY_TOOLS);
+      expect(tools).toEqual([...READ_ONLY_TOOLS, "switch_mode"]);
     });
 
     it("returns all tools for agent mode", () => {

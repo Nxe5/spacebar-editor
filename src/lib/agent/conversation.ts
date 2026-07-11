@@ -1,19 +1,102 @@
 import type { Message as ProviderMessage, ToolCall as OpenAIToolCall } from "../providers/openaiCompat";
 import type { Message as ChatMessage, StoredToolCall } from "../stores/chat";
 
+const MISSING_TOOL_RESULT =
+  "[Tool result missing from session history — treating as no output.]";
+
+function pushMissingToolResults(
+  out: ProviderMessage[],
+  toolCalls: StoredToolCall[],
+  responded: Set<string>
+): void {
+  for (const tc of toolCalls) {
+    if (!tc.id || responded.has(tc.id)) continue;
+    out.push({
+      role: "tool",
+      content: MISSING_TOOL_RESULT,
+      tool_call_id: tc.id,
+    });
+  }
+}
+
+/**
+ * Ensure every assistant `tool_calls` message is followed by one tool message per id.
+ * DeepSeek/OpenAI reject threads with orphaned or incomplete tool-call sequences.
+ */
+export function repairProviderMessages(messages: ProviderMessage[]): ProviderMessage[] {
+  const out: ProviderMessage[] = [];
+  let i = 0;
+
+  while (i < messages.length) {
+    const msg = messages[i]!;
+
+    if (msg.role === "tool") {
+      i++;
+      continue;
+    }
+
+    out.push(msg);
+
+    if (msg.role === "assistant" && msg.tool_calls?.length) {
+      const required = msg.tool_calls.filter((tc) => tc.id);
+      const requiredIds = new Set(required.map((tc) => tc.id));
+      const found = new Map<string, ProviderMessage>();
+      let j = i + 1;
+
+      while (j < messages.length && messages[j]?.role === "tool") {
+        const toolMsg = messages[j]!;
+        const id = toolMsg.tool_call_id?.trim();
+        if (id && requiredIds.has(id) && !found.has(id)) {
+          found.set(id, toolMsg);
+        }
+        j++;
+      }
+
+      for (const tc of required) {
+        const existing = found.get(tc.id);
+        out.push(
+          existing ?? {
+            role: "tool",
+            content: MISSING_TOOL_RESULT,
+            tool_call_id: tc.id,
+          }
+        );
+      }
+
+      i = j;
+      continue;
+    }
+
+    i++;
+  }
+
+  return out;
+}
+
 export function buildProviderMessages(
   systemPrompt: string,
   history: ChatMessage[]
 ): ProviderMessage[] {
   const out: ProviderMessage[] = [{ role: "system", content: systemPrompt }];
+  let pendingToolCalls: StoredToolCall[] | null = null;
+  let respondedIds = new Set<string>();
+
+  const flushPending = () => {
+    if (!pendingToolCalls?.length) return;
+    pushMissingToolResults(out, pendingToolCalls, respondedIds);
+    pendingToolCalls = null;
+    respondedIds = new Set();
+  };
 
   for (const msg of history) {
     if (msg.role === "user") {
+      flushPending();
       out.push({ role: "user", content: msg.content });
       continue;
     }
 
     if (msg.role === "assistant") {
+      flushPending();
       if (msg.rawToolCalls && msg.rawToolCalls.length > 0) {
         const tool_calls: OpenAIToolCall[] = msg.rawToolCalls.map((tc) => ({
           id: tc.id,
@@ -25,6 +108,8 @@ export function buildProviderMessages(
           content: msg.content || null,
           tool_calls,
         });
+        pendingToolCalls = msg.rawToolCalls;
+        respondedIds = new Set();
       } else {
         out.push({ role: "assistant", content: msg.content });
       }
@@ -32,15 +117,20 @@ export function buildProviderMessages(
     }
 
     if (msg.role === "tool") {
-      out.push({
-        role: "tool",
-        content: msg.content,
-        tool_call_id: msg.toolCallId ?? "",
-      });
+      const id = msg.toolCallId?.trim();
+      if (pendingToolCalls?.length && id && pendingToolCalls.some((tc) => tc.id === id)) {
+        out.push({
+          role: "tool",
+          content: msg.content,
+          tool_call_id: id,
+        });
+        respondedIds.add(id);
+      }
     }
   }
 
-  return out;
+  flushPending();
+  return repairProviderMessages(out);
 }
 
 export function appendAssistantToolCalls(
@@ -50,7 +140,7 @@ export function appendAssistantToolCalls(
 ): ProviderMessage[] {
   const tool_calls: OpenAIToolCall[] = toolCalls.map((tc) => ({
     id: tc.id,
-    type: "function",
+    type: "function" as const,
     function: { name: tc.name, arguments: tc.arguments },
   }));
   return [
@@ -65,9 +155,10 @@ export function appendAssistantToolCalls(
 
 export function appendToolResults(
   messages: ProviderMessage[],
-  results: Array<{ id: string; content: string }>
+  results: Array<{ id: string; content: string }>,
+  toolCalls?: StoredToolCall[]
 ): ProviderMessage[] {
-  return [
+  const withResults = [
     ...messages,
     ...results.map((r) => ({
       role: "tool" as const,
@@ -75,4 +166,21 @@ export function appendToolResults(
       tool_call_id: r.id,
     })),
   ];
+
+  if (!toolCalls?.length) {
+    return repairProviderMessages(withResults);
+  }
+
+  const resultIds = new Set(results.map((r) => r.id));
+  const patched = [...withResults];
+  for (const tc of toolCalls) {
+    if (tc.id && !resultIds.has(tc.id)) {
+      patched.push({
+        role: "tool",
+        content: MISSING_TOOL_RESULT,
+        tool_call_id: tc.id,
+      });
+    }
+  }
+  return repairProviderMessages(patched);
 }

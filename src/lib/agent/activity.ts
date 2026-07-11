@@ -1,4 +1,4 @@
-import { formatToolSummary } from "./toolDisplay";
+import { formatToolSummary, toolActivityDetailPath } from "./toolDisplay";
 import {
   pickStreamingStatusWord,
   stableStreamingStatusWord,
@@ -15,6 +15,8 @@ export type ToolActivityItem = {
   content?: string;
   success?: boolean;
   paths?: string[];
+  /** Snapshot before write/create for diff preview. */
+  fileDiffBefore?: string;
 };
 
 export type AgentTurnBlock = {
@@ -45,6 +47,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_git_diff: "Git diff",
   get_git_log: "Git log",
   run_shell: "Shell",
+  switch_mode: "Switch mode",
   run_script: "Script",
   run_tests: "Tests",
   web_fetch: "Fetched",
@@ -62,10 +65,15 @@ export function toolActivityLabel(toolName: string): string {
 
 export function formatToolActivityLine(
   toolName: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown>,
+  workspacePath?: string
 ): string {
   const label = toolActivityLabel(toolName);
-  const detail = formatToolSummary(toolName, input);
+  const detail =
+    toolName === "read_file" || toolName === "list_dir"
+      ? toolActivityDetailPath(toolName, input, workspacePath ?? "") ||
+        formatToolSummary(toolName, input)
+      : formatToolSummary(toolName, input);
   return detail ? `${label}  ${detail}` : label;
 }
 
@@ -101,6 +109,7 @@ type ChatLikeMessage = {
   toolSuccess?: boolean;
   toolPaths?: string[];
   toolCallId?: string;
+  fileDiffBefore?: string;
   /** Marks the synthetic summary message produced by context compaction (spec 21 §7.3). */
   compactionBoundary?: boolean;
 };
@@ -195,6 +204,7 @@ function collectAgentTurn(messages: ChatLikeMessage[], start: number): AgentTurn
         content: m.content,
         success: m.toolSuccess,
         paths: m.toolPaths,
+        fileDiffBefore: m.fileDiffBefore,
       });
       i++;
       continue;
@@ -318,6 +328,7 @@ export function upsertLiveTool(
         content: item.content,
         success: item.success,
         paths: item.paths,
+        fileDiffBefore: item.fileDiffBefore,
       };
   return { ...turn, tools: upsertToolList(turn.tools, merged) };
 }

@@ -1,5 +1,7 @@
 /** Optional dev API keys from project `.env` (see vite.config.ts `define`). */
 
+import { isTauriAvailable } from "./ipc";
+
 declare const __SPACEBAR_EDITOR_ENV_ANTHROPIC_API_KEY__: string | undefined;
 declare const __SPACEBAR_EDITOR_ENV_DEEPSEEK_API_KEY__: string | undefined;
 
@@ -18,13 +20,13 @@ function injectedKey(slot: EnvApiKeySlot): string {
   return typeof raw === "string" ? raw.trim() : "";
 }
 
-/** Fill empty stored keys from `.env` in dev only. */
+/** Fill empty stored keys from `.env` in web dev only — never in Tauri (keychain). */
 export function mergeApiKeysFromEnv(apiKeys: {
   anthropic: string;
   deepseek: string;
   openai: string;
 }): { anthropic: string; deepseek: string; openai: string } {
-  if (!import.meta.env.DEV) return apiKeys;
+  if (!import.meta.env.DEV || isTauriAvailable()) return apiKeys;
   return {
     anthropic: apiKeys.anthropic.trim() || injectedKey("anthropic"),
     deepseek: apiKeys.deepseek.trim() || injectedKey("deepseek"),

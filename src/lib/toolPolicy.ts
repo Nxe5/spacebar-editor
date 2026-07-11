@@ -38,6 +38,7 @@ const DEFAULT_ASK_TOOLS = [
   "run_tests",
   "run_script",
   "web_fetch",
+  "switch_mode",
 ] as const;
 
 /** Per-tool rules for a fresh install / Reset to defaults. */

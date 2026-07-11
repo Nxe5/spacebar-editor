@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   formatToolSummary,
+  isCondensedPreviewTool,
   openableFilePaths,
   pathsFromToolInput,
+  shellCommandShortLabel,
+  toolActivityDetailPath,
   toolCompactLabel,
   toolFileLine,
   toolResultIsError,
@@ -25,8 +28,28 @@ describe("toolDisplay", () => {
     ).toBe("three-little-pigs.md");
   });
 
-  it("summarizes run_shell with command", () => {
+  it("summarizes run_shell with short command label", () => {
     expect(formatToolSummary("run_shell", { command: "git status" })).toBe("git status");
+    expect(
+      formatToolSummary("run_shell", {
+        command: 'cd /Users/gamb1t/Desktop/Nxe5/deep-seeker && echo "hi"',
+      })
+    ).toBe("cd");
+  });
+
+  it("shellCommandShortLabel extracts leading verb", () => {
+    expect(shellCommandShortLabel("cd /long/path && echo x")).toBe("cd");
+    expect(shellCommandShortLabel("pnpm test")).toBe("pnpm test");
+  });
+
+  it("run_shell has no file line in expanded detail", () => {
+    expect(
+      toolFileLine(
+        "run_shell",
+        { command: "cd /Users/gamb1t/proj && ls" },
+        "/Users/gamb1t/proj"
+      )
+    ).toBeNull();
   });
 
   it("resolves workspace paths from tool input", () => {
@@ -57,5 +80,28 @@ describe("toolDisplay", () => {
   it("detects error output", () => {
     expect(toolResultIsError("Error: Path does not exist")).toBe(true);
     expect(toolResultIsError("Successfully wrote to testing.txt")).toBe(false);
+  });
+
+  it("marks read/list as condensed preview tools", () => {
+    expect(isCondensedPreviewTool("read_file")).toBe(true);
+    expect(isCondensedPreviewTool("list_dir")).toBe(true);
+    expect(isCondensedPreviewTool("write_file")).toBe(false);
+  });
+
+  it("resolves absolute paths for condensed activity rows", () => {
+    expect(
+      toolActivityDetailPath(
+        "read_file",
+        { path: "package.json" },
+        "/Users/gamb1t/Desktop/Nxe5/deep-seeker"
+      )
+    ).toBe("package.json");
+    expect(
+      toolActivityDetailPath(
+        "read_file",
+        { path: "/Users/gamb1t/Desktop/Nxe5/deep-seeker/test.md" },
+        "/Users/gamb1t/Desktop/Nxe5/deep-seeker"
+      )
+    ).toBe("test.md");
   });
 });

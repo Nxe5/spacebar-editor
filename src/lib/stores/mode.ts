@@ -1,5 +1,9 @@
 import { writable } from "svelte/store";
-import { READ_ONLY_TOOLS, ALL_TOOL_NAMES } from "../tools/toolDefinitions";
+import {
+  READ_ONLY_TOOLS,
+  ALL_TOOL_NAMES,
+  MODE_CONTROL_TOOLS,
+} from "../tools/toolDefinitions";
 
 export type ChatMode = "chat" | "plan" | "agent";
 
@@ -21,14 +25,15 @@ export const MODE_CONFIG: Record<ChatMode, ModeConfig> = {
   plan: {
     label: "Plan",
     description: "Read-only analysis and planning",
-    tools: READ_ONLY_TOOLS,
+    tools: [...READ_ONLY_TOOLS, ...MODE_CONTROL_TOOLS],
     basePrompt: `You are a coding assistant focused on analysis and planning. You can read files and search the codebase, but you cannot modify any files.
 
 When analyzing code:
 - Read relevant files to understand the codebase
 - Use grep to find patterns and references
 - Provide clear explanations and recommendations
-- Suggest implementation approaches without making changes`,
+- Suggest implementation approaches without making changes
+- When ready to implement, call switch_mode with target_mode "agent" and explain why`,
   },
   agent: {
     label: "Agent",
@@ -45,7 +50,8 @@ When implementing:
 - Use registered tool names only (read_file not cat; list_dir not ls; grep not run_shell grep)
 - Make focused, incremental changes
 - Explain what you're doing and why
-- Test your changes when possible using run_shell`,
+- Test your changes when possible using run_shell
+- When you need read-only analysis first, call switch_mode with target_mode "plan" and explain why`,
   },
 };
 

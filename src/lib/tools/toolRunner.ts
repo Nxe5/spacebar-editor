@@ -23,6 +23,7 @@ import { joinPath, resolvePath, resolveWorkspacePath } from "./pathUtils";
 import { capShellToolOutput } from "./shellOutputSpill";
 import { runLspAgentTool } from "../lsp/lspAgentBridge";
 import { normalizeToolArguments } from "../agent/textToolCalls";
+import type { ChatMode } from "../stores/mode";
 
 export interface ToolExecutionContext {
   webFetchAllowedHosts?: string[];
@@ -38,6 +39,8 @@ export interface ToolExecutionContext {
   readOnly?: boolean;
   lspToolTimeout?: number;
   lspWorkspaceSymbolTimeout?: number;
+  /** Apply a Plan/Agent mode switch after user approval. */
+  onSwitchMode?: (mode: Extract<ChatMode, "plan" | "agent">) => void;
 }
 
 /** Tools that write or mutate state — blocked in read-only mode. */
@@ -386,6 +389,23 @@ async function runWebFetch(
   return fail(msg);
 }
 
+async function runSwitchMode(
+  args: Record<string, unknown>,
+  _workspacePath: string,
+  context?: ToolExecutionContext
+): Promise<ToolResult> {
+  if (!context?.onSwitchMode) {
+    return fail("Mode switching is not available in this context.");
+  }
+  const target = args.target_mode;
+  if (target !== "plan" && target !== "agent") {
+    return fail('target_mode must be "plan" or "agent".');
+  }
+  context.onSwitchMode(target);
+  const label = target === "plan" ? "Plan (read-only)" : "Agent (full tools)";
+  return ok(`Switched to ${label} mode. Tool availability updated for subsequent steps.`);
+}
+
 async function runShellCommand(
   args: Record<string, unknown>,
   workspacePath: string
@@ -485,6 +505,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   run_tests: runTests,
   run_script: runScript,
   web_fetch: runWebFetch,
+  switch_mode: runSwitchMode,
   run_shell: runShellCommand,
   lsp_find_references: (a, w, c) => runLspTool("lsp_find_references", a, w, c),
   lsp_go_to_definition: (a, w, c) => runLspTool("lsp_go_to_definition", a, w, c),

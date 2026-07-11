@@ -15,6 +15,9 @@
     toolResultIsError,
   } from "$lib/agent/toolDisplay";
   import { formatToolActivityLine } from "$lib/agent/activity";
+  import { isFileChangeBubbleTool } from "$lib/agent/fileChangeDiff";
+  import { isCondensedPreviewTool } from "$lib/agent/toolDisplay";
+  import FileChangeBubble from "$lib/components/FileChangeBubble.svelte";
   import { chatAppearance } from "$lib/stores/chatAppearance";
   import ChatMarkdown from "$lib/components/ChatMarkdown.svelte";
 
@@ -31,6 +34,7 @@
     onToggleResponse,
     onToggleTool,
     onOpenFile,
+    onOpenFileDiff,
   }: {
     turn: AgentTurnBlock;
     workspacePath?: string;
@@ -45,6 +49,7 @@
     onToggleResponse?: () => void;
     onToggleTool?: (toolId: string) => void;
     onOpenFile?: (path: string) => void;
+    onOpenFileDiff?: (relPath: string, diffBase: string) => void;
   } = $props();
 
   let hasThinking = $derived(Boolean(turn.thinking.trim()));
@@ -83,8 +88,19 @@
     return "success";
   }
 
+  function showFileChangeBubble(tool: ToolActivityItem): boolean {
+    if (!isFileChangeBubbleTool(tool.name, tool.success)) return false;
+    if (tool.name === "create_file") return true;
+    return tool.fileDiffBefore !== undefined;
+  }
+
   function toolOpenPath(tool: ToolActivityItem): string | null {
     return tool.paths?.[0] ?? null;
+  }
+
+  function showCondensedPreviewRow(tool: ToolActivityItem, state: ReturnType<typeof toolChipState>): boolean {
+    if (!isCondensedPreviewTool(tool.name)) return false;
+    return state !== "failed";
   }
 </script>
 
@@ -159,6 +175,50 @@
 
   {#each turn.tools as tool (tool.id)}
     {@const state = toolChipState(tool)}
+    {#if showFileChangeBubble(tool) && state !== "running"}
+      <FileChangeBubble
+        toolName={tool.name}
+        toolInput={tool.input}
+        fileDiffBefore={tool.fileDiffBefore ?? ""}
+        {workspacePath}
+        expanded={isToolOpen?.(tool.id) ?? false}
+        onToggleExpand={() => onToggleTool?.(tool.id)}
+        onOpenDiff={(relPath, diffBase) => onOpenFileDiff?.(relPath, diffBase)}
+      />
+    {:else if showCondensedPreviewRow(tool, state)}
+    {@const toolRunning = state === "running"}
+    {@const openPath = toolOpenPath(tool)}
+    <div class="activity-tool" class:running={toolRunning}>
+      {#if tool.name === "read_file" && openPath && onOpenFile}
+        <button
+          type="button"
+          class="activity-tool-line activity-tool-row activity-tool-row--condensed activity-tool-row--link success"
+          title="Open in editor"
+          onclick={() => onOpenFile(openPath)}
+        >
+          {#if toolRunning}
+            <LoaderCircle size={12} strokeWidth={2} class="activity-spinner" aria-hidden="true" />
+          {/if}
+          <span class="activity-tool-text activity-tool-row-label">
+            {formatToolActivityLine(tool.name, tool.input, workspacePath)}
+          </span>
+        </button>
+      {:else}
+        <div
+          class="activity-tool-line activity-tool-row activity-tool-row--condensed"
+          class:success={state === "success"}
+          class:stopped={state === "stopped"}
+        >
+          {#if toolRunning}
+            <LoaderCircle size={12} strokeWidth={2} class="activity-spinner" aria-hidden="true" />
+          {/if}
+          <span class="activity-tool-text activity-tool-row-label">
+            {formatToolActivityLine(tool.name, tool.input, workspacePath)}
+          </span>
+        </div>
+      {/if}
+    </div>
+    {:else}
     {@const open = isToolOpen?.(tool.id) ?? false}
     {@const toolRunning = state === "running"}
     {@const fileLine = toolFileLine(tool.name, tool.input, workspacePath)}
@@ -179,7 +239,7 @@
         {/if}
         <span class="activity-row-label">
           <span class="activity-tool-text activity-tool-row-label">
-            {formatToolActivityLine(tool.name, tool.input)}
+            {formatToolActivityLine(tool.name, tool.input, workspacePath)}
           </span>
           <span class="activity-chevron" class:open>
             <ChevronRight size={14} strokeWidth={2} aria-hidden="true" />
@@ -224,6 +284,7 @@
         </div>
       {/if}
     </div>
+    {/if}
   {/each}
 
   {#if showResponse}
@@ -369,6 +430,28 @@
 
   .activity-tool-row.stopped .activity-tool-row-label {
     color: #707070;
+  }
+
+  .activity-tool-row--condensed {
+    cursor: default;
+  }
+
+  .activity-tool-row--link {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    width: 100%;
+    transition: background-color var(--motion-fast, 140ms);
+  }
+
+  .activity-tool-row--link:hover {
+    background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  }
+
+  .activity-tool-row--condensed .activity-chevron {
+    display: none;
   }
 
   .activity-detail-name {

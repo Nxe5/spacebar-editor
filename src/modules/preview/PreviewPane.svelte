@@ -173,13 +173,13 @@
 <div class="preview-pane flex h-full min-h-0 flex-1 flex-col gap-2 bg-background p-2">
   <div class="preview-pane__toolbar flex flex-wrap items-center gap-1 border-b border-transparent pb-2">
     <!-- Back / Forward / Reload -->
-    <Button variant="ghost" size="icon-sm" onclick={goBack} title="Go back" disabled={!loadedUrl} class="nav-btn">
+    <Button variant="ghost" size="icon-sm" onclick={goBack} title="Go back" disabled={!loadedUrl} class="nav-btn preview-toolbar-btn">
       <ArrowLeftIcon size={14} />
     </Button>
-    <Button variant="ghost" size="icon-sm" onclick={goForward} title="Go forward" disabled={!loadedUrl} class="nav-btn">
+    <Button variant="ghost" size="icon-sm" onclick={goForward} title="Go forward" disabled={!loadedUrl} class="nav-btn preview-toolbar-btn">
       <ArrowRightIcon size={14} />
     </Button>
-    <Button variant="ghost" size="icon-sm" onclick={reloadFrame} title="Reload" disabled={!loadedUrl} class="nav-btn">
+    <Button variant="ghost" size="icon-sm" onclick={reloadFrame} title="Reload" disabled={!loadedUrl} class="nav-btn preview-toolbar-btn">
       <ArrowClockwiseIcon size={14} />
     </Button>
 
@@ -190,9 +190,9 @@
       placeholder="http://127.0.0.1:3000"
       onkeydown={(e) => e.key === "Enter" && navigate()}
     />
-    <Button variant="secondary" size="sm" onclick={navigate}>Go</Button>
-    <Button variant="outline" size="sm" onclick={() => { urlInput = "http://127.0.0.1:3000"; navigate(); }}>:3000</Button>
-    <Button variant="outline" size="sm" onclick={() => { urlInput = "http://127.0.0.1:14200"; navigate(); }}>:14200</Button>
+    <Button variant="secondary" size="sm" onclick={navigate} class="preview-toolbar-btn">Go</Button>
+    <Button variant="outline" size="sm" onclick={() => { urlInput = "http://127.0.0.1:3000"; navigate(); }} class="preview-toolbar-btn">:3000</Button>
+    <Button variant="outline" size="sm" onclick={() => { urlInput = "http://127.0.0.1:14200"; navigate(); }} class="preview-toolbar-btn">:14200</Button>
 
     <!-- Spacer -->
     <span class="flex-1"></span>
@@ -204,7 +204,7 @@
       onclick={toggleInspect}
       title={inspecting ? "Stop selecting (Esc)" : "Select an element to add to chat"}
       aria-pressed={inspecting}
-      class="gap-1.5"
+      class="preview-toolbar-btn gap-1.5"
     >
       <CursorIcon size={14} />
       {inspecting ? "Stop" : "Select element"}
@@ -254,6 +254,35 @@
     height: 28px;
     padding: 0;
     flex-shrink: 0;
+  }
+
+  /* Browser preview toolbar — stronger hover/press than app-wide buttons. */
+  .preview-pane__toolbar :global(.preview-toolbar-btn) {
+    transition:
+      background-color var(--motion-fast, 140ms),
+      color var(--motion-fast, 140ms),
+      border-color var(--motion-fast, 140ms),
+      transform var(--motion-fast, 140ms);
+  }
+
+  .preview-pane__toolbar :global(.preview-toolbar-btn:hover:not(:disabled)) {
+    background: color-mix(in srgb, var(--foreground) 14%, transparent) !important;
+    color: var(--foreground) !important;
+    border-color: color-mix(in srgb, var(--foreground) 28%, var(--border)) !important;
+  }
+
+  .preview-pane__toolbar :global(.preview-toolbar-btn:active:not(:disabled)) {
+    background: color-mix(in srgb, var(--foreground) 22%, transparent) !important;
+    transform: translateY(1px);
+  }
+
+  .preview-pane__toolbar :global(.preview-toolbar-btn[aria-pressed="true"]) {
+    background: color-mix(in srgb, var(--primary) 88%, var(--foreground)) !important;
+    color: var(--primary-foreground) !important;
+  }
+
+  .preview-pane__toolbar :global(.preview-toolbar-btn[aria-pressed="true"]:hover:not(:disabled)) {
+    background: color-mix(in srgb, var(--primary) 78%, var(--foreground)) !important;
   }
 
   .inspect-overlay {

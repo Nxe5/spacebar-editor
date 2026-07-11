@@ -256,6 +256,31 @@ describe("toolRunner", () => {
       });
     });
 
+    describe("switch_mode", () => {
+      it("switches mode via callback", async () => {
+        let switched: string | null = null;
+        const result = await executeTool(
+          "switch_mode",
+          { target_mode: "plan", explanation: "Need read-only analysis first" },
+          workspacePath,
+          { onSwitchMode: (mode) => { switched = mode; } }
+        );
+        expect(result.success).toBe(true);
+        expect(switched).toBe("plan");
+        expect(result.output).toContain("Plan");
+      });
+
+      it("rejects invalid target_mode", async () => {
+        const result = await executeTool(
+          "switch_mode",
+          { target_mode: "chat", explanation: "nope" },
+          workspacePath,
+          { onSwitchMode: () => {} }
+        );
+        expect(result.success).toBe(false);
+      });
+    });
+
     describe("unknown tool", () => {
       it("returns error for unknown tools", async () => {
         const result = await executeTool("unknown_tool", {}, workspacePath);

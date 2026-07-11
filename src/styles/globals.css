@@ -34,7 +34,7 @@
   --workbench-panel-gap-bottom: 6px;
   --chat-panel-inset-block-top: var(--workbench-panel-gap-top);
   --chat-panel-inset-block-bottom: var(--workbench-panel-gap-bottom);
-  --chat-panel-radius: 10px;
+  --chat-panel-radius: 0;
   --chat-panel-bg: var(--workbench-panel-bg, var(--sidebar));
   --chat-panel-border: color-mix(in srgb, var(--border) 45%, transparent);
   /** Explorer / git / prompt pane (right secondary column). */

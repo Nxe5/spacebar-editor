@@ -29,6 +29,7 @@ const CORE_TOOLS = [
   "lsp_document_symbols",
   "lsp_workspace_symbols",
   "lsp_get_diagnostics",
+  "switch_mode",
 ];
 
 describe("toolDefinitions", () => {

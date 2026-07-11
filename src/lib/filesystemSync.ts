@@ -157,6 +157,29 @@ export async function openWorkspaceFile(path: string): Promise<void> {
   await openFileFromDisk(path);
 }
 
+/** Open file with green/red diff overlay vs a known base (agent change bubble). */
+export async function openWorkspaceFileWithDiff(
+  path: string,
+  diffBase: string
+): Promise<void> {
+  const canon = normalizeFilePath(path);
+  try {
+    const content = await readFile(null, canon);
+    const name = canon.split("/").pop() ?? canon;
+    workbench.openEditorFile({
+      path: canon,
+      name,
+      content,
+      isDirty: false,
+      language: getLanguageFromPath(canon),
+      diffBase,
+    });
+    workbench.syncFromOpenFiles();
+  } catch {
+    await openFileFromDisk(path);
+  }
+}
+
 async function openFileFromDisk(path: string): Promise<void> {
   const canon = normalizeFilePath(path);
   try {

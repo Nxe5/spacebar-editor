@@ -48,6 +48,9 @@
     padding: var(--explorer-panel-inset-block-top) var(--workbench-edge-inset)
       var(--explorer-panel-inset-block-bottom);
     background: transparent;
+    border: none;
+    border-left: 1px solid var(--explorer-panel-border);
+    border-radius: 0;
   }
 
   .explorer-panel {
@@ -57,10 +60,7 @@
     min-height: 0;
     min-width: 0;
     overflow: hidden;
-    border-radius: var(--explorer-panel-radius);
-    border: 1px solid var(--explorer-panel-border);
     background: var(--explorer-panel-bg);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
   }
 
   .content-body {
