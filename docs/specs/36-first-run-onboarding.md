@@ -1,6 +1,8 @@
 # Spec 36 — First-Run / Onboarding
 
-> **Status:** ✅ Implemented (custom scope) — welcome screen with "Open project" button + up to 8 recent projects; CLI file-open mode (`sidebar <file>` opens file with all panes collapsed, `sidebar <dir>` opens as workspace); `add_recent_project` / `get_recent_projects` Rust commands; `layoutOverride` store for one-shot panel collapse.
+> **Status:** ✅ Implemented (custom scope) — welcome screen with "Open project" button + up to 8 recent projects; CLI file-open mode (`spacebar <file>` opens the file with all panes collapsed, `spacebar <dir>` opens as workspace); `add_recent_project` / `get_recent_projects` Rust commands; `layoutOverride` store for one-shot panel collapse.
+>
+> **v0.1.6 refactor:** CLI launch handling moved out of `FileTree.svelte` (which only mounts after a workspace is open) into `src/lib/launch/initLaunchArgs.ts`, invoked once from `WorkbenchShell.onMount`. `handleLaunchArgs()` opens the parent directory as the workspace for a file and applies `MICRO_EDITOR_LAYOUT` (`src/lib/launch/microEditorLayout.ts` — chat, tabs, explorer, and bottom panel all collapsed). See [04-entry-points.md](04-entry-points.md).
 > **Area:** UX · Settings · Providers
 > **Phase:** B — Enhancement
 > **Depends on:** [05-workbench.md](05-workbench.md) · [08-ai-agent.md](08-ai-agent.md) · [07-workspace.md](07-workspace.md)

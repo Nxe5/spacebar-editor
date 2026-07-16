@@ -6,9 +6,9 @@ import {
 } from "../../src/lib/workbench-theme";
 
 describe("normalizeWorkbenchTheme", () => {
-  it("defaults to spacebar", () => {
-    expect(normalizeWorkbenchTheme(undefined)).toBe("spacebar");
-    expect(normalizeWorkbenchTheme("unknown")).toBe("spacebar");
+  it("defaults to dark-bubblegum", () => {
+    expect(normalizeWorkbenchTheme(undefined)).toBe("dark-bubblegum");
+    expect(normalizeWorkbenchTheme("unknown")).toBe("dark-bubblegum");
   });
 
   it("exposes exactly nine starter presets", () => {
@@ -17,7 +17,7 @@ describe("normalizeWorkbenchTheme", () => {
       "spacebar",
       "dark-bubblegum",
       "dracula",
-      "dracula-experimental",
+      "dark-dracula",
       "cursor-dark",
       "light-paper",
       "light-cloud",
@@ -34,7 +34,11 @@ describe("normalizeWorkbenchTheme", () => {
 
   it("resolves the real dracula preset instead of the old legacy alias", () => {
     expect(normalizeWorkbenchTheme("dracula")).toBe("dracula");
-    expect(normalizeWorkbenchTheme("dracula-experimental")).toBe("dracula-experimental");
+    expect(normalizeWorkbenchTheme("dark-dracula")).toBe("dark-dracula");
+  });
+
+  it("migrates the pre-rename dracula-experimental id to dark-dracula", () => {
+    expect(normalizeWorkbenchTheme("dracula-experimental")).toBe("dark-dracula");
   });
 
   it("identifies light themes", () => {

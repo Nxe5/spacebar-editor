@@ -34,7 +34,7 @@ Legacy error mapping may still mention harness in `invokeSafe.ts` / `errors.ts`;
 
 - **Fewer processes** — one desktop app, no sidecar lifecycle or version skew.
 - **Simpler debugging** — agent loop and streaming live in the same webview as the UI.
-- **Real tools** — all 16 built-in tools invoke Rust (filesystem, git, grep, shell, etc.).
+- **Real tools** — all 17 built-in tools invoke Rust (filesystem, git, grep, shell, etc.).
 - **Trade-off** — API keys and LLM `fetch` run in the webview today ([14-security.md](14-security.md)); moving HTTP to Rust is roadmap, not a return to a Node sidecar.
 
 ---

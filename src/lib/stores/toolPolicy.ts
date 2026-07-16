@@ -42,6 +42,29 @@ function isLegacyFactoryAllowAll(state: ToolPolicyState): boolean {
   return ALL_TOOL_NAMES.every((n) => state.toolRules[n] === "allow");
 }
 
+/** Pre-v0.1.8 factory set: allow-all except these ask tools. */
+const LEGACY_FACTORY_ASK_TOOLS = new Set([
+  "str_replace",
+  "move_file",
+  "delete_file",
+  "run_shell",
+  "run_tests",
+  "run_script",
+  "web_fetch",
+  "switch_mode",
+]);
+
+/** Untouched factory policy from when a handful of tools defaulted to ask. */
+function isLegacyFactoryMixedAsk(state: ToolPolicyState): boolean {
+  if (!isUnmodifiedFactoryState(state)) return false;
+  if (state.defaultRule !== "allow") return false;
+  return ALL_TOOL_NAMES.every((n) =>
+    LEGACY_FACTORY_ASK_TOOLS.has(n)
+      ? state.toolRules[n] === "ask"
+      : state.toolRules[n] === "allow"
+  );
+}
+
 function normalizeCustomTools(
   tools: ToolPolicyState["customTools"] | undefined
 ): ToolPolicyState["customTools"] {
@@ -59,7 +82,11 @@ function loadState(): ToolPolicyState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as ToolPolicyState;
-      if (isLegacyFactoryAskAll(parsed) || isLegacyFactoryAllowAll(parsed)) {
+      if (
+        isLegacyFactoryAskAll(parsed) ||
+        isLegacyFactoryAllowAll(parsed) ||
+        isLegacyFactoryMixedAsk(parsed)
+      ) {
         return cloneDefaultToolPolicy();
       }
       return {

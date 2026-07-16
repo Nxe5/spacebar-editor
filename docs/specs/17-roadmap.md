@@ -12,8 +12,16 @@
 | **v0.1.3** | Post-beta | ✅ **Shipped** (2026-06-09) | Browser tab, element inspector, drag-drop chips, compaction defaults |
 | **v0.1.4** | Patch | ✅ **Shipped** (2026-06-10) | Native OS drop, chip icons, click-to-open, spec audit |
 | **v0.1.5** | Shipped | ✅ **Shipped** (2026-07-10) | GLM + Kimi providers, API keys in app settings, PTY resize |
-| **v0.1.6** | Current | 🔶 In progress | **Stability program** — terminal render fix ([49](49-terminal-render-corruption.md)), workbench scroll containment ([50](50-explorer-expand-editor-scroll.md)), chat scroll freedom ([51](51-chat-scroll-freedom.md)), agent-run stability + raised caps ([52](52-agent-run-stability.md)) |
-| **v0.1.7** | Next | 📋 Planned | Trust boundary release — [45](45-security-hardening-and-capability-expansion.md) (workspace trust, narrow-only policy, web access globe, P0 audits) |
+| **v0.1.6** | Shipped | ✅ **Shipped** | Workspace trust gate ([45](45-security-hardening-and-capability-expansion.md) §2.1), web access globe toggle (§4.7, UI/schema-level) |
+| **v0.1.7** | Shipped | ✅ **Shipped** | `str_replace` patch-style edit tool + write-approval edit preview, code-defined bundled skills starter pack, CLI launch refactor + micro-editor layout, macOS/Homebrew packaging |
+| **v0.1.8** | Shipped | ✅ **Shipped** | Onboarding wizard, relaxed default tool policy, macOS shell/window fixes, editor + explorer polish |
+| **v0.1.9** | Shipped | ✅ **Shipped** | Test-suite fixes for v0.1.8 default changes |
+| **v0.1.10** | Shipped | ✅ **Shipped** | Keep terminal panes mounted across tab switches (scrollback survives) |
+| **v0.1.11** | Shipped | ✅ **Shipped** | Dracula themes, `workbenchChrome.syncFromActiveTheme()` fix, streaming render throttle, terminal focus fix, CI release-notes generator |
+| **v0.1.12** | Shipped (CI failed) | ⚠️ Superseded by v0.1.13 | Stability program specs 49–52 landed, but the tag's release build failed on all platforms (`pnpm-lock.yaml` missing the new `@xterm/addon-webgl` entry) |
+| **v0.1.13** | Shipped | ✅ **Shipped** | Fixed the v0.1.12 lockfile gap; stability program (specs 49–52) released |
+| **v0.1.14** | Next | 🔶 In progress | Restore the v0.1.7–v0.1.10 feature set after a working-tree revert removed it in error; rename `dracula-experimental` → `dark-dracula` |
+| **v0.1.15** | Planned | 📋 Planned | Trust boundary hardening — [45](45-security-hardening-and-capability-expansion.md) (narrow-only tool policy §2.2, remaining P0 enforcement audits) |
 
 ---
 
@@ -64,10 +72,10 @@
 | File watcher → UI | ✅ Done | [24-filesystem-watcher.md](24-filesystem-watcher.md) |
 | Shortcut rebinding | ✅ Done | [37-shortcut-rebinding.md](37-shortcut-rebinding.md) |
 | Agent turn undo | ✅ Done | "↩ Undo last turn" button — git checkpoint restore |
-| **Workspace trust gate** | ❌ Planned (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §2.1 |
+| **Workspace trust gate** | ✅ Done (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §2.1 — `workspaceTrust.ts` + `WorkspaceTrustDialog.svelte`; restricted mode skips loading project skills/prompts/tool-policy overrides (`projectState.ts`); "Restricted" status-bar pill. No re-prompt yet if `.sidebar/` content changes after trust is granted (§2.1 item 4) |
 | **Tool policy narrow-only (project)** | ❌ Planned (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §2.2 — confirmed bug in `mergeProjectToolsLayer` |
-| **Web access globe toggle** | ❌ Planned (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §4.7 |
-| **Patch-style edit tool (`str_replace`)** | ❌ Planned (v0.1.7) | [45](45-security-hardening-and-capability-expansion.md) §4.1 |
+| **Web access globe toggle** | 🔶 Partial (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §4.7 — status-bar toggle shipped and removes `web_fetch` from the native tool-call schema when off (`webAccess.ts`, `ChatPane.svelte`); **not** enforced in `toolRunner.ts` execution, and text-fallback tool-call mode still lists `web_fetch` as allowed regardless of the toggle |
+| **Patch-style edit tool (`str_replace`)** | ✅ Done (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §4.1 — pure `strReplace.ts` + approval preview |
 | **MLX provider** (Apple Silicon) | ❌ Planned | `mlx_lm.server` OpenAI-compat backend — [42](42-mlx-provider.md) |
 | **Context compaction** | ✅ Done | [21-context-compaction.md](21-context-compaction.md) — enabled by default at 85% |
 
@@ -130,7 +138,7 @@
 | Item | Spec | Status |
 |------|------|--------|
 | Per-project skills (CRUD, injection, variables) | [30](30-agent-context-and-model-settings.md) | ✅ Done |
-| Bundled skills starter pack | [30](30-agent-context-and-model-settings.md) §9 | ❌ Not started |
+| Bundled skills starter pack | [30](30-agent-context-and-model-settings.md) §9 | 🔶 Partial — code-defined pack (`typescript`, `svelte`, `git-conventions`, `testing`); auto-detect + UI deferred |
 | LSP Phase 1 — diagnostics + hover | [25](25-lsp-diagnostics.md) | ✅ Done (TS/JS) |
 | Per-model settings + assembly preview | [30](30-agent-context-and-model-settings.md) | ✅ Done |
 | Autocomplete inference hook (Ollama FIM) | [28](28-inline-edit-autocomplete.md) §2 | ❌ Not started |
@@ -156,6 +164,8 @@
 | Item | Spec | Status |
 |------|------|--------|
 | Skills registry (GitHub-based → hosted) | [29](29-skills-registry.md) | ❌ Deferred (P3) |
+| **System-tray desktop assistant** (background window, global hotkey, system-scope tools) | [53](53-system-tray-desktop-assistant.md) | 📋 Proposed |
+| **Universal project hub, notes & boards** (code/KiCad/hardware registry, notes vault, kanban boards, command palette) | [54](54-project-hub-notes-boards.md) | 📋 Proposed — independent of 53 |
 | Plugin / extension API (userland tools) | — | ❌ Not started |
 | File-backed plans (`plans/`) | [19](19-planning-system.md) | ❌ Not started |
 | Multi-workspace / project switcher | — | ❌ Deferred |
@@ -179,7 +189,9 @@
 
 | Date | Item |
 |------|------|
+| 2026-07-16 | **Feature restoration** — a v0.1.6 working-tree revert briefly dropped `str_replace`, bundled skills, CLI launch args, Homebrew packaging, and the onboarding wizard; all five restored on top of the stability program (specs 49–52). `dracula-experimental` renamed to `dark-dracula`. |
 | 2026-07-16 | **Stability program (49–52)** — terminal WebGL renderer + font-ready gating + mounted panes, `overflow: clip` scroll containment, sticky chat auto-scroll, streaming render throttle, crash-restore of workspace, agent caps raised to 100 steps / 300 tool calls |
+| 2026-07-13 | **v0.1.7 feature set** — workspace trust gate ([45](45-security-hardening-and-capability-expansion.md) §2.1, `workspaceTrust.ts`), web access globe toggle (§4.7, UI/schema-level only), `str_replace` patch tool + write-approval edit preview, code-defined bundled skills, CLI launch refactor (`initLaunchArgs` + micro-editor layout), macOS/Homebrew packaging, editor focus-on-open fix |
 | 2026-06-10 | **v0.1.4** — attachment chip polish (native drop, icons, click-to-open), spec audit |
 | 2026-06-10 | **Attachment chip polish** — native Tauri drag-drop, type icons, click-to-open (editor/explorer/OS), element source grep — [43](43-v-next-release-fixes.md) §3 |
 | 2026-06-10 | **Editor actions + browser tab** — `···` menu, preview nav, element inspector — [44](44-editor-actions-browser-tab.md) |

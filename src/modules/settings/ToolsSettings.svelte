@@ -410,19 +410,19 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #737373;
+    color: var(--muted-foreground);
     margin: 4px 0 -4px;
   }
 
   .note {
     font-size: 12px;
     line-height: 1.45;
-    color: #737373;
+    color: var(--muted-foreground);
     margin: 0;
   }
 
   .note.muted {
-    color: #5c5c5c;
+    color: var(--muted-foreground);
   }
 
   .linkish {
@@ -443,12 +443,12 @@
 
   .name {
     font-size: 12px;
-    color: #a3a3a3;
+    color: var(--muted-foreground);
   }
 
   .hint {
     font-size: 11px;
-    color: #666;
+    color: var(--muted-foreground);
   }
 
   .inline-code {
@@ -456,23 +456,23 @@
     font-size: 11px;
     padding: 1px 5px;
     border-radius: 4px;
-    background: #1c1c1c;
-    color: #c5c5c5;
+    background: var(--background);
+    color: var(--muted-foreground);
   }
 
   .input {
     width: 100%;
     padding: 8px 10px;
     font-size: 13px;
-    color: #e5e5e5;
-    background: #1c1c1c;
-    border: 1px solid #404040;
+    color: var(--foreground);
+    background: var(--background);
+    border: 1px solid var(--border);
     border-radius: 6px;
   }
 
   .input:focus {
     outline: none;
-    border-color: #525252;
+    border-color: var(--ring);
   }
 
   .textarea {
@@ -490,24 +490,24 @@
 
   .btn.ghost {
     background: transparent;
-    color: #a3a3a3;
-    border-color: #404040;
+    color: var(--muted-foreground);
+    border-color: var(--border);
   }
 
   .btn.ghost:hover {
-    background: #333;
-    color: #e5e5e5;
+    background: var(--accent);
+    color: var(--foreground);
   }
 
   .btn.secondary {
-    background: #333;
-    color: #e5e5e5;
-    border-color: #404040;
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    border-color: var(--border);
     white-space: nowrap;
   }
 
   .btn.secondary:hover:not(:disabled) {
-    background: #404040;
+    background: var(--muted);
   }
 
   .tags {
@@ -521,9 +521,9 @@
     font-family: ui-monospace, monospace;
     padding: 3px 8px;
     border-radius: 4px;
-    background: #1c1c1c;
+    background: var(--background);
     color: #86c9b7;
-    border: 1px solid #333;
+    border: 1px solid var(--border);
   }
 
   .tool-policy-table {
@@ -538,8 +538,8 @@
     gap: 10px;
     align-items: start;
     padding: 10px 12px;
-    background: #1e1e1e;
-    border: 1px solid #383838;
+    background: var(--background);
+    border: 1px solid var(--border);
     border-radius: 8px;
   }
 
@@ -551,7 +551,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #666;
+    color: var(--muted-foreground);
   }
 
   .tool-policy-actions-head {
@@ -574,13 +574,13 @@
     border: none;
     border-radius: 4px;
     background: transparent;
-    color: #888;
+    color: var(--muted-foreground);
     cursor: pointer;
   }
 
   .tool-policy-icon-btn:hover {
-    background: #2a2a2a;
-    color: #e0e0e0;
+    background: var(--accent);
+    color: var(--foreground);
   }
 
   .tool-policy-footer {
@@ -605,13 +605,13 @@
     font-size: 9px;
     padding: 1px 5px;
     border-radius: 3px;
-    background: #2a2a2a;
-    color: #888;
+    background: var(--muted);
+    color: var(--muted-foreground);
     text-transform: uppercase;
   }
 
   .tool-policy-badge.custom {
-    color: #a8d4ff;
+    color: var(--primary);
   }
 
   .tool-policy-badge.edited {
@@ -622,12 +622,12 @@
     margin: 4px 0 0;
     font-size: 11px;
     line-height: 1.4;
-    color: #737373;
+    color: var(--muted-foreground);
   }
 
   .tool-rule-toggle {
     display: flex;
-    border: 1px solid #404040;
+    border: 1px solid var(--border);
     border-radius: 6px;
     overflow: hidden;
     flex-shrink: 0;
@@ -638,23 +638,23 @@
     font-size: 10px;
     text-transform: capitalize;
     border: none;
-    background: #1c1c1c;
-    color: #888;
+    background: var(--background);
+    color: var(--muted-foreground);
     cursor: pointer;
   }
 
   .tool-rule-btn + .tool-rule-btn {
-    border-left: 1px solid #404040;
+    border-left: 1px solid var(--border);
   }
 
   .tool-rule-btn:hover {
-    color: #e0e0e0;
-    background: #2a2a2a;
+    color: var(--foreground);
+    background: var(--accent);
   }
 
   .tool-rule-btn.active {
-    background: #1a3a52;
-    color: #e8e8e8;
+    background: color-mix(in srgb, var(--primary) 25%, var(--background));
+    color: var(--foreground);
   }
 
   .tool-policy-remove {
@@ -664,14 +664,14 @@
     border: none;
     border-radius: 4px;
     background: transparent;
-    color: #666;
+    color: var(--muted-foreground);
     font-size: 18px;
     cursor: pointer;
   }
 
   .tool-policy-remove:hover {
-    background: #3a2020;
-    color: #e57373;
+    background: color-mix(in srgb, var(--destructive) 15%, transparent);
+    color: var(--destructive);
   }
 
   .removed-tools {
@@ -682,11 +682,11 @@
 
   .tag-btn {
     cursor: pointer;
-    border: 1px dashed #444;
+    border: 1px dashed var(--border);
   }
 
   .tag-btn:hover {
-    border-color: #007acc;
-    color: #a8d4ff;
+    border-color: var(--primary);
+    color: var(--primary);
   }
 </style>

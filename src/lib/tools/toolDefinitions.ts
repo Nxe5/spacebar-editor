@@ -28,12 +28,43 @@ export const TOOL_DEFINITIONS: Record<string, Tool> = {
     },
   },
 
+  str_replace: {
+    type: "function",
+    function: {
+      name: "str_replace",
+      description:
+        "Replace an exact substring in an existing file. old_str must match exactly once unless replace_all is true. Prefer this over write_file for surgical edits to large files.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description: "The absolute or workspace-relative path to the file to edit",
+          },
+          old_str: {
+            type: "string",
+            description: "Exact text to find in the file (must be unique unless replace_all is true)",
+          },
+          new_str: {
+            type: "string",
+            description: "Replacement text",
+          },
+          replace_all: {
+            type: "boolean",
+            description: "Replace every occurrence of old_str (default false)",
+          },
+        },
+        required: ["path", "old_str", "new_str"],
+      },
+    },
+  },
+
   write_file: {
     type: "function",
     function: {
       name: "write_file",
       description:
-        "Write content to a file at the specified path. Creates the file if it doesn't exist, overwrites if it does. Preferred for multi-line text, markdown, or documents — use real line breaks in content, not \\n escape sequences.",
+        "Write content to a file at the specified path. Creates the file if it doesn't exist, overwrites if it does. Use str_replace for small edits to existing files. Preferred for multi-line text, markdown, or documents — use real line breaks in content, not \\n escape sequences.",
       parameters: {
         type: "object",
         properties: {
@@ -474,6 +505,7 @@ export const READ_ONLY_TOOLS = [
 ];
 
 export const WRITE_TOOLS = [
+  "str_replace",
   "write_file",
   "create_file",
   "delete_file",

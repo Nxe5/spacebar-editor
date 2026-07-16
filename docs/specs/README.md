@@ -1,10 +1,12 @@
 # Spacebar Editor — Specifications
 
-> **Last aligned with codebase:** 2026-07-16 · **v0.1.6 working tree** — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
+> **Last aligned with codebase:** 2026-07-16 · **v0.1.7 (restored)** — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
 >
-> **Note:** the working tree deliberately rolls back the v0.1.7–v0.1.10 feature set (`str_replace` tool, bundled skills, CLI launch args, Homebrew packaging, onboarding wizard); those remain *planned* in their specs. The keep-terminals-mounted fix from that range was re-applied via [49](49-terminal-render-corruption.md).
+> **v0.1.7 feature set:** `str_replace` patch-style edit tool + write-approval edit preview ([09](09-tool-system.md), [45](45-security-hardening-and-capability-expansion.md) §4.1) · code-defined bundled skills starter pack ([30](30-agent-context-and-model-settings.md) §9) · CLI launch refactor + micro-editor layout ([36](36-first-run-onboarding.md)) · macOS/Homebrew packaging · word-wrap/Prettier default-on (toolbar buttons removed) · Explorer/Search/Git switcher moved to top of `RightSidebar` · file-tree indent guide lines. **A v0.1.6 working-tree revert briefly removed this feature set; it was restored (see [17-roadmap.md](17-roadmap.md#recent-completions-2026)).**
 >
-> **Stability program (49–52):** terminal render corruption ([49](49-terminal-render-corruption.md)), editor scroll shift on folder expand ([50](50-explorer-expand-editor-scroll.md)), chat scroll freedom ([51](51-chat-scroll-freedom.md)), agent-run freezes/crash-to-welcome + raised tool caps ([52](52-agent-run-stability.md)) — all implemented.
+> **Stability program (49–52):** terminal render corruption ([49](49-terminal-render-corruption.md)), editor scroll shift on folder expand ([50](50-explorer-expand-editor-scroll.md)), chat scroll freedom ([51](51-chat-scroll-freedom.md)), agent-run freezes/crash-to-welcome + raised tool caps ([52](52-agent-run-stability.md)) — all implemented, layered on top of the restored v0.1.7 feature set.
+>
+> **Proposed-spec renumbering:** the system-tray assistant and project-hub proposals moved from 46/47 to **[53](53-system-tray-desktop-assistant.md)/[54](54-project-hub-notes-boards.md)** — 46–48 are now taken by shipped/drafted specs (update-ping, terminal-smooth-scrolling, remote-input-bridge).
 
 This directory contains the detailed engineering specifications for Spacebar Editor, organized by domain.
 
@@ -17,18 +19,18 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | **Core Features** | ✅ Complete | Workbench, editor, terminal, chat, agent loop |
 | **Git Integration** | ✅ Complete | Status, stage, commit, diff, discard |
 | **Providers** | 🔶 Partial | Anthropic, Ollama, llama.cpp, DeepSeek, GLM, Kimi ✅ · MLX ❌ — [42](42-mlx-provider.md) |
-| **Tools** | ✅ Complete | 16 built-in tools with policy system |
+| **Tools** | ✅ Complete | 17 built-in tools with policy system (incl. `str_replace`) |
 | **Persistence** | ✅ Complete | Per-project state, global settings |
 | **Context UI** | ✅ Complete | Segmented bar, breakdown popover, compaction archive/restore — [39](39-context-ui-enhancements.md) |
 | **Compaction** | ✅ Complete | Manual + auto compaction, archive/restore — [21](21-context-compaction.md) |
-| **Editor UX** | ✅ Complete | Line wrap, Prettier format / format-on-save, full syntax + editor chrome in Appearance — [20](20-editor-formatting-and-theming.md) |
+| **Editor UX** | ✅ Complete | Line wrap + Prettier format-on-save, both on by default (toggle in Settings → General, no toolbar buttons), full syntax + editor chrome in Appearance — [20](20-editor-formatting-and-theming.md) |
 | **Search** | ✅ Complete | Workspace text search (ripgrep) — [26](26-search-panel.md) |
 | **Filesystem Watcher** | ✅ Complete | Debounced `fs:changed` → tree + git refresh — [24](24-filesystem-watcher.md) |
 | **Enhancement Program (32–38)** | ✅ Mostly complete | Error recovery, overflow warnings, workspace lock, onboarding, shortcuts, parallel tools — see table below |
 | **LSP** | 🔶 Partial | Rust transport + TS client; diagnostics + hover — [25](25-lsp-diagnostics.md) |
 | **Stall / Error Detection** | ✅ Complete | Phase 0 — parse errors + stall detection — [22](22-llm-file-interaction.md) |
 | **Security Hardening** | 🔶 Partial | Rust path enforcement, app-settings API keys, production CSP — [14](14-security.md), [33](33-rust-path-enforcement.md), [40](40-product-hardening-and-agent-ux.md) §3; trust boundary plan — [45](45-security-hardening-and-capability-expansion.md) |
-| **Skills** | ✅ Complete (per-project) | CRUD UI + injection + variable interpolation; bundled pack/registry pending — [30](30-agent-context-and-model-settings.md) |
+| **Skills** | ✅ Complete (per-project) · 🔶 Bundled partial | Per-project CRUD UI + injection + variable interpolation; code-defined bundled starter pack shipped, global registry pending — [30](30-agent-context-and-model-settings.md) |
 | **Stability program (49–52)** | ✅ Complete | Terminal WebGL + font gating, `overflow: clip` panes, sticky chat scroll, streaming throttle, crash restore, 100/300 agent caps |
 | **Planning System** | ❌ Not started | `plans/` files, picker UI — [19](19-planning-system.md) |
 | **Inline edit (Cmd+K)** | ❌ Not started | [28](28-inline-edit-autocomplete.md) |
@@ -75,7 +77,7 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | [42-mlx-provider.md](42-mlx-provider.md) | ❌ Not started | MLX provider (Apple Silicon) — `mlx_lm.server` OpenAI-compat backend |
 | [28-inline-edit-autocomplete.md](28-inline-edit-autocomplete.md) | ❌ Spec ready | Cmd+K inline edit + ghost-text autocomplete |
 | [29-skills-registry.md](29-skills-registry.md) | ❌ Deferred (P3) | Share/install skills; format-stability obligations now |
-| [30-agent-context-and-model-settings.md](30-agent-context-and-model-settings.md) | ✅ Core complete | Agent Context settings, prompts relocation, per-model settings, assembly preview, **per-project skills CRUD + interpolation** · bundled pack/registry pending |
+| [30-agent-context-and-model-settings.md](30-agent-context-and-model-settings.md) | ✅ Core complete | Agent Context settings, prompts relocation, per-model settings, assembly preview, **per-project skills CRUD + interpolation**, **code-defined bundled starter pack shipped** · global/shared registry pending |
 | [31-llm-eval-harness.md](31-llm-eval-harness.md) | ✅ Implemented | Long-running Chat/Plan/Agent eval vs Ollama (`tests/llm/`) |
 | [32-agent-error-recovery.md](32-agent-error-recovery.md) | ✅ Complete | Tool error formatting, continue-after-max-steps UX, web_fetch retry |
 | [34-context-overflow-warnings.md](34-context-overflow-warnings.md) | ✅ Complete | Amber/red context bar states, inline critical warning above composer |
@@ -85,9 +87,11 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | [41-lsp-agent-tools.md](41-lsp-agent-tools.md) | ✅ Complete | LSP agent tools + shell spill + compaction tool retention |
 | [43-v-next-release-fixes.md](43-v-next-release-fixes.md) | ✅ Implemented | Model selector, attachment chips (native OS drop, icons, click-to-open), settings polish, compaction defaults, version bar |
 | [44-editor-actions-browser-tab.md](44-editor-actions-browser-tab.md) | 🔶 Partial | Editor `···` menu, browser tab + inspector; **pending:** untitled-file Save As (`pick_save_path`) |
-| [45-security-hardening-and-capability-expansion.md](45-security-hardening-and-capability-expansion.md) | 📋 Draft | Trust gate, narrow-only tool policy, web access globe toggle, enforcement audits, capability roadmap |
+| [45-security-hardening-and-capability-expansion.md](45-security-hardening-and-capability-expansion.md) | 🔶 Partially shipped (§2.1 trust gate ✅, §4.1 `str_replace` ✅, §4.7 web access toggle 🔶 UI/schema-level only) | Remaining open: narrow-only tool policy (§2.2), enforcement audits (§3.x), execution-layer web-access block, capability roadmap |
 | [48-remote-input-bridge.md](48-remote-input-bridge.md) | 📋 Draft | Remote prompts via Telegram/Discord/iMessage; headless agent turn (Phase 0), pairing + allowlist, remote tool-policy profiles |
 | [52-agent-run-stability.md](52-agent-run-stability.md) | ✅ Implemented (§6 future work open) | Streaming render throttle, markdown parse cap, crash-restore of workspace, raised tool caps (100 steps / 300 calls) + migration |
+| [53-system-tray-desktop-assistant.md](53-system-tray-desktop-assistant.md) | 📋 Proposed | Background tray window, global hotkey summon, system-scope tools + trust gating for a desktop assistant |
+| [54-project-hub-notes-boards.md](54-project-hub-notes-boards.md) | 📋 Proposed | Cross-kind project registry (code/KiCad/hardware/notes), global notes vault, per-project kanban boards, Raycast-style command palette — independent of 53's system-write tools |
 
 ### Editor & Git
 
@@ -180,4 +184,4 @@ When changing behavior, update in order:
 
 **Enhancement program:** the competitive plan in `extension.md` is specced across [22](22-llm-file-interaction.md)–[39](39-context-ui-enhancements.md) and sequenced (Phase 0–3) in the [Enhancement Program](17-roadmap.md#enhancement-program-from-extensionmd) section of the roadmap.
 
-**Skills:** Spec [30](30-agent-context-and-model-settings.md) is the authority (supersedes [23](23-skills-system.md)). **Per-project skills are implemented** — `src/lib/skills/` (`activeSkills.ts`, `skillVariables.ts`), the `skills` store, and the Skills manager (Settings → Agent Context → Skills) provide CRUD, per-mode scoping, and `{{variable}}` interpolation; `assemble.ts` injects enabled skills. Remaining work: a bundled starter pack and a global/shared registry ([29](29-skills-registry.md)).
+**Skills:** Spec [30](30-agent-context-and-model-settings.md) is the authority (supersedes [23](23-skills-system.md)). **Per-project skills are implemented** — `src/lib/skills/` (`activeSkills.ts`, `skillVariables.ts`), the `skills` store, and the Skills manager (Settings → Agent Context → Skills) provide CRUD, per-mode scoping, and `{{variable}}` interpolation; `assemble.ts` injects enabled skills, and `buildActiveSkillBlocks` now also merges a **code-defined bundled starter pack** (`src/lib/skills/bundled/index.ts`: `typescript`, `svelte`, `git-conventions`, `testing`) unless a project skill shares the same `id`. Remaining work: auto-detection + read-only bundled UI + global scope ([30](30-agent-context-and-model-settings.md) §9) and a global/shared registry ([29](29-skills-registry.md)).

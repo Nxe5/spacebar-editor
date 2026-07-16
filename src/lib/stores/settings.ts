@@ -89,16 +89,16 @@ export type EditorSettings = {
 };
 
 export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
-  wordWrap: false,
-  formatOnSave: false,
+  wordWrap: true,
+  formatOnSave: true,
   uniformTabWidth: false,
   uniformTabWidthPx: normalizeUniformTabWidthPx(undefined),
 };
 
 function normalizeEditorSettings(parsed: Partial<EditorSettings> | undefined): EditorSettings {
   return {
-    wordWrap: parsed?.wordWrap === true,
-    formatOnSave: parsed?.formatOnSave === true,
+    wordWrap: parsed?.wordWrap !== false,
+    formatOnSave: parsed?.formatOnSave !== false,
     uniformTabWidth: parsed?.uniformTabWidth === true,
     uniformTabWidthPx: normalizeUniformTabWidthPx(parsed?.uniformTabWidthPx),
   };
@@ -180,6 +180,51 @@ export type SettingsState = {
   inspectorHighlightColor: string;
 };
 
+/** Switch chat backend and pick a valid model for it (shared by setChatBackend / setApiKey). */
+function applyChatBackend(state: SettingsState, chatBackend: ChatBackend): SettingsState {
+  if (chatBackend === "anthropic") {
+    const cloud = modelsVisibleInPicker(state.anthropicModels);
+    const selected = cloud.some((m) => m.id === state.selectedModel)
+      ? state.selectedModel
+      : (cloud[0]?.id ?? state.selectedModel);
+    const m = state.anthropicModels.find((x) => x.id === selected);
+    let anthropicContextBudget = state.anthropicContextBudget;
+    if (m && anthropicContextBudget != null && anthropicContextBudget > m.contextWindow) {
+      anthropicContextBudget = m.contextWindow;
+    }
+    return { ...state, chatBackend, selectedModel: selected, anthropicContextBudget };
+  }
+  if (chatBackend === "deepseek" || chatBackend === "glm" || chatBackend === "kimi") {
+    const lists = {
+      deepseek: state.deepseekModels,
+      glm: state.glmModels,
+      kimi: state.kimiModels,
+    } as const;
+    const cloud = modelsVisibleInPicker(lists[chatBackend]);
+    const selected = cloud.some((m) => m.id === state.selectedModel)
+      ? state.selectedModel
+      : (cloud[0]?.id ?? state.selectedModel);
+    return { ...state, chatBackend, selectedModel: selected };
+  }
+  if (chatBackend === "ollama") {
+    const ids = new Set(modelsVisibleInPicker(state.ollamaModels).map((m) => m.id));
+    let selected = state.selectedModel;
+    if (ids.has(selected)) {
+      /* keep */
+    } else if (state.lastOllamaModelId && ids.has(state.lastOllamaModelId)) {
+      selected = state.lastOllamaModelId;
+    } else {
+      selected = state.ollamaModels[0]?.id ?? state.selectedModel;
+    }
+    return { ...state, chatBackend, selectedModel: selected };
+  }
+  const lp = state.llamacppModels;
+  const selected = lp.some((m) => m.id === state.selectedModel)
+    ? state.selectedModel
+    : (lp[0]?.id ?? (state.selectedModel.trim() || "local-model"));
+  return { ...state, chatBackend, selectedModel: selected };
+}
+
 function createSettingsStore() {
   const DEFAULT_WEB_FETCH_HOSTS = [
     "github.com",
@@ -221,7 +266,7 @@ function createSettingsStore() {
     glmCatalogFetched: false,
     kimiCatalogFetched: false,
     anthropicExtendedThinking: true,
-    workbenchTheme: "spacebar",
+    workbenchTheme: "dark-bubblegum",
     anthropicContextBudget: null,
     webFetchAllowedHosts: DEFAULT_WEB_FETCH_HOSTS,
     agentLimits: defaultAgentLimitsForBackend("ollama"),
@@ -380,39 +425,22 @@ function createSettingsStore() {
         if (prevKey === key) {
           return { ...state, apiKeys: nextKeys };
         }
+        let next: SettingsState = { ...state, apiKeys: nextKeys };
         if (provider === "anthropic") {
-          return {
-            ...state,
-            apiKeys: nextKeys,
-            anthropicModels: [],
-            anthropicCatalogFetched: false,
-          };
+          next = { ...next, anthropicModels: [], anthropicCatalogFetched: false };
+        } else if (provider === "deepseek") {
+          next = { ...next, deepseekModels: [], deepseekCatalogFetched: false };
+        } else if (provider === "glm") {
+          next = { ...next, glmModels: [], glmCatalogFetched: false };
+        } else if (provider === "kimi") {
+          next = { ...next, kimiModels: [], kimiCatalogFetched: false };
         }
-        if (provider === "deepseek") {
-          return {
-            ...state,
-            apiKeys: nextKeys,
-            deepseekModels: [],
-            deepseekCatalogFetched: false,
-          };
+        // Adding a key for the first time makes that provider the active chat backend.
+        const addedFirstKey = !prevKey.trim() && key.trim().length > 0;
+        if (addedFirstKey && provider !== "openai") {
+          next = applyChatBackend(next, provider);
         }
-        if (provider === "glm") {
-          return {
-            ...state,
-            apiKeys: nextKeys,
-            glmModels: [],
-            glmCatalogFetched: false,
-          };
-        }
-        if (provider === "kimi") {
-          return {
-            ...state,
-            apiKeys: nextKeys,
-            kimiModels: [],
-            kimiCatalogFetched: false,
-          };
-        }
-        return { ...state, apiKeys: nextKeys };
+        return next;
       });
     },
     setCloudApiKeyStored: (_provider: "anthropic" | "deepseek" | "glm" | "kimi", _stored: boolean) => {
@@ -463,62 +491,7 @@ function createSettingsStore() {
       });
     },
     setChatBackend: (chatBackend: ChatBackend) => {
-      update((state) => {
-        if (chatBackend === "anthropic") {
-          const cloud = modelsVisibleInPicker(state.anthropicModels);
-          const selected = cloud.some((m) => m.id === state.selectedModel)
-            ? state.selectedModel
-            : (cloud[0]?.id ?? state.selectedModel);
-          const m = state.anthropicModels.find((x) => x.id === selected);
-          let anthropicContextBudget = state.anthropicContextBudget;
-          if (
-            m &&
-            anthropicContextBudget != null &&
-            anthropicContextBudget > m.contextWindow
-          ) {
-            anthropicContextBudget = m.contextWindow;
-          }
-          return { ...state, chatBackend, selectedModel: selected, anthropicContextBudget };
-        }
-        if (chatBackend === "deepseek") {
-          const cloud = modelsVisibleInPicker(state.deepseekModels);
-          const selected = cloud.some((m) => m.id === state.selectedModel)
-            ? state.selectedModel
-            : (cloud[0]?.id ?? state.selectedModel);
-          return { ...state, chatBackend, selectedModel: selected };
-        }
-        if (chatBackend === "glm") {
-          const cloud = modelsVisibleInPicker(state.glmModels);
-          const selected = cloud.some((m) => m.id === state.selectedModel)
-            ? state.selectedModel
-            : (cloud[0]?.id ?? state.selectedModel);
-          return { ...state, chatBackend, selectedModel: selected };
-        }
-        if (chatBackend === "kimi") {
-          const cloud = modelsVisibleInPicker(state.kimiModels);
-          const selected = cloud.some((m) => m.id === state.selectedModel)
-            ? state.selectedModel
-            : (cloud[0]?.id ?? state.selectedModel);
-          return { ...state, chatBackend, selectedModel: selected };
-        }
-        if (chatBackend === "ollama") {
-          const ids = new Set(modelsVisibleInPicker(state.ollamaModels).map((m) => m.id));
-          let selected = state.selectedModel;
-          if (ids.has(selected)) {
-            /* keep */
-          } else if (state.lastOllamaModelId && ids.has(state.lastOllamaModelId)) {
-            selected = state.lastOllamaModelId;
-          } else {
-            selected = state.ollamaModels[0]?.id ?? state.selectedModel;
-          }
-          return { ...state, chatBackend, selectedModel: selected };
-        }
-        const lp = state.llamacppModels;
-        const selected = lp.some((m) => m.id === state.selectedModel)
-          ? state.selectedModel
-          : (lp[0]?.id ?? (state.selectedModel.trim() || "local-model"));
-        return { ...state, chatBackend, selectedModel: selected };
-      });
+      update((state) => applyChatBackend(state, chatBackend));
     },
     setOllamaModels: (models: ModelConfig[]) => {
       update((state) => {

@@ -46,6 +46,10 @@
   import { workbenchChrome } from "$lib/stores/workbenchChrome";
   import { setWorkbenchModalScrollLock } from "$lib/workbenchScrollLock";
   import { syncAuxiliaryScrollLockWithSettingsWindow } from "$lib/settingsPopoutScrollLock";
+  import { initLaunchArgs } from "$lib/launch/initLaunchArgs";
+  import { isMacPlatform } from "$lib/windowControls";
+  import OnboardingWizard from "../onboarding/OnboardingWizard.svelte";
+  import { isOnboardingComplete } from "$lib/onboarding";
   import type { ExplorerPanelTab } from "$lib/explorerPanel";
 
   const PANE_WIDTH_KEY = "sidebar.paneWidths.v1";
@@ -90,6 +94,8 @@
 
   let settingsOpen = $state(false);
   let feedbackOpen = $state(false);
+  /** First-run wizard: theme → provider → project. */
+  let showOnboarding = $state(!isOnboardingComplete());
   let showLeftPanel = $state(true);
   let showRightPanel = $state(true);
   /** Explorer / git / prompt panel visible (toggled from status bar). */
@@ -234,6 +240,7 @@
   });
 
   onMount(() => {
+    void initLaunchArgs();
     void iconTheme.init();
     const clampPanesToWindow = () => {
       leftPaneWidth = clamp(leftPaneWidth, LEFT_MIN, LEFT_MAX);
@@ -389,7 +396,7 @@
      scrolling these fixed panes (e.g. clicking a file-tree row nudging the
      editor). `hidden` still allows programmatic scroll; `clip` does not. -->
 <div class="workbench-root flex h-screen flex-col overflow-clip bg-background text-foreground">
-  <header class="workbench-titlebar">
+  <header class="workbench-titlebar" class:workbench-titlebar--mac={isMacPlatform()}>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="workbench-titlebar__drag"
@@ -414,7 +421,9 @@
     </div>
   {/if}
 
-  {#if !$files.workspacePath}
+  {#if showOnboarding}
+    <OnboardingWizard onDone={() => (showOnboarding = false)} />
+  {:else if !$files.workspacePath}
     <WelcomeScreen />
   {:else}
   <WorkspaceReadOnlyBanner />
@@ -483,7 +492,7 @@
 
     {#if showRightPanel && rightExplorerOpen}
       <aside class="explorer-column flex min-h-0 min-w-0 shrink-0 flex-col" style={rightAsideLayoutStyle}>
-        <RightSidebar bind:activeTab={explorerActiveTab} />
+        <RightSidebar bind:activeTab={explorerActiveTab} onTabSelect={onExplorerTabClick} />
       </aside>
     {/if}
   </div>
@@ -494,12 +503,10 @@
     {showBottomPanel}
     {showTabStrip}
     {rightExplorerOpen}
-    explorerActiveTab={explorerActiveTab}
     onToggleLeft={() => (showLeftPanel = !showLeftPanel)}
     onToggleTabStrip={() => (showTabStrip = !showTabStrip)}
     onToggleRight={toggleRightPanel}
     onToggleBottom={() => (showBottomPanel = !showBottomPanel)}
-    onExplorerTab={onExplorerTabClick}
     onOpenWorkspace={() => void chooseWorkspaceFolder()}
     onOpenSettings={openSettingsModal}
     onOpenFeedback={openFeedbackModal}
@@ -526,6 +533,11 @@
     min-height: var(--workbench-titlebar-height);
     border-bottom: none;
     background: var(--workbench-shell-bg, var(--background));
+  }
+
+  /* Native macOS traffic lights overlay the top-left corner — keep content clear of them. */
+  .workbench-titlebar--mac .workbench-titlebar__drag {
+    padding-left: 78px;
   }
 
   .workbench-titlebar__drag {

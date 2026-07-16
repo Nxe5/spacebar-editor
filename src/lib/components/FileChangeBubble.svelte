@@ -193,11 +193,19 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 10px;
     line-height: 1.45;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .file-change-preview::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   .file-change-preview.scrollable {
     max-height: 220px;
-    overflow: auto;
+    overflow-y: auto;
   }
 
   .diff-line {
@@ -234,10 +242,8 @@
 
   .diff-text {
     flex: 1;
-    min-width: 0;
     padding: 1px 8px;
     white-space: pre;
-    overflow-x: auto;
     color: var(--foreground);
   }
 

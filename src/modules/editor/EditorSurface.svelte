@@ -46,6 +46,8 @@
   let resizeObserver: ResizeObserver | null = null;
   /** 1-indexed line to scroll to once the matching path becomes active. */
   const pendingGotoByPath = new Map<string, number>();
+  /** Last path we moved DOM focus into, so we only focus on a genuine open/switch. */
+  let lastFocusedPath: string | null = null;
 
   function applyGoto(path: string) {
     const line = pendingGotoByPath.get(path);
@@ -93,6 +95,7 @@
     editorView.destroy();
     editorView = null;
     activeLspUri = null;
+    lastFocusedPath = null;
   }
 
   function wrapExtension(enabled: boolean) {
@@ -117,6 +120,7 @@
         ".cm-content": {
           fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
           fontSize: "14px",
+          paddingBottom: "120px",
         },
         "&.cm-lineWrapping .cm-line": {
           whiteSpace: "break-spaces",
@@ -168,7 +172,6 @@
         languageCompartment.of(langExt != null ? [langExt] : []),
         ...diffExt,
         cm.syntaxHighlighting,
-        cm.scrollPastEnd(),
         wrapExtension(wordWrap),
         lspHoverCompartment.of([]),
         cm.EditorView.updateListener.of((update) => {
@@ -277,6 +280,12 @@
     void tick().then(() => {
       editorView?.requestMeasure();
       applyGoto(path);
+      // Focus the editor on a real open/switch so Space/Enter type here instead
+      // of leaking to whatever list/panel the click left focused (which scrolls).
+      if (editorView && lastFocusedPath !== path) {
+        lastFocusedPath = path;
+        editorView.focus();
+      }
     });
   });
 

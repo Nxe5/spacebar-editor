@@ -4,7 +4,7 @@
 
 ---
 
-## Built-in Tools (16)
+## Built-in Tools (17)
 
 See `src/lib/tools/toolDefinitions.ts` and `src/lib/tools/toolRunner.ts`.
 
@@ -26,6 +26,7 @@ See `src/lib/tools/toolDefinitions.ts` and `src/lib/tools/toolRunner.ts`.
 
 | Tool | Description | Default Policy | Status |
 |------|-------------|----------------|--------|
+| `str_replace` | Replace an exact substring in an existing file | ask | ✅ |
 | `write_file` | Write/overwrite file | allow | ✅ |
 | `create_file` | Create new file (fails if exists) | allow | ✅ |
 | `delete_file` | Delete file/directory | ask | ✅ |
@@ -99,6 +100,25 @@ Paths resolved via `src/lib/tools/pathUtils.ts`:
 ---
 
 ## Tool-specific Notes
+
+### `str_replace`
+
+Patch-style edit for surgical changes to existing files (preferred over `write_file` on large files to save tokens).
+
+- Args: `path`, `old_str`, `new_str`, optional `replace_all` (default `false`)
+- Logic lives in `src/lib/tools/strReplace.ts` (`applyStrReplace`) — pure, unit-tested (`tests/unit/strReplace.test.ts`)
+- **Fails loudly** when `old_str` is missing, not found, or matches more than once (unless `replace_all` is `true`), forcing the model to re-read the file and copy exact text
+- Reports the number of replacements applied; the file write goes through the same Rust `write_file` path (so parent dirs and audit apply)
+- Defaults to the `ask` policy (`DEFAULT_ASK_TOOLS` in `toolPolicy.ts`) — treated as a write/mutate tool everywhere (`WRITE_TOOLS`, read-only-mode block)
+- Implements Spec [45](45-security-hardening-and-capability-expansion.md) §4.1
+
+### File edit preview (approval UI)
+
+When a write tool (`write_file`, `create_file`, `str_replace`) hits the `ask` gate, the approval panel shows a compact before/after diff so the user can review the change before allowing it.
+
+- `src/lib/agent/fileEditPreview.ts` — `buildFileEditPreview()` resolves the current file (via Rust IPC) and computes the resulting content; `summarizeEditPreview()` renders added/removed lines (bounded, not a full diff engine)
+- `ChatPane.svelte` runs this in a `$effect` keyed to the pending approval and renders `.tool-approval-preview`
+- For `str_replace`, a preview that cannot apply (ambiguous / missing `old_str`) surfaces the same error the runtime would return
 
 ### `web_fetch`
 

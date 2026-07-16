@@ -24,6 +24,7 @@ import { joinPath, resolvePath, resolveWorkspacePath } from "./pathUtils";
 import { capShellToolOutput } from "./shellOutputSpill";
 import { runLspAgentTool } from "../lsp/lspAgentBridge";
 import { normalizeToolArguments } from "../agent/textToolCalls";
+import { applyStrReplace } from "./strReplace";
 import type { ChatMode } from "../stores/mode";
 
 export interface ToolExecutionContext {
@@ -46,6 +47,7 @@ export interface ToolExecutionContext {
 
 /** Tools that write or mutate state — blocked in read-only mode. */
 const WRITE_TOOLS = new Set([
+  "str_replace",
   "write_file",
   "create_file",
   "delete_file",
@@ -149,6 +151,37 @@ async function runReadFile(
     output += "\n\n[… hard cap reached]";
   }
   return ok(output);
+}
+
+async function runStrReplace(
+  args: Record<string, unknown>,
+  workspacePath: string
+): Promise<ToolResult> {
+  const path = requireString(args, "path");
+  if (typeof path !== "string") return path;
+  const oldStr = requireString(args, "old_str");
+  if (typeof oldStr !== "string") return oldStr;
+  if (args.new_str === undefined) {
+    return fail("Missing required parameter: new_str");
+  }
+  const newStr = String(args.new_str);
+  const replaceAll = args.replace_all === true;
+
+  const resolved = resolveWorkspacePath(workspacePath, path);
+  if (!(await pathExists(workspacePath, resolved))) {
+    return fail(`File not found: ${path}. Use create_file for new files.`);
+  }
+
+  const current = await readFile(workspacePath, resolved);
+  const replaced = applyStrReplace(current, oldStr, newStr, replaceAll);
+  if (!replaced.ok) {
+    return fail(replaced.error);
+  }
+
+  const audit = (await writeFile(workspacePath, resolved, replaced.content)).trim();
+  const prefix = audit ? `${audit}\n` : "";
+  const countLabel = replaced.replacements === 1 ? "1 replacement" : `${replaced.replacements} replacements`;
+  return ok(`${prefix}Successfully updated ${path} (${countLabel})`);
 }
 
 async function runWriteFile(
@@ -494,6 +527,7 @@ type ToolHandler = (
 
 const TOOL_HANDLERS: Record<string, ToolHandler> = {
   read_file: runReadFile,
+  str_replace: runStrReplace,
   write_file: runWriteFile,
   create_file: runCreateFile,
   delete_file: runDeleteFile,

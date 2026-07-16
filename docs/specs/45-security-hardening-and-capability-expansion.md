@@ -1,6 +1,6 @@
 # Spec 45 — Security Hardening & Capability Expansion
 
-> **Status:** 📋 **Draft for review** — not yet scheduled against a release
+> **Status:** 🔶 **Partially shipped (v0.1.6)** — §2.1 Workspace Trust gate and §4.1 `str_replace` are done; §4.7 Web access toggle shipped at the UI/tool-schema level only (no execution-layer enforcement yet — see §6.2). Remaining P0/P1 items (§2.2, §2.3, §2.4, §3.x, §4.6) are still draft, not yet scheduled.
 > **Version:** 0.1 — 2026-07-10
 > **Area:** Security · Trust · Tools · Agent UX · Network egress
 > **Companion docs:** [OVERVIEW.md](../overview/OVERVIEW.md) · [ARCHITECTURE.md](../architecture/ARCHITECTURE.md) · [14-security.md](14-security.md) · [40-product-hardening-and-agent-ux.md](40-product-hardening-and-agent-ux.md)
@@ -41,9 +41,13 @@ Each item has a priority (**P0** = blocks safe multi-repo use today, **P1** = sh
 
 ## 2. Track A — Trust & Injection
 
-### 2.1 Workspace Trust gate (P0)
+### 2.1 Workspace Trust gate (P0) — ✅ Shipped (v0.1.6)
 
-**Problem:**
+**Shipped:** Per-folder trust state (`trusted` / `restricted`), stored in `localStorage` under `sidebar.trustedWorkspaces.v1` (`getWorkspaceTrustLevel` / `setWorkspaceTrustLevel` in `src/lib/workspaceTrust.ts`). On first open of a folder with `.sidebar/` agent content, `WorkspaceTrustDialog.svelte` blocks with **Trust & Open** / **Open in Restricted Mode** / **Cancel** before any injection happens. In restricted mode, `switchProjectWorkspace()` (`src/lib/projectState.ts`) skips loading project skills, system prompts, and project tool-policy overrides (`clearProjectToolsLayer()`), and the status bar shows a "Restricted" pill (`StatusBar.svelte`, driven by the `workspaceRestricted` store). Folders with no `.sidebar/` agent content auto-trust with no prompt.
+
+**Not yet implemented:** item 4 (re-prompt if `.sidebar/tools.json` / `prompts/*.md` / `skills/*` change on disk *after* trust was already granted — no filesystem-watcher hook wired to trust state yet). Restricted mode is scoped to *context injection* only, as designed — it does not sandbox file read/write or shell tool execution; those remain governed by the normal tool policy layer (§2.2, §3).
+
+**Problem (original):**
 Opening a folder auto-loads, with no confirmation:
 
 - `.sidebar/prompts.json` + `prompts/*.md` → injected into the assembled system prompt
@@ -223,17 +227,18 @@ Git checkpoint undo covers tracked/untracked file state, but `run_shell` in the 
 
 Ordered by leverage (risk reduction + product value), not strictly by effort.
 
-### 4.1 Patch-style edit tool (P1)
+### 4.1 Patch-style edit tool (P1) — ✅ Shipped
 
 **Problem:** `write_file` / `create_file` are whole-file operations — token-expensive and risky on large files.
 
-**Proposal:** Add `str_replace` (or `apply_patch`):
+**Shipped:** `str_replace`:
 
-- Args: `path`, `old_str` (must match exactly once), `new_str`
-- Fail loudly if `old_str` is missing or ambiguous — forces re-read of current file state
-- Keep `write_file` for new files and full rewrites
+- Args: `path`, `old_str` (must match exactly once unless `replace_all`), `new_str`, optional `replace_all`
+- Fails loudly if `old_str` is missing, not found, or ambiguous — forces re-read of current file state
+- `write_file` retained for new files and full rewrites; its description now points the model to `str_replace` for small edits
+- Defaults to `ask` policy; write tool everywhere; approval UI shows a before/after preview (§4.1 companion — [09-tool-system.md](09-tool-system.md) → File edit preview)
 
-**Files:** `toolDefinitions.ts`, `toolRunner.ts`, `filesystem.rs` (optional dedicated command), [09-tool-system.md](09-tool-system.md).
+**Files (as shipped):** `src/lib/tools/strReplace.ts` (pure logic), `toolDefinitions.ts`, `toolRunner.ts` (`runStrReplace`), `toolPolicy.ts` (`DEFAULT_ASK_TOOLS`), `src/lib/agent/fileEditPreview.ts`, `tests/unit/strReplace.test.ts`, [09-tool-system.md](09-tool-system.md).
 
 ---
 
@@ -285,11 +290,15 @@ Ordered by leverage (risk reduction + product value), not strictly by effort.
 
 ---
 
-### 4.7 Web access toggle + status bar globe indicator (P1)
+### 4.7 Web access toggle + status bar globe indicator (P1) — 🔶 Partial (v0.1.6)
 
 **Problem:** Users cannot tell at a glance whether the agent can reach the network. The `web_fetch` allowlist in Settings is easy to misread as a hard security boundary (see §3.1). There is no quick session-level way to disable web tools without opening Settings.
 
-**Proposal:** Add a **web access** toggle with a visible status-bar indicator.
+**Shipped:** Globe toggle in `StatusBar.svelte`, wired to `chat.toggleWebAccessForActiveSession()` (`WorkbenchShell.svelte`); state lives on `ChatSession.webAccessEnabled` (`src/lib/stores/chat.ts`, default `false`), so it is per-session and persists across restart with the rest of session state. `filterToolsByWebAccess()` (`src/lib/webAccess.ts`) strips `web_fetch` out of the tool array before it reaches the model's native tool-call schema (`ChatPane.svelte` `toolsForActiveSession()` / `runAgentLoop()`).
+
+**Gap — not a hard boundary yet:** `toolRunner.ts` (`executeToolCall` / `executeToolCallsWithApproval`) never checks `isNetworkAgentTool()` or `webAccessEnabled` — there is no execution-layer or Rust IPC-layer check (the exact "defense in depth" question the spec's own §6.2 leaves open is still open). In **text-fallback tool-call mode**, `buildToolUseInstruction()` (`src/lib/agent/systemPrompt/toolInstructions.ts`) lists `web_fetch` via the unfiltered `ALL_TOOL_NAMES`, so the model is still told it's an allowed tool name regardless of the toggle. Net effect: the toggle reliably blocks `web_fetch` for models using native/structured tool calling, but is not a guaranteed block for text-fallback models or a hallucinated call.
+
+**Proposal (original):** Add a **web access** toggle with a visible status-bar indicator.
 
 #### Behavior
 
@@ -344,12 +353,12 @@ function effectiveToolsForSession(policy, modeTools, webAccessEnabled) {
 
 **Acceptance criteria:**
 
-- [ ] Globe appears to the right of Git in the status bar explorer group
-- [ ] Dimmed when web access off; lit when on
-- [ ] Toggle updates active session only; other chat tabs retain their own state
-- [ ] With web access off, agent turn does not include `web_fetch` in tool schema
-- [ ] Setting persists across app restart via `state.json`
-- [ ] Tooltip text matches ON/OFF state
+- [x] Globe appears in the status bar (own "Web access" toolbar group, `status-bar__right` — placement shifted from the original "right of Git" sketch after the Explorer/Search/Git switcher moved to `RightSidebar` in v0.1.7)
+- [x] Dimmed when web access off; lit when on (`class:active`, `weight={webAccessOn ? "fill" : "regular"}`)
+- [x] Toggle updates active session only; other chat tabs retain their own state (`ChatSession.webAccessEnabled` is per-session)
+- [x] With web access off, agent turn does not include `web_fetch` in the **native** tool schema — but see the execution-layer gap noted above for text-fallback mode
+- [x] Setting persists across app restart via `state.json` (part of persisted `ChatSession`)
+- [x] Tooltip text matches ON/OFF state (`StatusBar.svelte` `title={webAccessOn ? ... : ...}`)
 
 ---
 
@@ -357,16 +366,16 @@ function effectiveToolsForSession(policy, modeTools, webAccessEnabled) {
 
 | Priority | Item | Track | Target |
 |----------|------|-------|--------|
-| **P0** | Workspace Trust gate | §2.1 | v0.1.6 trust release |
+| **P0** | Workspace Trust gate | §2.1 | ✅ Shipped (v0.1.6) |
 | **P0** | Tool policy: narrow-only project overrides | §2.2 | v0.1.6 |
 | **P0** | Honest scoping of `web_fetch` allowlist vs `run_shell` | §3.1 | v0.1.6 |
 | **P0** | Non-optional `workspace_root` on agent tool calls (audit + test) | §3.3 | v0.1.6 |
-| **P1** | Web access toggle + globe status indicator | §4.7 | v0.1.6 or v0.1.7 |
+| **P1** | Web access toggle + globe status indicator | §4.7 | 🔶 Shipped, UI/schema-level only (v0.1.6) — execution-layer enforcement still open |
 | **P1** | Remove/gate dead `secrets.rs` IPC surface | §2.3 | v0.1.6 |
 | **P1** | Audit chat-render + preview-iframe XSS→invoke path | §2.4 | v0.1.6 |
 | **P1** | SSRF/DNS-rebinding check on `web_fetch` | §3.2 | v0.1.7 |
 | **P1** | Shell/grep argv construction audit | §3.4 | v0.1.7 |
-| **P1** | Patch-style edit tool (`str_replace`) | §4.1 | v0.1.7 |
+| **P1** | Patch-style edit tool (`str_replace`) | §4.1 | ✅ Shipped |
 | **P1** | Prompt-injection fixtures in eval harness | §4.6 | v0.1.7 |
 | **P2** | API key storage re-evaluation (keychain vs settings) | §2.5 | Backlog |
 | **P2** | "Undo last turn" reversibility disclosure | §3.5 | Backlog |
@@ -377,7 +386,7 @@ function effectiveToolsForSession(policy, modeTools, webAccessEnabled) {
 
 **Suggested sequencing:**
 
-1. **v0.1.6 — Trust boundary:** All P0 items + §4.7 globe toggle + §2.2 fix (confirmed bug) + §2.3 IPC cleanup.
+1. **v0.1.6 — Trust boundary:** All P0 items + §4.7 globe toggle + §2.2 fix (confirmed bug) + §2.3 IPC cleanup. **Landed so far:** §2.1 Workspace Trust gate (✅ shipped) and §4.7 web access toggle (🔶 shipped, UI/schema-level only — see §4.7 for the remaining execution-layer gap). Still open: §2.2, §2.3, §2.4, §3.1, §3.3.
 2. **v0.1.7 — Hardening + leverage:** P1 enforcement audits, `str_replace`, adversarial eval fixtures.
 3. **Backlog:** P2 capability and disclosure items.
 

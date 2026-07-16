@@ -49,15 +49,12 @@ export type ToolPolicyState = {
   customTools: CustomToolEntry[];
 };
 
-const DEFAULT_ASK_TOOLS = [
-  "move_file",
-  "delete_file",
-  "run_shell",
-  "run_tests",
-  "run_script",
-  "web_fetch",
-  "switch_mode",
-] as const;
+/**
+ * Tools that require approval on a fresh install. Empty by default: all
+ * commands are allowed out of the box; users can tighten rules per tool in
+ * Settings → Tools, and workspace trust still gates the first run.
+ */
+const DEFAULT_ASK_TOOLS = [] as const;
 
 /** Per-tool rules for a fresh install / Reset to defaults. */
 export function buildDefaultToolRules(): Record<string, ToolRule> {

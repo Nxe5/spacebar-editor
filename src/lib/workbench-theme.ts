@@ -3,7 +3,7 @@ export const WORKBENCH_THEME_OPTIONS = [
   { id: "spacebar", label: "Spacebar" },
   { id: "dark-bubblegum", label: "Dark Bubblegum" },
   { id: "dracula", label: "Dracula" },
-  { id: "dracula-experimental", label: "Dracula Experimental" },
+  { id: "dark-dracula", label: "Dark Dracula" },
   { id: "cursor-dark", label: "Cursor Dark" },
   { id: "light-paper", label: "Light Paper" },
   { id: "light-cloud", label: "Light Cloud" },
@@ -25,6 +25,8 @@ const LEGACY_THEME_ALIASES: Record<string, WorkbenchThemeId> = {
   "one-dark-pro": "spacebar",
   sidebar: "spacebar",
   "github-dark": "spacebar",
+  // renamed, not removed — carries forward anyone who already saved the old id
+  "dracula-experimental": "dark-dracula",
 };
 
 const LIGHT_THEMES = new Set<WorkbenchThemeId>(["light-paper", "light-cloud"]);
@@ -39,7 +41,7 @@ export function normalizeWorkbenchTheme(id: unknown): WorkbenchThemeId {
     const alias = LEGACY_THEME_ALIASES[id];
     if (alias) return alias;
   }
-  return "spacebar";
+  return "dark-bubblegum";
 }
 
 /** Apply preset CSS vars and toggle `dark` class for light themes. */

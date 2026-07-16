@@ -39,7 +39,7 @@ Ollama and llama.cpp receive **tools in the chat completion request** when the m
 |------|-------|----------|--------|
 | **Chat** | None (`[]`) | Pure conversation, no file access | ✅ |
 | **Plan** | Read-only tools | Analysis without writes; plans live in chat only | ✅ (see [19-planning-system.md](19-planning-system.md) for file-backed plans) |
-| **Agent** | All 16 built-in tools | Full read/write/exec | ✅ |
+| **Agent** | All 17 built-in tools | Full read/write/exec | ✅ |
 
 Final tool list = **mode tools ∩ effective policy** (denied/removed tools excluded from schema sent to model).
 
@@ -71,6 +71,8 @@ Defined in `src/lib/chatFooterProfile.ts`:
 | DeepSeek | Yes | Read-only estimate | Yes | ✅ |
 | GLM | Yes | Read-only estimate | Yes | ✅ |
 | Kimi | Yes | Read-only estimate | Yes | ✅ |
+
+In `ChatPane.svelte`'s `.context-footer`, the monthly-usage label and stream-metrics label render together in a single left-aligned row (`.context-meta-start`, with a `·` separator when both are present) directly above the segmented context bar; the editable/read-only budget row (`~used / max tok` + compact button) stays below the bar.
 
 ---
 
