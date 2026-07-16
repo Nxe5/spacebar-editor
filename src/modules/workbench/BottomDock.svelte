@@ -115,21 +115,24 @@
             <span>No terminal open.</span>
             <button type="button" class="dock-link-btn" onclick={() => void addTerminal()}>New terminal</button>
           </div>
-        {:else if activeTerminal.output != null}
-          {#key activeTerminal.id}
-            <div class="absolute inset-0 flex min-h-0 flex-col">
-              <AgentTerminalOutput output={activeTerminal.output} />
+        {/if}
+        {#if isTauriAvailable()}
+          {#each $bottomTerminals.tabs as tab (tab.id)}
+            <div
+              class="absolute inset-0 flex min-h-0 flex-col"
+              style:display={activeTerminal?.id === tab.id ? undefined : "none"}
+            >
+              {#if tab.output != null}
+                <AgentTerminalOutput output={tab.output} />
+              {:else}
+                <TerminalPane
+                  sessionId={tab.sessionId}
+                  active={activeTerminal?.id === tab.id}
+                  onExit={() => bottomTerminals.closeTab(tab.id)}
+                />
+              {/if}
             </div>
-          {/key}
-        {:else}
-          {#key activeTerminal.sessionId}
-            <div class="absolute inset-0 flex min-h-0 flex-col">
-              <TerminalPane
-                sessionId={activeTerminal.sessionId}
-                onExit={() => bottomTerminals.closeTab(activeTerminal.id)}
-              />
-            </div>
-          {/key}
+          {/each}
         {/if}
       {:else if activePanel === "debug"}
         <div class="h-full overflow-auto p-3 font-mono text-xs text-muted-foreground">

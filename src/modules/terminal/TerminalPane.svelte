@@ -15,9 +15,11 @@
   interface Props {
     sessionId: string;
     onExit?: () => void;
+    /** Whether this pane is the visible tab. Panes stay mounted (buffer intact) when inactive. */
+    active?: boolean;
   }
 
-  let { sessionId, onExit }: Props = $props();
+  let { sessionId, onExit, active = true }: Props = $props();
 
   let rootEl: HTMLDivElement | undefined = $state();
   let term: Terminal | null = null;
@@ -107,7 +109,7 @@
     });
 
     observer = new ResizeObserver(() => {
-      syncPtySize();
+      if (active) syncPtySize();
     });
     observer.observe(rootEl);
   });
@@ -117,6 +119,15 @@
     if (!term) return;
     term.options.theme = buildXtermTheme();
     term.refresh(0, term.rows - 1);
+  });
+
+  // Re-fit and refocus when switching back to a pane that was hidden — its
+  // container may have been resized (or never sized) while display:none.
+  $effect(() => {
+    if (active && term && fit) {
+      syncPtySize();
+      term.focus();
+    }
   });
 
   onDestroy(() => {
