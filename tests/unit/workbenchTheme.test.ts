@@ -6,9 +6,9 @@ import {
 } from "../../src/lib/workbench-theme";
 
 describe("normalizeWorkbenchTheme", () => {
-  it("defaults to spacebar", () => {
-    expect(normalizeWorkbenchTheme(undefined)).toBe("spacebar");
-    expect(normalizeWorkbenchTheme("unknown")).toBe("spacebar");
+  it("defaults to dark-bubblegum", () => {
+    expect(normalizeWorkbenchTheme(undefined)).toBe("dark-bubblegum");
+    expect(normalizeWorkbenchTheme("unknown")).toBe("dark-bubblegum");
   });
 
   it("exposes exactly seven starter presets", () => {
