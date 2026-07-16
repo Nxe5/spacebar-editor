@@ -9,6 +9,7 @@ import {
 
 const CORE_TOOLS = [
   "read_file",
+  "str_replace",
   "write_file",
   "create_file",
   "delete_file",

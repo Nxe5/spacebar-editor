@@ -50,6 +50,7 @@ export type ToolPolicyState = {
 };
 
 const DEFAULT_ASK_TOOLS = [
+  "str_replace",
   "move_file",
   "delete_file",
   "run_shell",
