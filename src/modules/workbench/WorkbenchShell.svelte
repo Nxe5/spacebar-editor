@@ -203,6 +203,7 @@
       syntaxTheme.syncFromActiveTheme();
       contextAppearance.syncFromActiveTheme();
       chatAppearance.syncFromActiveTheme();
+      workbenchChrome.syncFromActiveTheme();
     }
     lastSyncedWorkbenchTheme = themeId;
   }

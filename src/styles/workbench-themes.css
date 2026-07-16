@@ -195,6 +195,213 @@
   --terminal-ansi-white: #e6e6f0;
 }
 
+/* ─── Dracula ─────────────────────────────────────────────────────────────── */
+/* Sourced from this machine's iTerm2 "Default" profile (Dracula-family palette). */
+
+.dark[data-workbench-theme="dracula"] {
+  --background: #1d1f28;
+  --foreground: #fdfdfd;
+  --card: #21232d;
+  --card-foreground: #fdfdfd;
+  --popover: #21232d;
+  --popover-foreground: #fdfdfd;
+  --primary: #c574dd;
+  --primary-foreground: #1d1f28;
+  --secondary: #2b2d3f;
+  --secondary-foreground: #fdfdfd;
+  --muted: #2b2d3f;
+  --muted-foreground: #a0a3c4;
+  --accent: #343650;
+  --accent-foreground: #fdfdfd;
+  --destructive: #ff4971;
+  --border: #383a52;
+  --input: #282a36;
+  --ring: #c574dd;
+  --sidebar: #21232d;
+  --sidebar-foreground: #d0d2e8;
+  --sidebar-primary: #c574dd;
+  --sidebar-primary-foreground: #1d1f28;
+  --sidebar-accent: #2b2d3f;
+  --sidebar-accent-foreground: #fdfdfd;
+  --sidebar-border: #383a52;
+  --sidebar-ring: #c574dd;
+  --surface: #21232d;
+  --surface-elevated: #2b2d3f;
+  --success: #5adecd;
+  --activity-bar-bg: #17181f;
+  --activity-bar-fg: #7d80a3;
+  --activity-bar-active: #fdfdfd;
+  --activity-bar-accent: #c574dd;
+  --workbench-tab-active-indicator: #c574dd;
+
+  --editor-bg: #1d1f28;
+  --editor-fg: #fdfdfd;
+  --editor-gutter-fg: #6b6e91;
+  --editor-line-hl: #282a36;
+  --editor-selection: #c1deff;
+  --editor-selection-match: #3fdcee;
+  --editor-cursor: #c574dd;
+
+  --syntax-default: #fdfdfd;
+  --syntax-keyword: #f37f97;
+  --syntax-function: #5adecd;
+  --syntax-variable: #fdfdfd;
+  --syntax-number: #c574dd;
+  --syntax-string: #f2a272;
+  --syntax-type: #79e6f3;
+  --syntax-operator: #f37f97;
+  --syntax-property: #fdfdfd;
+  --syntax-comment: #6b6e91;
+  --syntax-bool: #c574dd;
+  --syntax-class: #79e6f3;
+  --syntax-parameter: #fdfdfd;
+  --syntax-punctuation: #8897f4;
+  --syntax-tag: #ff4971;
+  --syntax-attribute: #79e6f3;
+  --syntax-regexp: #3fdcee;
+  --syntax-meta: #6b6e91;
+  --syntax-heading: #c574dd;
+  --syntax-link: #8897f4;
+  --syntax-invalid: #ff4971;
+  --syntax-strong: #fdfdfd;
+  --syntax-emphasis: #c574dd;
+
+  --context-base-mode-prompt: #8897f4;
+  --context-workspace-context: #5adecd;
+  --context-system-prompts: #c574dd;
+  --context-tool-instructions: #f2a272;
+  --context-tool-summary-instruction: #6b6e91;
+  --context-tool-schemas: #79e6f3;
+  --context-chat-history: #f37f97;
+  --context-skill-accent-1: #ff4971;
+  --context-skill-accent-2: #3fdcee;
+  --context-skill-accent-3: #18e3c8;
+  --context-skill-accent-4: #ff8037;
+  --context-skill-accent-5: #556fff;
+  --context-skill-accent-6: #b043d1;
+
+  --chat-message-box-bg: #1d1f28;
+
+  --terminal-ansi-black: #282a36;
+  --terminal-ansi-red: #f37f97;
+  --terminal-ansi-green: #5adecd;
+  --terminal-ansi-yellow: #f2a272;
+  --terminal-ansi-blue: #8897f4;
+  --terminal-ansi-magenta: #c574dd;
+  --terminal-ansi-cyan: #79e6f3;
+  --terminal-ansi-white: #fdfdfd;
+}
+
+/* ─── Dracula Experimental ───────────────────────────────────────────────── */
+/* Classic saturated Dracula palette + translucent panels (backdrop blur below). */
+
+.dark[data-workbench-theme="dracula-experimental"] {
+  --background: #20222c;
+  --foreground: #f8f8f2;
+  --card: rgba(32, 34, 44, 0.82);
+  --card-foreground: #f8f8f2;
+  --popover: rgba(28, 30, 40, 0.88);
+  --popover-foreground: #f8f8f2;
+  --primary: #ff79c6;
+  --primary-foreground: #20222c;
+  --secondary: rgba(45, 47, 66, 0.72);
+  --secondary-foreground: #f8f8f2;
+  --muted: rgba(45, 47, 66, 0.6);
+  --muted-foreground: #9a9ac0;
+  --accent: rgba(68, 71, 90, 0.65);
+  --accent-foreground: #f8f8f2;
+  --destructive: #ff5555;
+  --border: rgba(154, 154, 192, 0.22);
+  --input: rgba(40, 42, 54, 0.7);
+  --ring: #ff79c6;
+  --sidebar: rgba(24, 26, 35, 0.78);
+  --sidebar-foreground: #d6d6e8;
+  --sidebar-primary: #ff79c6;
+  --sidebar-primary-foreground: #20222c;
+  --sidebar-accent: rgba(45, 47, 66, 0.72);
+  --sidebar-accent-foreground: #f8f8f2;
+  --sidebar-border: rgba(154, 154, 192, 0.22);
+  --sidebar-ring: #ff79c6;
+  --surface: rgba(32, 34, 44, 0.82);
+  --surface-elevated: rgba(45, 47, 66, 0.75);
+  --success: #50fa7b;
+  --activity-bar-bg: rgba(18, 19, 26, 0.75);
+  --activity-bar-fg: #8b8bb0;
+  --activity-bar-active: #f8f8f2;
+  --activity-bar-accent: #ff79c6;
+  --workbench-tab-active-indicator: #ff79c6;
+
+  --editor-bg: #20222c;
+  --editor-fg: #f8f8f2;
+  --editor-gutter-fg: #6f7396;
+  --editor-line-hl: rgba(68, 71, 90, 0.45);
+  --editor-selection: #a3c9f9;
+  --editor-selection-match: #8be9fd;
+  --editor-cursor: #ff79c6;
+
+  --syntax-default: #f8f8f2;
+  --syntax-keyword: #ff79c6;
+  --syntax-function: #8be9fd;
+  --syntax-variable: #f8f8f2;
+  --syntax-number: #bd93f9;
+  --syntax-string: #e6b673;
+  --syntax-type: #8be9fd;
+  --syntax-operator: #ff79c6;
+  --syntax-property: #a3c9f9;
+  --syntax-comment: #6f7396;
+  --syntax-bool: #bd93f9;
+  --syntax-class: #8be9fd;
+  --syntax-parameter: #a3c9f9;
+  --syntax-punctuation: #9a9ac0;
+  --syntax-tag: #ff5580;
+  --syntax-attribute: #a3c9f9;
+  --syntax-regexp: #8be9fd;
+  --syntax-meta: #6f7396;
+  --syntax-heading: #ff79c6;
+  --syntax-link: #8be9fd;
+  --syntax-invalid: #ff5555;
+  --syntax-strong: #f8f8f2;
+  --syntax-emphasis: #bd93f9;
+
+  --context-base-mode-prompt: #8be9fd;
+  --context-workspace-context: #50fa7b;
+  --context-system-prompts: #ff79c6;
+  --context-tool-instructions: #e6b673;
+  --context-tool-summary-instruction: #6f7396;
+  --context-tool-schemas: #bd93f9;
+  --context-chat-history: #ff5580;
+  --context-skill-accent-1: #ff5555;
+  --context-skill-accent-2: #8be9fd;
+  --context-skill-accent-3: #50fa7b;
+  --context-skill-accent-4: #e6b673;
+  --context-skill-accent-5: #bd93f9;
+  --context-skill-accent-6: #ff79c6;
+
+  --chat-message-box-bg: rgba(32, 34, 44, 0.75);
+
+  --terminal-ansi-black: #21222c;
+  --terminal-ansi-red: #ff5555;
+  --terminal-ansi-green: #50fa7b;
+  --terminal-ansi-yellow: #e6b673;
+  --terminal-ansi-blue: #a3c9f9;
+  --terminal-ansi-magenta: #ff79c6;
+  --terminal-ansi-cyan: #8be9fd;
+  --terminal-ansi-white: #f8f8f2;
+}
+
+/* Frosted-glass blur for the translucent panels above — layered chrome only,
+   never the editor/background canvas so code stays fully legible. */
+[data-workbench-theme="dracula-experimental"] .status-bar,
+[data-workbench-theme="dracula-experimental"] .right-sidebar .sidebar-secondary,
+[data-workbench-theme="dracula-experimental"] .context-footer,
+[data-workbench-theme="dracula-experimental"] .chat-pane,
+[data-workbench-theme="dracula-experimental"] .dock-root,
+[data-workbench-theme="dracula-experimental"] .context-budget-menu,
+[data-workbench-theme="dracula-experimental"] .file-change-bubble {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
 /* ─── Cursor Dark ─────────────────────────────────────────────────────────── */
 
 .dark[data-workbench-theme="cursor-dark"] {

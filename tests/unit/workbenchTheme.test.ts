@@ -11,11 +11,13 @@ describe("normalizeWorkbenchTheme", () => {
     expect(normalizeWorkbenchTheme("unknown")).toBe("spacebar");
   });
 
-  it("exposes exactly seven starter presets", () => {
-    expect(WORKBENCH_THEME_OPTIONS).toHaveLength(7);
+  it("exposes exactly nine starter presets", () => {
+    expect(WORKBENCH_THEME_OPTIONS).toHaveLength(9);
     expect(WORKBENCH_THEME_OPTIONS.map((t) => t.id)).toEqual([
       "spacebar",
       "dark-bubblegum",
+      "dracula",
+      "dracula-experimental",
       "cursor-dark",
       "light-paper",
       "light-cloud",
@@ -27,8 +29,12 @@ describe("normalizeWorkbenchTheme", () => {
   it("migrates removed presets to the closest current theme", () => {
     expect(normalizeWorkbenchTheme("vscode-dark")).toBe("spacebar");
     expect(normalizeWorkbenchTheme("nxe5")).toBe("spacebar");
-    expect(normalizeWorkbenchTheme("dracula")).toBe("pink-studio");
     expect(normalizeWorkbenchTheme("tokyo-night")).toBe("blue-nova");
+  });
+
+  it("resolves the real dracula preset instead of the old legacy alias", () => {
+    expect(normalizeWorkbenchTheme("dracula")).toBe("dracula");
+    expect(normalizeWorkbenchTheme("dracula-experimental")).toBe("dracula-experimental");
   });
 
   it("identifies light themes", () => {
