@@ -19,3 +19,6 @@ src-tauri/target/
 tests/llm/results/*
 !tests/llm/results/.gitkeep
 tests/llm/fixtures/workspace/
+
+# Separate Homebrew tap repo, cloned locally for publishing casks
+homebrew-spacebar/
