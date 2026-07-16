@@ -45,6 +45,7 @@
   import { workbenchChrome } from "$lib/stores/workbenchChrome";
   import { setWorkbenchModalScrollLock } from "$lib/workbenchScrollLock";
   import { syncAuxiliaryScrollLockWithSettingsWindow } from "$lib/settingsPopoutScrollLock";
+  import { initLaunchArgs } from "$lib/launch/initLaunchArgs";
   import type { ExplorerPanelTab } from "$lib/explorerPanel";
 
   const PANE_WIDTH_KEY = "sidebar.paneWidths.v1";
@@ -232,6 +233,7 @@
   });
 
   onMount(() => {
+    void initLaunchArgs();
     void iconTheme.init();
     const clampPanesToWindow = () => {
       leftPaneWidth = clamp(leftPaneWidth, LEFT_MIN, LEFT_MAX);
