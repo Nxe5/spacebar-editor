@@ -2,6 +2,8 @@
 export const WORKBENCH_THEME_OPTIONS = [
   { id: "spacebar", label: "Spacebar" },
   { id: "dark-bubblegum", label: "Dark Bubblegum" },
+  { id: "dracula", label: "Dracula" },
+  { id: "dracula-experimental", label: "Dracula Experimental" },
   { id: "cursor-dark", label: "Cursor Dark" },
   { id: "light-paper", label: "Light Paper" },
   { id: "light-cloud", label: "Light Cloud" },
@@ -22,7 +24,6 @@ const LEGACY_THEME_ALIASES: Record<string, WorkbenchThemeId> = {
   "tokyo-night": "blue-nova",
   "one-dark-pro": "spacebar",
   sidebar: "spacebar",
-  dracula: "pink-studio",
   "github-dark": "spacebar",
 };
 

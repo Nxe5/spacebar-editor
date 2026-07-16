@@ -149,16 +149,25 @@ export async function applyWorkspaceFolder(path: string): Promise<boolean> {
   return true;
 }
 
-/** Refresh children under the workspace root, preserving expanded subfolder states. */
+/**
+ * Refresh children under the workspace root, preserving expanded subfolder states.
+ * Best-effort: a failed listDir (transient IPC hiccup, unmounted folder, etc.) must
+ * never propagate — callers include the agent tool loop and chat rewind, and an
+ * uncaught throw here would break their continuation mid-flow.
+ */
 export async function refreshWorkspaceTree(workspacePath: string): Promise<void> {
   const normalized = normalizeFilePath(workspacePath.trim());
-  const raw = await listDir(null, normalized);
-  const children = raw.map((x) => normalizeFileEntry(x as FileEntry & { isDir?: boolean }));
-  const root = get(files).tree.find((e) => normalizeFilePath(e.path) === normalized);
-  if (root) {
-    // Tree already initialised — merge so expanded subdirs stay open.
-    files.setChildren(normalized, children);
-  } else {
-    files.setTree(buildWorkspaceTree(normalized, children, true));
+  try {
+    const raw = await listDir(null, normalized);
+    const children = raw.map((x) => normalizeFileEntry(x as FileEntry & { isDir?: boolean }));
+    const root = get(files).tree.find((e) => normalizeFilePath(e.path) === normalized);
+    if (root) {
+      // Tree already initialised — merge so expanded subdirs stay open.
+      files.setChildren(normalized, children);
+    } else {
+      files.setTree(buildWorkspaceTree(normalized, children, true));
+    }
+  } catch (e) {
+    console.error("Failed to refresh workspace tree:", e);
   }
 }

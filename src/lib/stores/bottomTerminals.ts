@@ -101,9 +101,13 @@ function createBottomTerminalsStore() {
           source,
           output: options.output,
         };
+        // Agent-opened tabs shouldn't steal focus from whatever the user is
+        // looking at — only take over as active if nothing was selected yet.
+        const activeTabId =
+          source === "agent" && s.activeTabId != null ? s.activeTabId : created.id;
         return {
           tabs: [...s.tabs, created],
-          activeTabId: created.id,
+          activeTabId,
           userCounter: s.userCounter,
         };
       });
