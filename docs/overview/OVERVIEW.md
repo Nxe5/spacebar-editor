@@ -27,6 +27,7 @@
 | Editor | ✅ Complete | CodeMirror 6, 15 grammars, wrap, Prettier, diff mode — [20](specs/20-editor-formatting-and-theming.md) |
 | Theming | ✅ Complete | 7 workbench presets + interactive theme preview + chrome/editor/syntax appearance — [13](specs/13-theming.md) |
 | Workspace lock | ✅ Complete | Multi-window safety — [35](specs/35-workspace-lock.md) |
+| Stability program | ✅ Complete | Terminal render fix ([49](specs/49-terminal-render-corruption.md)), scroll containment ([50](specs/50-explorer-expand-editor-scroll.md)), sticky chat scroll ([51](specs/51-chat-scroll-freedom.md)), streaming throttle + crash restore + raised agent caps ([52](specs/52-agent-run-stability.md)) |
 | Shortcut rebinding | ✅ Complete | Settings → Keybindings — [37](specs/37-shortcut-rebinding.md) |
 | LSP | 🔶 Partial | Diagnostics + hover; user-installed servers — [25](specs/25-lsp-diagnostics.md) |
 | Persistence | ✅ Complete | Per-project `.sidebar/state.json` |

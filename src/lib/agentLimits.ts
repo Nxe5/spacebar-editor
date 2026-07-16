@@ -23,10 +23,13 @@ export type AgentLimits = {
   lspToolsCountTowardLimit: boolean;
 };
 
-/** Fresh install defaults for cloud providers (conservative). */
+/** Fresh install defaults for cloud providers.
+ *  Generous on purpose: exploration-heavy runs routinely issue dozens of
+ *  ls/grep/read calls per request, and hitting the cap mid-task is worse than
+ *  a long run (the user can always Stop). */
 export const CLOUD_AGENT_LIMITS: AgentLimits = {
-  maxAgentSteps: 24,
-  maxToolCallsPerRun: 80,
+  maxAgentSteps: 100,
+  maxToolCallsPerRun: 300,
   maxToolsPerTurn: 0,
   parallelExecution: true,
   maxConcurrentTools: 4,
@@ -35,10 +38,10 @@ export const CLOUD_AGENT_LIMITS: AgentLimits = {
   lspToolsCountTowardLimit: false,
 };
 
-/** Fresh install defaults for local backends (higher; still bounded). */
+/** Fresh install defaults for local backends (same caps; local runs are free). */
 export const LOCAL_AGENT_LIMITS: AgentLimits = {
-  maxAgentSteps: 40,
-  maxToolCallsPerRun: 120,
+  maxAgentSteps: 100,
+  maxToolCallsPerRun: 300,
   maxToolsPerTurn: 0,
   parallelExecution: true,
   maxConcurrentTools: 4,
@@ -162,6 +165,13 @@ function isLegacyUnlimitedSaved(limits: AgentLimits): boolean {
   );
 }
 
+/** Saved caps that were previous release defaults (never user intent) —
+ *  upgrade them to the current, higher defaults. */
+const SUPERSEDED_DEFAULT_CAPS: ReadonlyArray<readonly [steps: number, calls: number]> = [
+  [24, 80], // cloud defaults through v0.1.6
+  [40, 120], // local defaults through v0.1.6
+];
+
 /** Migrate saved limits; apply backend defaults only when nothing was saved. */
 export function normalizeAgentLimits(
   raw: Partial<AgentLimits> | undefined,
@@ -173,6 +183,17 @@ export function normalizeAgentLimits(
   const c = clampAgentLimits(raw);
   if (c.maxAgentSteps === 12 && c.maxToolCallsPerRun === 48 && c.maxToolsPerTurn === 0) {
     return { ...UNLIMITED_AGENT_LIMITS };
+  }
+  if (
+    c.maxToolsPerTurn === 0 &&
+    SUPERSEDED_DEFAULT_CAPS.some(([s, t]) => c.maxAgentSteps === s && c.maxToolCallsPerRun === t)
+  ) {
+    const next = defaultAgentLimitsForBackend(backend);
+    return {
+      ...c,
+      maxAgentSteps: next.maxAgentSteps,
+      maxToolCallsPerRun: next.maxToolCallsPerRun,
+    };
   }
   if (isLegacyUnlimitedSaved(c)) {
     return c;

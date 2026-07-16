@@ -35,6 +35,7 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { applyWorkspaceFolder } from "$lib/workspace";
   import { initProjectStateAutosave, persistCurrentProjectState } from "$lib/projectState";
+  import { markCleanExit, takeCrashRestoreWorkspace } from "$lib/crashRestore";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
   import { editorChrome } from "$lib/stores/editorChrome";
   import { dispatchWithOverrides } from "../shortcuts/dispatcher";
@@ -253,9 +254,22 @@
     }
     initProjectStateAutosave();
     const onBeforeUnload = () => {
+      markCleanExit();
       void persistCurrentProjectState();
     };
     window.addEventListener("beforeunload", onBeforeUnload);
+
+    // A webview reload without a clean shutdown means the content process
+    // crashed (seen on long agent runs) — reopen the workspace the user was in
+    // instead of landing on the welcome screen.
+    if (isTauriAvailable() && !get(files).workspacePath) {
+      const restorePath = takeCrashRestoreWorkspace();
+      if (restorePath) {
+        void applyWorkspaceFolder(restorePath).catch((e) =>
+          console.warn("[crash-restore] failed to reopen workspace:", e)
+        );
+      }
+    }
 
     if (!isTauriAvailable()) {
       return () => {
@@ -370,7 +384,10 @@
 <ModeWatcher defaultMode="dark" darkClassNames={[]} lightClassNames={[]} />
 <Toaster richColors position="bottom-right" />
 
-<div class="workbench-root flex h-screen flex-col overflow-hidden bg-background text-foreground">
+<!-- overflow-clip (not hidden): forbids WebKit focus-reveal from silently
+     scrolling these fixed panes (e.g. clicking a file-tree row nudging the
+     editor). `hidden` still allows programmatic scroll; `clip` does not. -->
+<div class="workbench-root flex h-screen flex-col overflow-clip bg-background text-foreground">
   <header class="workbench-titlebar">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -400,7 +417,7 @@
     <WelcomeScreen />
   {:else}
   <WorkspaceReadOnlyBanner />
-  <div class="workbench-body flex min-h-0 flex-1 overflow-hidden">
+  <div class="workbench-body flex min-h-0 flex-1 overflow-clip">
     {#if showLeftPanel}
       <aside
         class="chat-column flex min-h-0 min-w-0 shrink-0 flex-col"
@@ -412,9 +429,9 @@
       </aside>
     {/if}
 
-    <div class="center-column relative flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div class="center-column relative flex min-w-0 flex-1 flex-col overflow-clip">
       <div
-        class="center-workbench-stack relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden border-0 outline-none"
+        class="center-workbench-stack relative z-0 flex min-h-0 flex-1 flex-col overflow-clip border-0 outline-none"
       >
         <CenterWorkbench />
       </div>

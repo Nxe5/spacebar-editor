@@ -41,6 +41,12 @@
       .map((t) => normalizeFilePath(t.path))
   );
 
+  let terminalTabs = $derived(
+    $workbench.tabs.filter(
+      (t): t is Extract<WorkbenchTab, { kind: "terminal" }> => t.kind === "terminal"
+    )
+  );
+
   let previewUrl = $derived(
     $activeWorkbenchTab?.kind === "preview" ? $activeWorkbenchTab.url : ""
   );
@@ -50,24 +56,26 @@
   );
 </script>
 
-<div class="center-workbench flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-  <div class="center-workbench__main relative min-h-0 flex-1 overflow-hidden">
+<div class="center-workbench flex min-h-0 flex-1 flex-col overflow-clip bg-background">
+  <div class="center-workbench__main relative min-h-0 flex-1 overflow-clip">
     <EditorSurface
       {editorPaths}
       editorTab={$activeWorkbenchTab}
       editorFile={$activeEditorFile}
     />
 
-    {#if $activeWorkbenchTab?.kind === "terminal"}
-      <div class="absolute inset-0 z-10 flex min-h-0 flex-col bg-background">
-        {#key $activeWorkbenchTab.sessionId}
-          <TerminalPane
-            sessionId={$activeWorkbenchTab.sessionId}
-            onExit={() => workbench.closeTab($activeWorkbenchTab.id)}
-          />
-        {/key}
+    {#each terminalTabs as tab (tab.id)}
+      <div
+        class="absolute inset-0 z-10 flex min-h-0 flex-col bg-background"
+        style:display={$activeWorkbenchTab?.id === tab.id ? undefined : "none"}
+      >
+        <TerminalPane
+          sessionId={tab.sessionId}
+          active={$activeWorkbenchTab?.id === tab.id}
+          onExit={() => workbench.closeTab(tab.id)}
+        />
       </div>
-    {/if}
+    {/each}
 
     {#if $activeWorkbenchTab?.kind === "preview"}
       <div class="absolute inset-0 z-10 bg-background">

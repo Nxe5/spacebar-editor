@@ -49,6 +49,10 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | Agent turn undo (↩ Undo last turn) | Shipped — git checkpoint restore |
 | Cloud API keys in app settings | Shipped — stored in `sidebar.settings.v4` (avoids OS keychain permission prompts) |
 | Production CSP (Tauri `tauri.conf.json`) | Shipped |
+| Terminal WebGL renderer + font-ready gating (no glyph overlap under TUI redraw) | Shipped — [49](docs/specs/49-terminal-render-corruption.md) |
+| Terminal panes stay mounted across tab switches (scrollback survives) | Shipped — [49](docs/specs/49-terminal-render-corruption.md) |
+| Sticky-bottom chat auto-scroll (scroll up freely while streaming) | Shipped — [51](docs/specs/51-chat-scroll-freedom.md) |
+| Streaming render throttling + crash-restore of workspace after webview reload | Shipped — [52](docs/specs/52-agent-run-stability.md) |
 | Cmd+K inline edit | Planned |
 
 ---
@@ -129,12 +133,14 @@ Defaults lean toward **allow** for reads and **ask** for writes and shell. The e
 
 Configurable in Settings → Tools (0 = unlimited):
 
-| Setting | Meaning |
-|---------|---------|
-| `maxAgentSteps` | Max model ↔ tool round trips per message |
-| `maxToolCallsPerRun` | Total tool executions per message |
-| `maxToolsPerTurn` | Tool calls allowed in a single model response |
-| `parallelExecution` / `maxConcurrentTools` | Concurrent read-only tool batches |
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `maxAgentSteps` | 100 | Max model ↔ tool round trips per message |
+| `maxToolCallsPerRun` | 300 | Total tool executions per message |
+| `maxToolsPerTurn` | 0 (unlimited) | Tool calls allowed in a single model response |
+| `parallelExecution` / `maxConcurrentTools` | on / 4 | Concurrent read-only tool batches |
+
+Defaults are deliberately generous — exploration-heavy runs issue dozens of read-only calls, and hitting a cap mid-task is worse than a long run (Stop is always available). Settings saved under the old conservative defaults (24/80 cloud, 40/120 local) are migrated up automatically; customized values are preserved ([spec 52](docs/specs/52-agent-run-stability.md)).
 
 ---
 

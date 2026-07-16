@@ -15,6 +15,7 @@ import { systemPrompts } from "./stores/systemPrompts";
 import { skills } from "./stores/skills";
 import { workspaceRestricted } from "./workspaceTrust";
 import { buildWorkspaceTree, normalizeFileEntry } from "./workspace";
+import { recordActiveWorkspace } from "./crashRestore";
 import type { FileEntry } from "./stores/files";
 import { listDir } from "./ipc";
 
@@ -257,6 +258,7 @@ export async function switchProjectWorkspace(path: string): Promise<void> {
   activeWorkspace = normalized;
 
   if (isTauriAvailable()) {
+    recordActiveWorkspace(normalized);
     if (get(workspaceRestricted)) {
       clearProjectToolsLayer();
       skills.clear();

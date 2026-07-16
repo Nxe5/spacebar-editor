@@ -19,7 +19,7 @@ import { READ_ONLY_TOOLS } from "../../src/lib/tools/toolDefinitions";
 describe("clampAgentLimits", () => {
   it("returns local defaults for empty input via normalize", () => {
     expect(normalizeAgentLimits(undefined, "ollama")).toEqual(LOCAL_AGENT_LIMITS);
-    expect(normalizeAgentLimits(undefined, "anthropic").maxAgentSteps).toBe(24);
+    expect(normalizeAgentLimits(undefined, "anthropic").maxAgentSteps).toBe(100);
   });
 
   it("clamps values to bounds", () => {
@@ -70,8 +70,35 @@ describe("normalizeAgentLimits", () => {
   });
 
   it("defaultAgentLimitsForBackend", () => {
-    expect(defaultAgentLimitsForBackend("ollama").maxAgentSteps).toBe(40);
-    expect(defaultAgentLimitsForBackend("anthropic").maxAgentSteps).toBe(24);
+    expect(defaultAgentLimitsForBackend("ollama").maxAgentSteps).toBe(100);
+    expect(defaultAgentLimitsForBackend("anthropic").maxAgentSteps).toBe(100);
+    expect(defaultAgentLimitsForBackend("ollama").maxToolCallsPerRun).toBe(300);
+    expect(defaultAgentLimitsForBackend("anthropic").maxToolCallsPerRun).toBe(300);
+  });
+
+  it("upgrades saved pre-v0.1.7 default caps to the current defaults", () => {
+    const cloud = normalizeAgentLimits(
+      { maxAgentSteps: 24, maxToolCallsPerRun: 80, maxToolsPerTurn: 0 },
+      "anthropic"
+    );
+    expect(cloud.maxAgentSteps).toBe(100);
+    expect(cloud.maxToolCallsPerRun).toBe(300);
+
+    const local = normalizeAgentLimits(
+      { maxAgentSteps: 40, maxToolCallsPerRun: 120, maxToolsPerTurn: 0 },
+      "ollama"
+    );
+    expect(local.maxAgentSteps).toBe(100);
+    expect(local.maxToolCallsPerRun).toBe(300);
+  });
+
+  it("does not upgrade caps when maxToolsPerTurn was customized", () => {
+    const result = normalizeAgentLimits(
+      { maxAgentSteps: 24, maxToolCallsPerRun: 80, maxToolsPerTurn: 3 },
+      "anthropic"
+    );
+    expect(result.maxAgentSteps).toBe(24);
+    expect(result.maxToolCallsPerRun).toBe(80);
   });
 
   it("keeps explicit non-default caps", () => {

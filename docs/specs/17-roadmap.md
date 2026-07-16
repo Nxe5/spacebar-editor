@@ -11,8 +11,9 @@
 | **v0.1.2** | Public beta | ✅ **Shipped** (2026-06-05) | Keychain (later reverted), Rust path enforcement, CSP, agent turn undo |
 | **v0.1.3** | Post-beta | ✅ **Shipped** (2026-06-09) | Browser tab, element inspector, drag-drop chips, compaction defaults |
 | **v0.1.4** | Patch | ✅ **Shipped** (2026-06-10) | Native OS drop, chip icons, click-to-open, spec audit |
-| **v0.1.5** | Current | 🔶 In progress | GLM + Kimi providers, API keys in app settings, PTY resize |
-| **v0.1.6** | Next | 📋 Planned | Trust boundary release — [45](45-security-hardening-and-capability-expansion.md) (workspace trust, narrow-only policy, web access globe, P0 audits) |
+| **v0.1.5** | Shipped | ✅ **Shipped** (2026-07-10) | GLM + Kimi providers, API keys in app settings, PTY resize |
+| **v0.1.6** | Current | 🔶 In progress | **Stability program** — terminal render fix ([49](49-terminal-render-corruption.md)), workbench scroll containment ([50](50-explorer-expand-editor-scroll.md)), chat scroll freedom ([51](51-chat-scroll-freedom.md)), agent-run stability + raised caps ([52](52-agent-run-stability.md)) |
+| **v0.1.7** | Next | 📋 Planned | Trust boundary release — [45](45-security-hardening-and-capability-expansion.md) (workspace trust, narrow-only policy, web access globe, P0 audits) |
 
 ---
 
@@ -178,6 +179,7 @@
 
 | Date | Item |
 |------|------|
+| 2026-07-16 | **Stability program (49–52)** — terminal WebGL renderer + font-ready gating + mounted panes, `overflow: clip` scroll containment, sticky chat auto-scroll, streaming render throttle, crash-restore of workspace, agent caps raised to 100 steps / 300 tool calls |
 | 2026-06-10 | **v0.1.4** — attachment chip polish (native drop, icons, click-to-open), spec audit |
 | 2026-06-10 | **Attachment chip polish** — native Tauri drag-drop, type icons, click-to-open (editor/explorer/OS), element source grep — [43](43-v-next-release-fixes.md) §3 |
 | 2026-06-10 | **Editor actions + browser tab** — `···` menu, preview nav, element inspector — [44](44-editor-actions-browser-tab.md) |

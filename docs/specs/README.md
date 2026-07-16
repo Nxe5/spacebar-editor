@@ -1,6 +1,10 @@
 # Spacebar Editor — Specifications
 
-> **Last aligned with codebase:** 2026-07-10 · **v0.1.5** — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
+> **Last aligned with codebase:** 2026-07-16 · **v0.1.6 working tree** — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
+>
+> **Note:** the working tree deliberately rolls back the v0.1.7–v0.1.10 feature set (`str_replace` tool, bundled skills, CLI launch args, Homebrew packaging, onboarding wizard); those remain *planned* in their specs. The keep-terminals-mounted fix from that range was re-applied via [49](49-terminal-render-corruption.md).
+>
+> **Stability program (49–52):** terminal render corruption ([49](49-terminal-render-corruption.md)), editor scroll shift on folder expand ([50](50-explorer-expand-editor-scroll.md)), chat scroll freedom ([51](51-chat-scroll-freedom.md)), agent-run freezes/crash-to-welcome + raised tool caps ([52](52-agent-run-stability.md)) — all implemented.
 
 This directory contains the detailed engineering specifications for Spacebar Editor, organized by domain.
 
@@ -25,6 +29,7 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | **Stall / Error Detection** | ✅ Complete | Phase 0 — parse errors + stall detection — [22](22-llm-file-interaction.md) |
 | **Security Hardening** | 🔶 Partial | Rust path enforcement, app-settings API keys, production CSP — [14](14-security.md), [33](33-rust-path-enforcement.md), [40](40-product-hardening-and-agent-ux.md) §3; trust boundary plan — [45](45-security-hardening-and-capability-expansion.md) |
 | **Skills** | ✅ Complete (per-project) | CRUD UI + injection + variable interpolation; bundled pack/registry pending — [30](30-agent-context-and-model-settings.md) |
+| **Stability program (49–52)** | ✅ Complete | Terminal WebGL + font gating, `overflow: clip` panes, sticky chat scroll, streaming throttle, crash restore, 100/300 agent caps |
 | **Planning System** | ❌ Not started | `plans/` files, picker UI — [19](19-planning-system.md) |
 | **Inline edit (Cmd+K)** | ❌ Not started | [28](28-inline-edit-autocomplete.md) |
 
@@ -51,6 +56,10 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | [26-search-panel.md](26-search-panel.md) | ✅ Core implemented | Workspace text search (ripgrep) panel, grouped results, click-to-open |
 | [35-workspace-lock.md](35-workspace-lock.md) | ✅ Complete | PID-based lock file, conflict dialog, read-only mode |
 | [36-first-run-onboarding.md](36-first-run-onboarding.md) | ✅ Complete | Welcome screen, recent projects, CLI open modes |
+| [47-terminal-smooth-scrolling.md](47-terminal-smooth-scrolling.md) | 🔶 Partial (renderer/scrollback/smooth-scroll shipped via [49](49-terminal-render-corruption.md); Settings → Terminal pending) | Smooth wheel scrolling, WebGL renderer + fallback, scrollback/font settings |
+| [49-terminal-render-corruption.md](49-terminal-render-corruption.md) | ✅ Implemented | Overlapping-glyph fix: font-ready gating, WebGL renderer + fallback, keep panes mounted across tab switches |
+| [50-explorer-expand-editor-scroll.md](50-explorer-expand-editor-scroll.md) | ✅ Implemented | `overflow: clip` on fixed workbench panes — stops WebKit focus-reveal scroll displacing the editor |
+| [51-chat-scroll-freedom.md](51-chat-scroll-freedom.md) | ✅ Implemented | Sticky-bottom auto-scroll — scroll up freely during streaming, re-pin at bottom |
 
 ### AI System
 
@@ -77,6 +86,8 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | [43-v-next-release-fixes.md](43-v-next-release-fixes.md) | ✅ Implemented | Model selector, attachment chips (native OS drop, icons, click-to-open), settings polish, compaction defaults, version bar |
 | [44-editor-actions-browser-tab.md](44-editor-actions-browser-tab.md) | 🔶 Partial | Editor `···` menu, browser tab + inspector; **pending:** untitled-file Save As (`pick_save_path`) |
 | [45-security-hardening-and-capability-expansion.md](45-security-hardening-and-capability-expansion.md) | 📋 Draft | Trust gate, narrow-only tool policy, web access globe toggle, enforcement audits, capability roadmap |
+| [48-remote-input-bridge.md](48-remote-input-bridge.md) | 📋 Draft | Remote prompts via Telegram/Discord/iMessage; headless agent turn (Phase 0), pairing + allowlist, remote tool-policy profiles |
+| [52-agent-run-stability.md](52-agent-run-stability.md) | ✅ Implemented (§6 future work open) | Streaming render throttle, markdown parse cap, crash-restore of workspace, raised tool caps (100 steps / 300 calls) + migration |
 
 ### Editor & Git
 
@@ -99,6 +110,7 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | [24-filesystem-watcher.md](24-filesystem-watcher.md) | ✅ Core implemented | `watcher.rs` → debounced `fs:changed` → tree + git refresh |
 | [33-rust-path-enforcement.md](33-rust-path-enforcement.md) | ✅ Complete | `canonicalize_workspace_path` in Rust; `workspace_root` on all FS IPC — shipped v0.1.2 |
 | [37-shortcut-rebinding.md](37-shortcut-rebinding.md) | ✅ Complete | Keybindings settings UI, `sidebar.keybindings.v1` persistence, conflict detection |
+| [46-update-ping-and-version-status.md](46-update-ping-and-version-status.md) | 📋 Draft | Anonymous launch ping + update check, status bar version indicator + Update button, CSP fix |
 
 ### Planning
 

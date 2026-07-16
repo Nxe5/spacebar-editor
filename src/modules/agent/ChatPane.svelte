@@ -346,6 +346,37 @@ import {
   }
 
   let streamingContent = $state("");
+
+  /** Streaming deltas arrive per token, and every state write re-parses the
+   *  full markdown of the reply so far — O(n²) over a long reply, which
+   *  freezes the UI on big agent runs. Batch renders to ~12 fps instead. */
+  const STREAM_RENDER_INTERVAL_MS = 80;
+  let streamFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  const pendingStreamRenders = new Map<string, () => void>();
+
+  function queueStreamRender(key: "text" | "thinking", apply: () => void) {
+    pendingStreamRenders.set(key, apply);
+    if (streamFlushTimer) return;
+    streamFlushTimer = setTimeout(() => {
+      streamFlushTimer = null;
+      const renders = [...pendingStreamRenders.values()];
+      pendingStreamRenders.clear();
+      for (const fn of renders) fn();
+    }, STREAM_RENDER_INTERVAL_MS);
+  }
+
+  /** Apply (or drop) any batched renders immediately — call when a stream
+   *  finishes or is reset so stale text can't overwrite newer state. */
+  function flushStreamRenders(discard = false) {
+    if (streamFlushTimer) {
+      clearTimeout(streamFlushTimer);
+      streamFlushTimer = null;
+    }
+    const renders = [...pendingStreamRenders.values()];
+    pendingStreamRenders.clear();
+    if (!discard) for (const fn of renders) fn();
+  }
+
   let streamWallStartMs = 0;
   let streamFirstTokenAt = 0;
   let lastTokPerSec = $state<number | null>(null);
@@ -2021,6 +2052,7 @@ import {
           break;
         }
 
+        flushStreamRenders(true);
         streamingContent = "";
         const agentToolsEnabled = tools.length > 0;
         if (agentToolsEnabled && liveTurn) {
@@ -2047,16 +2079,21 @@ import {
           signal: abortController.signal,
           inferenceOptions: inferenceOptionsForSettings(st),
           onDelta: (content) => {
-            streamingContent = content;
-            if (!agentToolsEnabled) {
-              patchLiveTurn((t) => ({ ...t, response: content }));
-            }
             markFirstStreamToken();
+            queueStreamRender("text", () => {
+              streamingContent = content;
+              if (!agentToolsEnabled) {
+                patchLiveTurn((t) => ({ ...t, response: content }));
+              }
+            });
           },
           onThinking: (thinking) => {
-            patchLiveTurn((t) => ({ ...t, thinking }));
+            queueStreamRender("thinking", () => {
+              patchLiveTurn((t) => ({ ...t, thinking }));
+            });
           },
           onToolCall: (tc) => {
+            flushStreamRenders();
             patchLiveTurn((t) => {
               const next = { ...t, response: "" };
               return upsertLiveTool(next, {
@@ -2068,6 +2105,7 @@ import {
             });
           },
         });
+        flushStreamRenders();
 
         if (turn.usage) {
           usageRecordedForStream = true;
@@ -2251,6 +2289,7 @@ import {
         !hitContextLimit &&
         !isAgentContextBudgetExceeded(providerMessages, contextWindow)
       ) {
+        flushStreamRenders(true);
         streamingContent = "";
         const synthCreds = resolveStreamCredentials({
           backend: st.chatBackend,
@@ -2271,14 +2310,19 @@ import {
           signal: abortController.signal,
           inferenceOptions: inferenceOptionsForSettings(st),
           onDelta: (content) => {
-            streamingContent = content;
-            patchLiveTurn((t) => ({ ...t, response: content }));
             markFirstStreamToken();
+            queueStreamRender("text", () => {
+              streamingContent = content;
+              patchLiveTurn((t) => ({ ...t, response: content }));
+            });
           },
           onThinking: (thinking) => {
-            patchLiveTurn((t) => ({ ...t, thinking }));
+            queueStreamRender("thinking", () => {
+              patchLiveTurn((t) => ({ ...t, thinking }));
+            });
           },
         });
+        flushStreamRenders();
 
         if (synthTurn.usage) {
           usageRecordedForStream = true;
@@ -2326,6 +2370,7 @@ import {
         chat.addMessage({ role: "assistant", content: `Error: ${err.message}` });
       }
     } finally {
+      flushStreamRenders(true);
       streamingContent = "";
       // Mark any tool still showing "running" as "stopped" before clearing the live turn.
       if (abortController?.signal.aborted && liveTurn) {
@@ -2447,6 +2492,7 @@ import {
     if (pendingToolApproval) {
       submitToolDecision(false);
     }
+    flushStreamRenders(true);
     streamingContent = "";
     usageRecordedForStream = false;
     clearStreamTiming();
@@ -2569,12 +2615,14 @@ import {
       userMessageExpanded = {};
       userMessageDraft = {};
       editingUserMessageId = null;
+      autoScrollPinned = true;
       await revertToUserMessage(editingId, message);
       await sendUserMessage(message);
       return;
     }
 
     clearComposer();
+    autoScrollPinned = true;
     await sendUserMessage(message);
   }
 
@@ -2617,21 +2665,39 @@ import {
     }
   }
 
+  /** Sticky auto-scroll: follow the stream only while the user is at the bottom.
+   *  Scrolling up detaches; scrolling back to the bottom re-attaches. */
+  let autoScrollPinned = true;
+  const AUTOSCROLL_SLACK_PX = 48;
+
+  function isNearBottom(el: HTMLElement): boolean {
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= AUTOSCROLL_SLACK_PX;
+  }
+
+  function onMessagesScroll() {
+    if (!messagesContainer) return;
+    autoScrollPinned = isNearBottom(messagesContainer);
+  }
+
+  function scrollMessagesToBottom() {
+    if (!messagesContainer) return;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
   $effect(() => {
     if (
       messagesContainer &&
-      ($activeSession?.messages.length || streamingContent || liveTurn)
+      ($activeSession?.messages.length || streamingContent || liveTurn) &&
+      autoScrollPinned
     ) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      scrollMessagesToBottom();
     }
   });
 
   $effect(() => {
     void liveTurn;
     queueMicrotask(() => {
-      if (messagesContainer) {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      }
+      if (autoScrollPinned) scrollMessagesToBottom();
     });
   });
 </script>
@@ -2650,7 +2716,7 @@ import {
       <span class="chat-drop-label">Drop to add as context</span>
     </div>
   {/if}
-  <div class="messages" bind:this={messagesContainer}>
+  <div class="messages" bind:this={messagesContainer} onscroll={onMessagesScroll}>
     <button
       type="button"
       class="messages-corner-btn"

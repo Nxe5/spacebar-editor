@@ -3,6 +3,7 @@
   import "@xterm/xterm/css/xterm.css";
   import { Terminal, type ITheme } from "@xterm/xterm";
   import { FitAddon } from "@xterm/addon-fit";
+  import { WebglAddon } from "@xterm/addon-webgl";
   import {
     isTauriAvailable,
     listenPtyData,
@@ -15,13 +16,16 @@
   interface Props {
     sessionId: string;
     onExit?: () => void;
+    /** Whether this pane is the visible tab. Panes stay mounted (buffer intact) when inactive. */
+    active?: boolean;
   }
 
-  let { sessionId, onExit }: Props = $props();
+  let { sessionId, onExit, active = true }: Props = $props();
 
   let rootEl: HTMLDivElement | undefined = $state();
   let term: Terminal | null = null;
   let fit: FitAddon | null = null;
+  let webgl: WebglAddon | null = null;
   let unData: (() => void) | null = null;
   let unExit: (() => void) | null = null;
   let observer: ResizeObserver | null = null;
@@ -66,9 +70,28 @@
     unData = null;
     unExit?.();
     unExit = null;
+    webgl?.dispose();
+    webgl = null;
     term?.dispose();
     term = null;
     fit = null;
+  }
+
+  /** GPU-rendered cells avoid the DOM renderer's glyph-overlap artifacts under
+   *  heavy TUI redraw (e.g. Claude Code). One attempt per mount; context loss
+   *  or missing WebGL falls back to the DOM renderer. */
+  function tryWebgl(t: Terminal): WebglAddon | null {
+    try {
+      const addon = new WebglAddon();
+      addon.onContextLoss(() => {
+        addon.dispose();
+        if (webgl === addon) webgl = null;
+      });
+      t.loadAddon(addon);
+      return addon;
+    } catch {
+      return null;
+    }
   }
 
   function syncPtySize() {
@@ -82,17 +105,42 @@
     await tick();
     if (!isTauriAvailable() || !rootEl) return;
 
+    // xterm measures glyph cell size once at open(); if the preferred font is
+    // still loading, stale metrics cause overlapping text. Wait for fonts
+    // (bounded, in case the promise never settles).
+    const fontsReady = await Promise.race([
+      (document.fonts?.ready ?? Promise.resolve()).then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1500)),
+    ]);
+    if (!rootEl) return;
+
     term = new Terminal({
       fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
       fontSize: 13,
       theme: buildXtermTheme(),
+      scrollback: 5000,
+      smoothScrollDuration: 120,
     });
 
     fit = new FitAddon();
     term.loadAddon(fit);
     term.open(rootEl);
+    webgl = tryWebgl(term);
     syncPtySize();
     term.focus();
+
+    // If open() won the race against a slow font load, force a glyph
+    // re-measure once the fonts actually arrive (assigning a font option is
+    // what triggers xterm's char-size service).
+    if (!fontsReady) {
+      void document.fonts?.ready.then(() => {
+        if (!term) return;
+        const fs = term.options.fontSize ?? 13;
+        term.options.fontSize = fs + 1;
+        term.options.fontSize = fs;
+        syncPtySize();
+      });
+    }
 
     term.onData((data) => {
       void ptyWrite(sessionId, data);
@@ -107,9 +155,18 @@
     });
 
     observer = new ResizeObserver(() => {
-      syncPtySize();
+      if (active) syncPtySize();
     });
     observer.observe(rootEl);
+  });
+
+  // Re-fit and refocus when switching back to a pane that was hidden — its
+  // container may have been resized (or never sized) while display:none.
+  $effect(() => {
+    if (active && term && fit) {
+      syncPtySize();
+      term.focus();
+    }
   });
 
   $effect(() => {
