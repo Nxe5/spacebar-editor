@@ -223,17 +223,18 @@ Git checkpoint undo covers tracked/untracked file state, but `run_shell` in the 
 
 Ordered by leverage (risk reduction + product value), not strictly by effort.
 
-### 4.1 Patch-style edit tool (P1)
+### 4.1 Patch-style edit tool (P1) — ✅ Shipped
 
 **Problem:** `write_file` / `create_file` are whole-file operations — token-expensive and risky on large files.
 
-**Proposal:** Add `str_replace` (or `apply_patch`):
+**Shipped:** `str_replace`:
 
-- Args: `path`, `old_str` (must match exactly once), `new_str`
-- Fail loudly if `old_str` is missing or ambiguous — forces re-read of current file state
-- Keep `write_file` for new files and full rewrites
+- Args: `path`, `old_str` (must match exactly once unless `replace_all`), `new_str`, optional `replace_all`
+- Fails loudly if `old_str` is missing, not found, or ambiguous — forces re-read of current file state
+- `write_file` retained for new files and full rewrites; its description now points the model to `str_replace` for small edits
+- Defaults to `ask` policy; write tool everywhere; approval UI shows a before/after preview (§4.1 companion — [09-tool-system.md](09-tool-system.md) → File edit preview)
 
-**Files:** `toolDefinitions.ts`, `toolRunner.ts`, `filesystem.rs` (optional dedicated command), [09-tool-system.md](09-tool-system.md).
+**Files (as shipped):** `src/lib/tools/strReplace.ts` (pure logic), `toolDefinitions.ts`, `toolRunner.ts` (`runStrReplace`), `toolPolicy.ts` (`DEFAULT_ASK_TOOLS`), `src/lib/agent/fileEditPreview.ts`, `tests/unit/strReplace.test.ts`, [09-tool-system.md](09-tool-system.md).
 
 ---
 
@@ -366,7 +367,7 @@ function effectiveToolsForSession(policy, modeTools, webAccessEnabled) {
 | **P1** | Audit chat-render + preview-iframe XSS→invoke path | §2.4 | v0.1.6 |
 | **P1** | SSRF/DNS-rebinding check on `web_fetch` | §3.2 | v0.1.7 |
 | **P1** | Shell/grep argv construction audit | §3.4 | v0.1.7 |
-| **P1** | Patch-style edit tool (`str_replace`) | §4.1 | v0.1.7 |
+| **P1** | Patch-style edit tool (`str_replace`) | §4.1 | ✅ Shipped |
 | **P1** | Prompt-injection fixtures in eval harness | §4.6 | v0.1.7 |
 | **P2** | API key storage re-evaluation (keychain vs settings) | §2.5 | Backlog |
 | **P2** | "Undo last turn" reversibility disclosure | §3.5 | Backlog |

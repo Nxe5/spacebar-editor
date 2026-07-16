@@ -11,8 +11,9 @@
 | **v0.1.2** | Public beta | ✅ **Shipped** (2026-06-05) | Keychain (later reverted), Rust path enforcement, CSP, agent turn undo |
 | **v0.1.3** | Post-beta | ✅ **Shipped** (2026-06-09) | Browser tab, element inspector, drag-drop chips, compaction defaults |
 | **v0.1.4** | Patch | ✅ **Shipped** (2026-06-10) | Native OS drop, chip icons, click-to-open, spec audit |
-| **v0.1.5** | Current | 🔶 In progress | GLM + Kimi providers, API keys in app settings, PTY resize |
-| **v0.1.6** | Next | 📋 Planned | Trust boundary release — [45](45-security-hardening-and-capability-expansion.md) (workspace trust, narrow-only policy, web access globe, P0 audits) |
+| **v0.1.5** | Shipped | ✅ **Shipped** (2026-07-10) | GLM + Kimi providers, API keys in app settings, PTY resize |
+| **v0.1.6** | Current | 🔶 In progress | Trust boundary — [45](45-security-hardening-and-capability-expansion.md) (workspace trust, narrow-only policy, web access globe, P0 audits); `str_replace` + file edit preview; bundled skills starter pack; CLI launch refactor + micro-editor; macOS/Homebrew packaging |
+| **v0.1.7** | Next | 📋 Planned | Enforcement hardening (SSRF, argv audit), adversarial eval fixtures — [45](45-security-hardening-and-capability-expansion.md); **system-tray desktop assistant** groundwork — [46](46-system-tray-desktop-assistant.md) |
 
 ---
 
@@ -66,7 +67,7 @@
 | **Workspace trust gate** | ❌ Planned (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §2.1 |
 | **Tool policy narrow-only (project)** | ❌ Planned (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §2.2 — confirmed bug in `mergeProjectToolsLayer` |
 | **Web access globe toggle** | ❌ Planned (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §4.7 |
-| **Patch-style edit tool (`str_replace`)** | ❌ Planned (v0.1.7) | [45](45-security-hardening-and-capability-expansion.md) §4.1 |
+| **Patch-style edit tool (`str_replace`)** | ✅ Done (v0.1.6) | [45](45-security-hardening-and-capability-expansion.md) §4.1 — pure `strReplace.ts` + approval preview |
 | **MLX provider** (Apple Silicon) | ❌ Planned | `mlx_lm.server` OpenAI-compat backend — [42](42-mlx-provider.md) |
 | **Context compaction** | ✅ Done | [21-context-compaction.md](21-context-compaction.md) — enabled by default at 85% |
 
@@ -129,7 +130,7 @@
 | Item | Spec | Status |
 |------|------|--------|
 | Per-project skills (CRUD, injection, variables) | [30](30-agent-context-and-model-settings.md) | ✅ Done |
-| Bundled skills starter pack | [30](30-agent-context-and-model-settings.md) §9 | ❌ Not started |
+| Bundled skills starter pack | [30](30-agent-context-and-model-settings.md) §9 | 🔶 Partial — code-defined pack (`typescript`, `svelte`, `git-conventions`, `testing`); auto-detect + UI deferred |
 | LSP Phase 1 — diagnostics + hover | [25](25-lsp-diagnostics.md) | ✅ Done (TS/JS) |
 | Per-model settings + assembly preview | [30](30-agent-context-and-model-settings.md) | ✅ Done |
 | Autocomplete inference hook (Ollama FIM) | [28](28-inline-edit-autocomplete.md) §2 | ❌ Not started |
@@ -155,6 +156,8 @@
 | Item | Spec | Status |
 |------|------|--------|
 | Skills registry (GitHub-based → hosted) | [29](29-skills-registry.md) | ❌ Deferred (P3) |
+| **System-tray desktop assistant** (background window, global hotkey, system-scope tools) | [46](46-system-tray-desktop-assistant.md) | 📋 Proposed |
+| **Universal project hub, notes & boards** (code/KiCad/hardware registry, notes vault, kanban boards, command palette) | [47](47-project-hub-notes-boards.md) | 📋 Proposed — independent of 46 |
 | Plugin / extension API (userland tools) | — | ❌ Not started |
 | File-backed plans (`plans/`) | [19](19-planning-system.md) | ❌ Not started |
 | Multi-workspace / project switcher | — | ❌ Deferred |
@@ -178,6 +181,7 @@
 
 | Date | Item |
 |------|------|
+| 2026-07-13 | **v0.1.6 (in progress)** — `str_replace` patch tool + write-approval edit preview, code-defined bundled skills, CLI launch refactor (`initLaunchArgs` + micro-editor layout), macOS/Homebrew packaging, editor focus-on-open fix |
 | 2026-06-10 | **v0.1.4** — attachment chip polish (native drop, icons, click-to-open), spec audit |
 | 2026-06-10 | **Attachment chip polish** — native Tauri drag-drop, type icons, click-to-open (editor/explorer/OS), element source grep — [43](43-v-next-release-fixes.md) §3 |
 | 2026-06-10 | **Editor actions + browser tab** — `···` menu, preview nav, element inspector — [44](44-editor-actions-browser-tab.md) |

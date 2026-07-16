@@ -99,10 +99,13 @@ See [specs/03-architecture.md](../specs/03-architecture.md#agent-runtime-model-c
 
 **On mount, `WorkbenchShell`:**
 
-1. Applies workbench theme from settings (`applyWorkbenchTheme`)
-2. Initializes icon theme store (`iconTheme.init()`)
-3. Starts project state autosave (`initProjectStateAutosave()`)
-4. Registers global keyboard shortcuts
+1. Applies CLI launch args (`initLaunchArgs()` → `src/lib/launch/initLaunchArgs.ts`): `spacebar <dir>` opens a workspace; `spacebar <file>` opens the file and applies the chrome-free `MICRO_EDITOR_LAYOUT`. Runs once, guarded so re-mounts are no-ops
+2. Applies workbench theme from settings (`applyWorkbenchTheme`)
+3. Initializes icon theme store (`iconTheme.init()`)
+4. Starts project state autosave (`initProjectStateAutosave()`)
+5. Registers global keyboard shortcuts
+
+> Launch handling deliberately lives in `WorkbenchShell` (mounts at startup), not `FileTree` (mounts only after a workspace is open).
 
 **Vite config:**
 
@@ -210,7 +213,7 @@ Spacebar Editor uses **Svelte writable/derived stores** (not a global Redux-like
 |------|-------|----------|
 | **Chat** | None (`[]`) | Pure conversation, no file access |
 | **Plan** | Read-only tools | Analysis without writes |
-| **Agent** | All 16 built-in tools | Full read/write/exec |
+| **Agent** | All 17 built-in tools | Full read/write/exec |
 
 Final tool list = **mode tools ∩ effective policy** (denied/removed tools excluded).
 
@@ -221,7 +224,7 @@ Assembled by `src/lib/agent/systemPrompt/assemble.ts` (`assembleSystemPrompt`), 
 1. **Mode base prompt** (`MODE_CONFIG[mode].basePrompt`)
 2. **Workspace context** (`src/lib/agent/workspaceContext.ts`)
 3. **User system prompts** — per-mode / shared files from `.sidebar/prompts/` (manifest in `prompts.json`)
-4. **Skill blocks** — enabled skills for the active mode, interpolated by `buildActiveSkillBlocks` (`src/lib/skills/activeSkills.ts`)
+4. **Skill blocks** — enabled skills for the active mode, interpolated by `buildActiveSkillBlocks` (`src/lib/skills/activeSkills.ts`). This merges the code-defined **bundled starter pack** (`src/lib/skills/bundled/index.ts`) with per-project skills; a project skill sharing a bundled `id` overrides the bundled version, and bundled inclusion can be disabled via the `includeBundled` option
 5. **Tool-use instructions** (`systemPrompt/toolInstructions.ts`) when tools are enabled
 
 `assemble.ts` returns both the final prompt string and a per-section token breakdown, which powers the **assembly preview** and the context bar. Native tool-call schemas are counted separately.
@@ -307,7 +310,7 @@ Before each user message the app creates a git checkpoint (`git_create_checkpoin
 
 > **Status:** ✅ Complete
 
-### Built-in Tools (16)
+### Built-in Tools (17)
 
 **Read/Discovery:**
 - `read_file`, `list_dir`, `grep`, `find_file`, `get_file_tree`
@@ -315,15 +318,21 @@ Before each user message the app creates a git checkpoint (`git_create_checkpoin
 - `web_fetch`
 
 **Write/Execute:**
-- `write_file`, `create_file`, `delete_file`, `move_file`
+- `str_replace`, `write_file`, `create_file`, `delete_file`, `move_file`
 - `run_shell`, `run_tests`, `run_script`
+
+`str_replace` (`src/lib/tools/strReplace.ts` + `runStrReplace` in `toolRunner.ts`) applies an exact-match substring edit that must match once unless `replace_all` is set — a token-cheap alternative to whole-file `write_file` on large files.
 
 ### Default Policy
 
 | Policy | Tools |
 |--------|-------|
 | `allow` | `read_file`, `write_file`, `create_file`, most read tools |
-| `ask` | `move_file`, `delete_file`, `run_shell`, `run_tests`, `run_script`, `web_fetch` |
+| `ask` | `str_replace`, `move_file`, `delete_file`, `run_shell`, `run_tests`, `run_script`, `web_fetch` |
+
+### File Edit Preview (approval UI)
+
+When `str_replace` / `write_file` / `create_file` hit the `ask` gate, `src/lib/agent/fileEditPreview.ts` builds a before/after view (`buildFileEditPreview` reads current content via IPC; `summarizeEditPreview` renders bounded +/- lines). `ChatPane.svelte` renders it as `.tool-approval-preview` above the approve/deny actions so the user reviews the change before allowing it.
 
 ### Tool Execution Path
 
@@ -530,11 +539,12 @@ spacebar-editor/
 │   │   ├── workspace/       WelcomeScreen, workspace lock dialog
 │   │   └── shortcuts/       Keyboard dispatcher
 │   ├── lib/
-│   │   ├── agent/           conversation, streamTurn, systemPrompt/assemble, workspaceContext
-│   │   ├── skills/          activeSkills, skillVariables
+│   │   ├── agent/           conversation, streamTurn, systemPrompt/assemble, workspaceContext, fileEditPreview
+│   │   ├── launch/          initLaunchArgs, microEditorLayout (CLI open modes)
+│   │   ├── skills/          activeSkills, skillVariables, bundled/ (starter pack)
 │   │   ├── systemPrompts/   prompt manifest config + workspace context
 │   │   ├── providers/       openaiCompat, anthropic, deepseek, glm, kimi, cloudModelCatalog
-│   │   ├── tools/           toolDefinitions, toolRunner, pathUtils
+│   │   ├── tools/           toolDefinitions, toolRunner, strReplace, pathUtils
 │   │   ├── lsp/             LSP client (JSON-RPC over Tauri events)
 │   │   ├── stores/          chat, files, workbench, settings, toolPolicy, mode, iconTheme, skills, appearance
 │   │   ├── icon-packs/      Seti/VSCode icon resolution
@@ -554,4 +564,4 @@ spacebar-editor/
 
 ---
 
-*Last updated: 2026-07-10 · v0.1.5. For implementation status, see [Specifications](../specs/README.md).*
+*Last updated: 2026-07-13 · v0.1.6. For implementation status, see [Specifications](../specs/README.md).*
