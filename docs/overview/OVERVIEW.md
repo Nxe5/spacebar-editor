@@ -17,7 +17,7 @@
 | Area | Status | Notes |
 |------|--------|-------|
 | Workbench UI | ✅ Complete | Chat, editor, terminal, preview, explorer, git, search |
-| Welcome / recent projects | ✅ Complete | No-workspace screen — [36](specs/36-first-run-onboarding.md) |
+| Welcome / recent projects | ✅ Complete | First-run wizard (theme → provider → project) gates the app once, then no-workspace welcome screen — [36](specs/36-first-run-onboarding.md) |
 | AI Backends | ✅ Complete | Ollama, llama.cpp, Anthropic, DeepSeek, GLM (Z.ai), Kimi (Moonshot) |
 | Agent Loop | ✅ Complete | Multi-turn tool chains, parallel read-only tools, agent turn undo |
 | Context compaction | ✅ Complete | Manual + auto; enabled by default at 85%; Settings → Compaction — [21](specs/21-context-compaction.md) |
@@ -25,7 +25,7 @@
 | Tools (17) | ✅ Complete | Filesystem (incl. `str_replace` patch edits), git, grep, shell, web fetch; write approvals show a before/after preview |
 | Git UI | ✅ Complete | Staged/changes, diff view, discard |
 | Editor | ✅ Complete | CodeMirror 6, 15 grammars, wrap, Prettier, diff mode — [20](specs/20-editor-formatting-and-theming.md) |
-| Theming | ✅ Complete | 7 workbench presets + interactive theme preview + chrome/editor/syntax appearance — [13](specs/13-theming.md) |
+| Theming | ✅ Complete | 9 workbench presets + interactive theme preview + chrome/editor/syntax appearance — [13](specs/13-theming.md) |
 | Workspace lock | ✅ Complete | Multi-window safety — [35](specs/35-workspace-lock.md) |
 | Stability program | ✅ Complete | Terminal render fix ([49](specs/49-terminal-render-corruption.md)), scroll containment ([50](specs/50-explorer-expand-editor-scroll.md)), sticky chat scroll ([51](specs/51-chat-scroll-freedom.md)), streaming throttle + crash restore + raised agent caps ([52](specs/52-agent-run-stability.md)) |
 | Shortcut rebinding | ✅ Complete | Settings → Keybindings — [37](specs/37-shortcut-rebinding.md) |

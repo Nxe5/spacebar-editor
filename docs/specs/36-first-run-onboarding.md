@@ -1,17 +1,29 @@
 # Spec 36 — First-Run / Onboarding
 
-> **Status:** ✅ Implemented (custom scope) — welcome screen with "Open project" button + up to 8 recent projects; CLI file-open mode (`spacebar <file>` opens the file with all panes collapsed, `spacebar <dir>` opens as workspace); `add_recent_project` / `get_recent_projects` Rust commands; `layoutOverride` store for one-shot panel collapse.
+> **Status:** ✅ Implemented — first-run wizard (theme → provider → project) gates the app before the welcome screen; welcome screen with "Open project" button + up to 8 recent projects; CLI file-open mode (`spacebar <file>` opens the file with all panes collapsed, `spacebar <dir>` opens as workspace); `add_recent_project` / `get_recent_projects` Rust commands; `layoutOverride` store for one-shot panel collapse.
 >
 > **v0.1.6 refactor:** CLI launch handling moved out of `FileTree.svelte` (which only mounts after a workspace is open) into `src/lib/launch/initLaunchArgs.ts`, invoked once from `WorkbenchShell.onMount`. `handleLaunchArgs()` opens the parent directory as the workspace for a file and applies `MICRO_EDITOR_LAYOUT` (`src/lib/launch/microEditorLayout.ts` — chat, tabs, explorer, and bottom panel all collapsed). See [04-entry-points.md](04-entry-points.md).
+>
+> **v0.1.8 addition:** a modal onboarding wizard (`src/modules/onboarding/OnboardingWizard.svelte`) now gates `WorkbenchShell` on first launch, ahead of the empty states below — see §1a. §1's original "no wizard" design still describes the experience for any state the wizard doesn't cover (returning users, model unreachable, etc.).
 > **Area:** UX · Settings · Providers
 > **Phase:** B — Enhancement
 > **Depends on:** [05-workbench.md](05-workbench.md) · [08-ai-agent.md](08-ai-agent.md) · [07-workspace.md](07-workspace.md)
 
 ---
 
-## 1. Design Approach
+## 1a. First-Run Wizard (v0.1.8+)
 
-Spacebar Editor has no onboarding wizard or modal walkthrough. Empty states are the onboarding. Every state where the user cannot yet use the app has a single clear call-to-action that unblocks them. This keeps the UI clean for users who know what they are doing and still guides new users.
+`WorkbenchShell.svelte` renders `OnboardingWizard` in place of everything else — including the welcome screen — while `!isOnboardingComplete()` (`src/lib/onboarding.ts`, gated on the presence of `sidebar.onboarding.v1` in `localStorage`, independent of the `sidebar.settings.v4` first-run check in §2). Three steps, each optional/skippable:
+
+1. **Theme** — three swatches: **Dark Dracula**, **Dark Bubblegum**, **Spacebar** (`THEME_CHOICES` in the component; applies immediately via `applyWorkbenchTheme`, saved to `settings.workbenchTheme`).
+2. **Provider** — pick a chat backend (Anthropic, DeepSeek, GLM, Kimi via API key, or Ollama/llama.cpp via endpoint) and paste a key/URL.
+3. **Project** — pick a recent project or open a new folder (same underlying flow as the welcome screen).
+
+Completing or skipping the wizard calls `markOnboardingComplete()`, which is permanent for that install (no re-prompt short of clearing `localStorage`). Once complete, control passes to the empty-state design in §1 below.
+
+## 1. Design Approach (post-wizard / returning users)
+
+Beyond the first-run wizard in §1a, Spacebar Editor uses no further modal walkthroughs. Empty states are the onboarding. Every state where the user cannot yet use the app has a single clear call-to-action that unblocks them. This keeps the UI clean for users who know what they are doing and still guides new users.
 
 Three empty states map to three sequential blockers:
 

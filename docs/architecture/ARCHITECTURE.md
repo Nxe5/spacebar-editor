@@ -189,7 +189,7 @@ Spacebar Editor uses **Svelte writable/derived stores** (not a global Redux-like
 | `selectedModel`, `ollamaModels`, `llamacppModels`, `anthropicModels`, `deepseekModels`, `glmModels`, `kimiModels` | Active model + discovered lists |
 | `anthropicExtendedThinking` | Claude extended thinking stream |
 | `anthropicContextBudget` | Optional cap (`null` = full model window) |
-| `workbenchTheme` | Theme id (7 presets) |
+| `workbenchTheme` | Theme id (9 presets) |
 | `editor` | `wordWrap`, `formatOnSave`, tab width |
 | `webFetchAllowedHosts` | Hostname allowlist for `web_fetch` |
 | `agentLimits` | Steps, tool caps, `parallelExecution`, `maxConcurrentTools` |

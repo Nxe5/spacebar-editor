@@ -32,7 +32,7 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | Workspace text search (ripgrep, `Cmd+Shift+F`) | Shipped |
 | Filesystem watcher (explorer + git refresh) | Shipped |
 | Editor line wrap + Prettier format / format-on-save | Shipped |
-| Workbench themes (7 presets incl. Spacebar default) | Shipped |
+| Workbench themes (9 presets incl. Spacebar default, Dracula & Dark Dracula) | Shipped |
 | Editor + syntax colors (Appearance settings) | Shipped |
 | Interactive theme preview + workbench-chrome customization | Shipped |
 | Theme → editor/syntax sync on theme change | Shipped |

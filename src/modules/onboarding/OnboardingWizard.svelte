@@ -22,9 +22,9 @@
   /* ── Step 1: theme ─────────────────────────────────────────── */
   /** Swatch colors mirror each preset's --background / --primary (theme vars are root-scoped). */
   const THEME_CHOICES: { id: WorkbenchThemeId; label: string; blurb: string; bg: string; accent: string }[] = [
+    { id: "dark-dracula", label: "Dark Dracula", blurb: "Saturated Dracula palette, translucent panels", bg: "#20222c", accent: "#ff79c6" },
     { id: "dark-bubblegum", label: "Dark Bubblegum", blurb: "Dark with playful accents", bg: "#181818", accent: "#88c0d0" },
-    { id: "light-paper", label: "Light Paper", blurb: "Clean white, easy on bright rooms", bg: "#ffffff", accent: "#0066bf" },
-    { id: "blue-nova", label: "Blue Nova", blurb: "Deep blue, cool and focused", bg: "#0c1a33", accent: "#4dabff" },
+    { id: "spacebar", label: "Spacebar", blurb: "The default — clean, neutral dark", bg: "#1e1e1e", accent: "#007acc" },
   ];
 
   let selectedTheme = $state<WorkbenchThemeId>("dark-bubblegum");
