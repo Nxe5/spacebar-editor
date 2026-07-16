@@ -8,6 +8,7 @@
   import {
     closeAppWindow,
     isAppWindowMaximized,
+    isMacPlatform,
     minimizeAppWindow,
     toggleMaximizeAppWindow,
   } from "$lib/windowControls";
@@ -53,7 +54,8 @@
   }
 </script>
 
-{#if isTauriAvailable()}
+{#if isTauriAvailable() && !isMacPlatform()}
+  <!-- macOS uses native traffic lights (titleBarStyle: Overlay); custom controls are Windows/Linux only. -->
   <div class="window-controls" role="toolbar" aria-label="Window controls">
     <button type="button" class="window-control" title="Minimize" aria-label="Minimize" onclick={onMinimize}>
       <MinusIcon size={12} weight="bold" />

@@ -2186,9 +2186,11 @@ import {
           turn.thinking
         );
 
+        // Re-read the policy each round so "Allow always" clicked mid-run
+        // takes effect immediately instead of after the next agent run.
         const toolRound = await executeToolCallsWithApproval(
           activeToolCalls,
-          policyState,
+          get(effectiveToolPolicy),
           workspacePath,
           st.webFetchAllowedHosts,
           agentLimits,
@@ -2235,7 +2237,7 @@ import {
         if (modeSwitched) {
           const nextMode = get(currentMode);
           const nextModeConfig = MODE_CONFIG[nextMode];
-          tools = toolsForActiveSession(policyState, nextModeConfig.tools);
+          tools = toolsForActiveSession(get(effectiveToolPolicy), nextModeConfig.tools);
           systemPromptText = buildSystemPrompt(tools.length > 0);
           providerMessages = [
             { role: "system", content: systemPromptText },
@@ -3399,6 +3401,34 @@ import {
   </form>
 
   <div class="context-footer" aria-label={footerAriaLabel()}>
+    {#if footerProfile().showMonthlyUsage || footerProfile().showStreamMetrics}
+      <div class="context-meta-start">
+        {#if footerProfile().showMonthlyUsage}
+          <button
+            type="button"
+            class="context-monthly-usage"
+            class:context-monthly-usage--balance={footerUsageView === "balance"}
+            title={footerUsageTitle()}
+            aria-pressed={footerUsageView === "balance"}
+            onclick={() => void toggleFooterUsageView()}
+          >
+            {monthlyUsageLabel()}
+          </button>
+        {/if}
+        {#if footerProfile().showMonthlyUsage && footerProfile().showStreamMetrics}
+          <span class="context-meta-sep" aria-hidden="true">·</span>
+        {/if}
+        {#if footerProfile().showStreamMetrics}
+          <span
+            class="context-chat-tok"
+            title="Output speed, token count, and duration for the last completed reply"
+            aria-label="Last reply: tokens per second, output tokens, and completion time"
+          >
+            {lastReplyFooterLabel()}
+          </span>
+        {/if}
+      </div>
+    {/if}
     {#if footerProfile().showContextBar}
       {@const bd = contextBreakdown()}
       {@const cw = bd.contextWindow}
@@ -3572,29 +3602,6 @@ import {
       {/if}
     {/if}
     <div class="context-meta">
-      <div class="context-meta-start">
-        {#if footerProfile().showMonthlyUsage}
-          <button
-            type="button"
-            class="context-monthly-usage"
-            class:context-monthly-usage--balance={footerUsageView === "balance"}
-            title={footerUsageTitle()}
-            aria-pressed={footerUsageView === "balance"}
-            onclick={() => void toggleFooterUsageView()}
-          >
-            {monthlyUsageLabel()}
-          </button>
-        {/if}
-        {#if footerProfile().showStreamMetrics}
-          <span
-            class="context-chat-tok"
-            title="Output speed, token count, and duration for the last completed reply"
-            aria-label="Last reply: tokens per second, output tokens, and completion time"
-          >
-            {lastReplyFooterLabel()}
-          </span>
-        {/if}
-      </div>
       <div class="context-budget-row">
         <div class="context-budget-wrap" bind:this={contextBudgetMenuEl}>
           {#if footerProfile().contextBudgetEditable}
@@ -5402,7 +5409,7 @@ import {
 
   .context-meta {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     gap: 10px;
     min-height: 22px;
@@ -5413,12 +5420,20 @@ import {
 
   .context-meta-start {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 2px;
-    flex: 1;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
+    margin-bottom: 2px;
+    font-size: 10px;
+    line-height: 14px;
+    color: var(--muted-foreground);
+  }
+
+  .context-meta-sep {
+    flex-shrink: 0;
+    opacity: 0.5;
   }
 
   .context-monthly-usage,

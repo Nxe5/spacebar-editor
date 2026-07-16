@@ -120,6 +120,7 @@
         ".cm-content": {
           fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
           fontSize: "14px",
+          paddingBottom: "120px",
         },
         "&.cm-lineWrapping .cm-line": {
           whiteSpace: "break-spaces",
@@ -171,7 +172,6 @@
         languageCompartment.of(langExt != null ? [langExt] : []),
         ...diffExt,
         cm.syntaxHighlighting,
-        cm.scrollPastEnd(),
         wrapExtension(wordWrap),
         lspHoverCompartment.of([]),
         cm.EditorView.updateListener.of((update) => {

@@ -1,8 +1,8 @@
 # Spacebar Editor — Specifications
 
-> **Last aligned with codebase:** 2026-07-13 · **v0.1.6** — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
+> **Last aligned with codebase:** 2026-07-16 · **v0.1.7** — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
 >
-> **v0.1.6 additions:** `str_replace` patch-style edit tool + write-approval edit preview ([09](09-tool-system.md), [45](45-security-hardening-and-capability-expansion.md) §4.1) · code-defined bundled skills starter pack ([30](30-agent-context-and-model-settings.md) §9) · CLI launch refactor + micro-editor layout ([36](36-first-run-onboarding.md)) · macOS/Homebrew packaging · **proposed system-tray desktop assistant** ([46](46-system-tray-desktop-assistant.md)) · **proposed universal project hub, notes & boards** ([47](47-project-hub-notes-boards.md)).
+> **v0.1.7 additions:** `str_replace` patch-style edit tool + write-approval edit preview ([09](09-tool-system.md), [45](45-security-hardening-and-capability-expansion.md) §4.1) · code-defined bundled skills starter pack ([30](30-agent-context-and-model-settings.md) §9) · CLI launch refactor + micro-editor layout ([36](36-first-run-onboarding.md)) · macOS/Homebrew packaging · word-wrap/Prettier default-on (toolbar buttons removed) · Explorer/Search/Git switcher moved to top of `RightSidebar` · file-tree indent guide lines · **proposed system-tray desktop assistant** ([46](46-system-tray-desktop-assistant.md)) · **proposed universal project hub, notes & boards** ([47](47-project-hub-notes-boards.md)).
 
 This directory contains the detailed engineering specifications for Spacebar Editor, organized by domain.
 
@@ -19,7 +19,7 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | **Persistence** | ✅ Complete | Per-project state, global settings |
 | **Context UI** | ✅ Complete | Segmented bar, breakdown popover, compaction archive/restore — [39](39-context-ui-enhancements.md) |
 | **Compaction** | ✅ Complete | Manual + auto compaction, archive/restore — [21](21-context-compaction.md) |
-| **Editor UX** | ✅ Complete | Line wrap, Prettier format / format-on-save, full syntax + editor chrome in Appearance — [20](20-editor-formatting-and-theming.md) |
+| **Editor UX** | ✅ Complete | Line wrap + Prettier format-on-save, both on by default (toggle in Settings → General, no toolbar buttons), full syntax + editor chrome in Appearance — [20](20-editor-formatting-and-theming.md) |
 | **Search** | ✅ Complete | Workspace text search (ripgrep) — [26](26-search-panel.md) |
 | **Filesystem Watcher** | ✅ Complete | Debounced `fs:changed` → tree + git refresh — [24](24-filesystem-watcher.md) |
 | **Enhancement Program (32–38)** | ✅ Mostly complete | Error recovery, overflow warnings, workspace lock, onboarding, shortcuts, parallel tools — see table below |
@@ -78,7 +78,7 @@ This directory contains the detailed engineering specifications for Spacebar Edi
 | [41-lsp-agent-tools.md](41-lsp-agent-tools.md) | ✅ Complete | LSP agent tools + shell spill + compaction tool retention |
 | [43-v-next-release-fixes.md](43-v-next-release-fixes.md) | ✅ Implemented | Model selector, attachment chips (native OS drop, icons, click-to-open), settings polish, compaction defaults, version bar |
 | [44-editor-actions-browser-tab.md](44-editor-actions-browser-tab.md) | 🔶 Partial | Editor `···` menu, browser tab + inspector; **pending:** untitled-file Save As (`pick_save_path`) |
-| [45-security-hardening-and-capability-expansion.md](45-security-hardening-and-capability-expansion.md) | 📋 Draft (§4.1 `str_replace` ✅ shipped) | Trust gate, narrow-only tool policy, web access globe toggle, enforcement audits, capability roadmap |
+| [45-security-hardening-and-capability-expansion.md](45-security-hardening-and-capability-expansion.md) | 🔶 Partially shipped (§2.1 trust gate ✅, §4.1 `str_replace` ✅, §4.7 web access toggle 🔶 UI/schema-level only) | Remaining open: narrow-only tool policy (§2.2), enforcement audits (§3.x), execution-layer web-access block, capability roadmap |
 | [46-system-tray-desktop-assistant.md](46-system-tray-desktop-assistant.md) | 📋 Proposed | Background tray window, global hotkey summon, system-scope tools + trust gating for a desktop assistant |
 | [47-project-hub-notes-boards.md](47-project-hub-notes-boards.md) | 📋 Proposed | Cross-kind project registry (code/KiCad/hardware/notes), global notes vault, per-project kanban boards, Raycast-style command palette — independent of 46's system-write tools |
 

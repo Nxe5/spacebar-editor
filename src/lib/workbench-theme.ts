@@ -38,7 +38,7 @@ export function normalizeWorkbenchTheme(id: unknown): WorkbenchThemeId {
     const alias = LEGACY_THEME_ALIASES[id];
     if (alias) return alias;
   }
-  return "spacebar";
+  return "dark-bubblegum";
 }
 
 /** Apply preset CSS vars and toggle `dark` class for light themes. */

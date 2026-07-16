@@ -50,8 +50,8 @@ Details: [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.
 
 | Feature | Status |
 |---------|--------|
-| Line wrap (`EditorView.lineWrapping`) | ✅ Complete — Settings → Appearance → Editor |
-| Prettier (format document / format on save) | ✅ Complete |
+| Line wrap (`EditorView.lineWrapping`) | ✅ Complete — on by default, toggle in Settings → General (no toolbar button) |
+| Prettier (format document / format on save) | ✅ Complete — on by default, toggle in Settings → General (no toolbar button) |
 | Full syntax + editor chrome in Settings | ✅ Complete |
 
 Details: [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.md).
@@ -80,9 +80,9 @@ Details: [20-editor-formatting-and-theming.md](20-editor-formatting-and-theming.
 | Search | `searchKeymap` | ✅ |
 | History (undo/redo) | `history()` | ✅ |
 | Middle-click scroll | Custom `middleClickScroll()` | ✅ |
-| Scroll past end | `scrollPastEnd()` | ✅ |
-| Line wrap | `EditorView.lineWrapping` compartment | ✅ |
-| Prettier format | Format command + format-on-save | ✅ |
+| Bottom overscroll | Fixed `.cm-content` padding (120px), not CodeMirror's `scrollPastEnd()` | ✅ |
+| Line wrap | `EditorView.lineWrapping` compartment, default on | ✅ |
+| Prettier format | Format command + format-on-save, default on | ✅ |
 | Go to line | `sidebar:goto-line` event | ✅ |
 
 ---

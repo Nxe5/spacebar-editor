@@ -564,4 +564,4 @@ spacebar-editor/
 
 ---
 
-*Last updated: 2026-07-13 · v0.1.6. For implementation status, see [Specifications](../specs/README.md).*
+*Last updated: 2026-07-16 · v0.1.7. For implementation status, see [Specifications](../specs/README.md).*

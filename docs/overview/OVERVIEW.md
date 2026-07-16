@@ -32,7 +32,7 @@
 | Persistence | ✅ Complete | Per-project `.sidebar/state.json` |
 | Planning (`plans/`) | ❌ Not started | Plan mode is read-only + chat-only — [19](specs/19-planning-system.md) |
 | Skills | ✅ Complete (per-project) · 🔶 Bundled partial | CRUD UI + variable interpolation; Settings → Agent Context → Skills — [30](specs/30-agent-context-and-model-settings.md). Code-defined bundled starter pack (`typescript`, `svelte`, `git-conventions`, `testing`) ships; global registry still planned. |
-| Security | 🔶 Partial | App-settings API keys, Rust path enforcement, CSP — trust plan [45](specs/45-security-hardening-and-capability-expansion.md) |
+| Security | 🔶 Partial | App-settings API keys, Rust path enforcement, CSP, workspace trust gate ✅, web access toggle 🔶 (UI/schema-level only) — [45](specs/45-security-hardening-and-capability-expansion.md) |
 | Agent runtime | ✅ Complete | Webview agent loop + Rust IPC — **no Node sidecar** |
 
 ---
@@ -133,7 +133,7 @@ There is **no Node sidecar**. The agent loop runs in the webview; OS integration
 | Feature | Status |
 |---------|--------|
 | MLX provider (Apple Silicon) | ❌ Planned — [42](specs/42-mlx-provider.md) |
-| Workspace trust + web access globe | ❌ Planned — v0.1.6 — [45](specs/45-security-hardening-and-capability-expansion.md) |
+| `web_fetch` execution-layer enforcement (defense in depth) | 🔶 Partial — globe toggle removes `web_fetch` from the native tool schema when off, but `toolRunner.ts` does not independently block execution and text-fallback tool-call mode still lists `web_fetch` as allowed — [45](specs/45-security-hardening-and-capability-expansion.md) §4.7, §6.2 |
 | System-tray desktop assistant | 📋 Proposed — [46](specs/46-system-tray-desktop-assistant.md) |
 | Universal project hub, notes & boards (KiCad/Fusion/hardware/notes registry, kanban) | 📋 Proposed — [47](specs/47-project-hub-notes-boards.md) |
 | Agent activity step grouping | ❌ Planned |
@@ -186,4 +186,4 @@ Dev server default port: **14200**. No Node sidecar build step.
 
 ---
 
-*Last updated: 2026-07-13 · v0.1.6*
+*Last updated: 2026-07-16 · v0.1.7*

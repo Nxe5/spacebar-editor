@@ -42,36 +42,38 @@
   --workbench-tab-active-indicator: #007acc;
 
   --editor-bg: #1e1e1e;
-  --editor-fg: #abb2bf;
+  /* Text/syntax colors below sampled from a reference screenshot. */
+  --editor-fg: #e4e1dd;
   --editor-gutter-fg: #636d83;
-  --editor-line-hl: #2c313c;
+  /* Lighter, low-saturation active-line fill so the new syntax colors stay legible on top of it. */
+  --editor-line-hl: #34344a;
   --editor-selection: #99c1f1;
   --editor-selection-match: #dc8add;
   --editor-cursor: #528bff;
 
-  --syntax-default: #abb2bf;
-  --syntax-keyword: #df78ff;
-  --syntax-function: #61afef;
-  --syntax-variable: #ff6b8b;
-  --syntax-number: #d19a66;
-  --syntax-string: #8ff0a4;
-  --syntax-type: #e5c07b;
-  --syntax-operator: #56b6c2;
-  --syntax-property: #abb2bf;
-  --syntax-comment: #5c6370;
-  --syntax-bool: #d19a66;
-  --syntax-class: #e5c07b;
-  --syntax-parameter: #ff6b8b;
-  --syntax-punctuation: #abb2bf;
-  --syntax-tag: #e06c75;
-  --syntax-attribute: #abb2bf;
-  --syntax-regexp: #56b6c2;
-  --syntax-meta: #5c6370;
-  --syntax-heading: #e5c07b;
-  --syntax-link: #61afef;
-  --syntax-invalid: #f44747;
-  --syntax-strong: #abb2bf;
-  --syntax-emphasis: #c678dd;
+  --syntax-default: #e4e1dd;
+  --syntax-keyword: #c77dc0;
+  --syntax-function: #7ed9cb;
+  --syntax-variable: #e4e1dd;
+  --syntax-number: #e8b183;
+  --syntax-string: #ddb877;
+  --syntax-type: #e8b183;
+  --syntax-operator: #9c9cc0;
+  --syntax-property: #8fb8e8;
+  --syntax-comment: #6e7188;
+  --syntax-bool: #e8b183;
+  --syntax-class: #e8b183;
+  --syntax-parameter: #9dc2f0;
+  --syntax-punctuation: #8b8ba7;
+  --syntax-tag: #7ed9cb;
+  --syntax-attribute: #8fb8e8;
+  --syntax-regexp: #7ed9cb;
+  --syntax-meta: #6e7188;
+  --syntax-heading: #c77dc0;
+  --syntax-link: #7ed9cb;
+  --syntax-invalid: #ff5c7a;
+  --syntax-strong: #e4e1dd;
+  --syntax-emphasis: #9c9cc0;
 
   --context-base-mode-prompt: #99c1f1;
   --context-workspace-context: #98c379;

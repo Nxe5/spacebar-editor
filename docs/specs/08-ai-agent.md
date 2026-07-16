@@ -72,6 +72,8 @@ Defined in `src/lib/chatFooterProfile.ts`:
 | GLM | Yes | Read-only estimate | Yes | ✅ |
 | Kimi | Yes | Read-only estimate | Yes | ✅ |
 
+In `ChatPane.svelte`'s `.context-footer`, the monthly-usage label and stream-metrics label render together in a single left-aligned row (`.context-meta-start`, with a `·` separator when both are present) directly above the segmented context bar; the editable/read-only budget row (`~used / max tok` + compact button) stays below the bar.
+
 ---
 
 ## Tool Approval

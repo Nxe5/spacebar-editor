@@ -38,12 +38,12 @@ Implemented in `src/modules/workbench/WorkbenchShell.svelte`.
 | Editor | `EditorSurface.svelte` | `src/modules/editor/` | ✅ |
 | Terminal | `TerminalPane.svelte` | `src/modules/terminal/` | ✅ |
 | Preview | `PreviewPane.svelte` | `src/modules/preview/` | ✅ |
-| Explorer | `RightSidebar.svelte`, `FileTree.svelte`, `FileTreeRow.svelte` | `src/modules/explorer/` | ✅ |
+| Explorer | `RightSidebar.svelte`, `FileTree.svelte`, `FileTreeRow.svelte` | `src/modules/explorer/` | ✅ Files/Search/Git tab row centered at top of pane (above workspace name); `FileTreeRow` draws per-depth indent guide lines, innermost guide highlighted for the selected item |
 | Search | `SearchPanel.svelte` | `src/modules/explorer/` | ✅ |
 | Git | `GitPanel.svelte`, `SourceControl.svelte` | `src/modules/explorer/` | ✅ |
 | Welcome | `WelcomeScreen.svelte` | `src/modules/workspace/` | ✅ |
 | Settings | `SettingsPane.svelte` | `src/modules/settings/` | ✅ |
-| Status bar | `StatusBar.svelte` | `src/modules/workbench/` | ✅ |
+| Status bar | `StatusBar.svelte` | `src/modules/workbench/` | ✅ Panel toggles, git branch, backend status, web-access toggle, workspace/feedback/settings; word-wrap/Prettier and Explorer/Search/Git tab buttons removed (now Settings → General and top of `RightSidebar`, respectively) |
 | Bottom dock | `BottomDock.svelte` | `src/modules/workbench/` | ✅ |
 
 ---
