@@ -4,9 +4,9 @@ import { normalizeWorkbenchChrome } from "../../src/lib/workbench/workbenchChrom
 describe("normalizeWorkbenchChrome", () => {
   it("defaults panel and control colors", () => {
     const colors = normalizeWorkbenchChrome(undefined);
-    expect(colors.panelBg).toBe("#252526");
-    expect(colors.controlBg).toBe("#2d2d30");
-    expect(colors.controlActiveBg).toBe("#3c3c3c");
+    expect(colors.panelBg).toBe("#141414");
+    expect(colors.controlBg).toBe("#262626");
+    expect(colors.controlActiveBg).toBe("#343434");
   });
 
   it("normalizes short hex", () => {

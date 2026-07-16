@@ -1,9 +1,10 @@
 /** Workbench shell chrome — panel fills and control surfaces (tabs, composer pills). */
 
+/** Matches the "dark-bubblegum" theme's sidebar/secondary/accent — the app default. */
 export const WORKBENCH_CHROME_DEFAULTS = {
-  panelBg: "#252526",
-  controlBg: "#2d2d30",
-  controlActiveBg: "#3c3c3c",
+  panelBg: "#141414",
+  controlBg: "#262626",
+  controlActiveBg: "#343434",
 } as const;
 
 export type WorkbenchChromeKey = keyof typeof WORKBENCH_CHROME_DEFAULTS;

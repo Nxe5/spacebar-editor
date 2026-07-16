@@ -306,6 +306,38 @@ import {
     liveTurn = patch(liveTurn);
   }
 
+  /**
+   * Coalesces rapid onDelta callbacks (one per SSE chunk) down to animation-frame
+   * cadence. Without this, `streamingContent`/`liveTurn.response` reassign on every
+   * token, and downstream markdown re-parses the full accumulated text each time —
+   * for long replies that's O(n) work per token (O(n^2) overall) on the main thread,
+   * which can block all UI input, including the pause button, until it drains.
+   */
+  function createStreamCoalescer(apply: (content: string) => void) {
+    let pending: string | null = null;
+    let scheduled = false;
+    function push(content: string) {
+      pending = content;
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        if (pending == null) return;
+        const c = pending;
+        pending = null;
+        apply(c);
+      });
+    }
+    function flush() {
+      if (pending == null) return;
+      const c = pending;
+      pending = null;
+      scheduled = false;
+      apply(c);
+    }
+    return { push, flush };
+  }
+
   async function openToolFile(path: string) {
     await openWorkspaceFile(path);
   }
@@ -2033,6 +2065,13 @@ import {
           patchLiveTurn((t) => ({ ...t, planText: "" }));
         }
 
+        const streamCoalescer = createStreamCoalescer((content) => {
+          streamingContent = content;
+          if (!agentToolsEnabled) {
+            patchLiveTurn((t) => ({ ...t, response: content }));
+          }
+        });
+
         const creds = resolveStreamCredentials({
           backend: st.chatBackend,
           apiKeys: streamApiKeys,
@@ -2053,16 +2092,14 @@ import {
           signal: abortController.signal,
           inferenceOptions: inferenceOptionsForSettings(st),
           onDelta: (content) => {
-            streamingContent = content;
-            if (!agentToolsEnabled) {
-              patchLiveTurn((t) => ({ ...t, response: content }));
-            }
+            streamCoalescer.push(content);
             markFirstStreamToken();
           },
           onThinking: (thinking) => {
             patchLiveTurn((t) => ({ ...t, thinking }));
           },
           onToolCall: (tc) => {
+            streamCoalescer.flush();
             patchLiveTurn((t) => {
               const next = { ...t, response: "" };
               return upsertLiveTool(next, {
@@ -2074,6 +2111,7 @@ import {
             });
           },
         });
+        streamCoalescer.flush();
 
         if (turn.usage) {
           usageRecordedForStream = true;
@@ -2260,6 +2298,10 @@ import {
         !isAgentContextBudgetExceeded(providerMessages, contextWindow)
       ) {
         streamingContent = "";
+        const synthCoalescer = createStreamCoalescer((content) => {
+          streamingContent = content;
+          patchLiveTurn((t) => ({ ...t, response: content }));
+        });
         const synthCreds = resolveStreamCredentials({
           backend: st.chatBackend,
           apiKeys: streamApiKeys,
@@ -2279,14 +2321,14 @@ import {
           signal: abortController.signal,
           inferenceOptions: inferenceOptionsForSettings(st),
           onDelta: (content) => {
-            streamingContent = content;
-            patchLiveTurn((t) => ({ ...t, response: content }));
+            synthCoalescer.push(content);
             markFirstStreamToken();
           },
           onThinking: (thinking) => {
             patchLiveTurn((t) => ({ ...t, thinking }));
           },
         });
+        synthCoalescer.flush();
 
         if (synthTurn.usage) {
           usageRecordedForStream = true;
