@@ -134,6 +134,27 @@ function applyChanges(changes) {
   }
 }
 
+/** Sync Cargo.lock with the bumped Cargo.toml, or CI's `cargo check --locked`
+ *  fails. Prefers cargo; falls back to editing the lockfile's own package
+ *  entry directly on machines without a Rust toolchain. */
+function syncCargoLock(version) {
+  try {
+    run("cargo update --workspace --offline", { cwd: resolve(ROOT, "src-tauri"), inherit: true });
+    return;
+  } catch {
+    console.warn("release: cargo unavailable — patching Cargo.lock directly");
+  }
+  // The app crate is `sidebar` (src-tauri/Cargo.toml [package].name).
+  const lockPath = resolve(ROOT, "src-tauri/Cargo.lock");
+  const before = readFileSync(lockPath, "utf8");
+  const after = before.replace(
+    /(\[\[package\]\]\nname = "sidebar"\nversion = ")[^"]+(")/,
+    `$1${version}$2`
+  );
+  if (after === before) fail("Could not update the sidebar package entry in src-tauri/Cargo.lock");
+  writeFileSync(lockPath, after, "utf8");
+}
+
 function main() {
   const { version, tag, message, dryRun, noPush } = parseArgs(process.argv.slice(2));
   const current = readCurrentVersion();
@@ -169,9 +190,7 @@ function main() {
   }
 
   applyChanges(changes);
-
-  // Sync Cargo.lock with the bumped Cargo.toml, or CI's `cargo check --locked` fails.
-  runChecked("cargo update --workspace --offline", { cwd: resolve(ROOT, "src-tauri"), inherit: true });
+  syncCargoLock(version);
 
   runChecked(
     "git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock",
