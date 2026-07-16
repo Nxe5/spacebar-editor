@@ -17,11 +17,7 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | Multi-tab chat with session history | Shipped |
 | Agent loop with streaming + tool calling | Shipped |
 | Ollama, llama.cpp, Anthropic, DeepSeek, GLM, Kimi providers | Shipped |
-| 17 built-in agent tools + custom tools | Shipped |
-| `str_replace` patch-style edit tool | Shipped |
-| Before/after edit preview in write-approval prompt | Shipped |
-| CLI launch (`spacebar <file>` micro-editor, `spacebar <dir>` workspace) | Shipped |
-| macOS `.dmg` + Homebrew cask + `spacebar` CLI | Shipped |
+| 16 built-in agent tools + custom tools | Shipped |
 | Tool policy system (allow / ask / deny) | Shipped |
 | Parallel read-only tool execution | Shipped |
 | Git panel (stage, commit, diff, discard) | Shipped |
@@ -48,7 +44,7 @@ The privacy moat is real: run Ollama or llama.cpp locally and the only traffic l
 | LSP (diagnostics, hover; user-installed servers) | Partial |
 | System prompts manager (`.sidebar/prompts/`) | Shipped |
 | Per-project skills (CRUD UI + variable interpolation) | Shipped |
-| Bundled skill starter pack + global/shared skills registry | Partial — bundled TypeScript/Svelte/Git/Testing skills shipped; global registry planned |
+| Bundled skill starter pack + global/shared skills registry | Planned |
 | Rust path sandbox (defense in depth) | Shipped — TS layer + Rust `canonicalize_workspace_path` |
 | Agent turn undo (↩ Undo last turn) | Shipped — git checkpoint restore |
 | Cloud API keys in app settings | Shipped — stored in `sidebar.settings.v4` (avoids OS keychain permission prompts) |
@@ -104,11 +100,11 @@ All providers stream tokens into the chat pane in real time. Local providers (Ol
 
 ## Agent tools
 
-17 built-in tools grouped by category:
+16 built-in tools grouped by category:
 
 | Category | Tools |
 |----------|-------|
-| **Files** | `read_file`, `str_replace`, `write_file`, `create_file`, `delete_file`, `move_file`, `list_dir`, `find_file`, `get_file_tree`, `grep` |
+| **Files** | `read_file`, `write_file`, `create_file`, `delete_file`, `move_file`, `list_dir`, `find_file`, `get_file_tree`, `grep` |
 | **Git** | `get_git_status`, `get_git_log`, `get_git_diff` |
 | **Shell** | `run_shell`, `run_tests`, `run_script` |
 | **Network** | `web_fetch` (hostname allowlist enforced) |
@@ -127,9 +123,7 @@ Three policies apply per tool, configurable globally in Settings and per-project
 | **ask** | Shows an approval prompt above the composer |
 | **deny** | Skipped; error returned to the model |
 
-Defaults lean toward **allow** for reads and **ask** for writes and shell (`str_replace`, `move_file`, `delete_file`, `run_shell`, `run_tests`, `run_script`, `web_fetch`). The effective tool list sent to the model is `mode tools ∩ allowed tools` — denied tools are removed from the schema entirely.
-
-When a file-mutating tool (`str_replace`, `write_file`, `create_file`) hits the **ask** gate, the approval prompt shows a compact **before/after edit preview** so you can see exactly what will change before allowing it. `str_replace` makes exact-match edits (the old text must match once unless `replace_all` is set) and is preferred over `write_file` for small changes to large files.
+Defaults lean toward **allow** for reads and **ask** for writes and shell. The effective tool list sent to the model is `mode tools ∩ allowed tools` — denied tools are removed from the schema entirely.
 
 ### Agent limits
 
@@ -257,31 +251,6 @@ Optional environment variable fallbacks: see `.env.example`.
 | `.sidebar/prompt.md` | Legacy single prompt — auto-migrated to `prompts/agent.md` |
 
 API keys are global app settings — never written to project files under `.sidebar/`. Optional dev-only key injection via `.env` is documented in `.env.example`. See [Security spec](docs/specs/14-security.md).
-
----
-
-## Installing on macOS
-
-**Homebrew (recommended after tap is published):**
-
-```bash
-brew tap Jiguey/spacebar
-brew install --cask spacebar-editor
-```
-
-This installs `Spacebar Editor.app` and the `spacebar` CLI (`spacebar <file-or-dir>` opens the app).
-
-**Direct download:** grab the universal `.dmg` from [GitHub Releases](https://github.com/Jiguey/spacebar-editor/releases), drag the app to Applications, then optionally install the CLI from a checkout:
-
-```bash
-pnpm install-cli
-```
-
-Maintainers: see [packaging/homebrew/README.md](packaging/homebrew/README.md) and [homebrew-spacebar/README.md](homebrew-spacebar/README.md). Publish the tap with:
-
-```bash
-pnpm publish-homebrew-tap
-```
 
 ---
 

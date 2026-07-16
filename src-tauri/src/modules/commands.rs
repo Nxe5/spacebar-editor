@@ -383,13 +383,7 @@ pub fn grep_workspace(
 
     cmd.arg(&pattern).arg(&workspace_path);
 
-    let output = cmd.output().map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound {
-            "ripgrep (rg) not found. Install it (e.g. `brew install ripgrep`) and make sure it's on your PATH.".to_string()
-        } else {
-            format!("Failed to run ripgrep: {e}")
-        }
-    })?;
+    let output = cmd.output().map_err(|e| format!("Failed to run ripgrep: {e}"))?;
 
     if !output.status.success() && output.stdout.is_empty() {
         let stderr = String::from_utf8_lossy(&output.stderr);

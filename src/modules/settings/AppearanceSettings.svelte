@@ -585,7 +585,7 @@
     flex-direction: column;
     gap: 8px;
     padding-top: 8px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid #333;
     scroll-margin-top: 8px;
   }
 
@@ -594,7 +594,7 @@
     flex-direction: column;
     gap: 10px;
     padding: 10px 0 4px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #333;
   }
 
   .theme-preview-shell__label {
@@ -607,8 +607,8 @@
     gap: 6px;
     padding: 10px 12px;
     border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--background);
+    border: 1px solid #383838;
+    background: #1a1a1a;
   }
 
   .region-editor__head {
@@ -623,7 +623,7 @@
     margin: 0;
     font-size: 12px;
     font-weight: 600;
-    color: var(--foreground);
+    color: #d4d4d4;
   }
 
   .theme-section__head {
@@ -644,7 +644,7 @@
     margin: 0;
     font-size: 15px;
     font-weight: 600;
-    color: var(--foreground);
+    color: #e8e8e8;
   }
 
   .group-label {
@@ -652,7 +652,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--muted-foreground);
+    color: #737373;
     margin: 4px 0 -4px;
   }
 
@@ -664,33 +664,33 @@
 
   .name {
     font-size: 12px;
-    color: var(--muted-foreground);
+    color: #a3a3a3;
   }
 
   .field-hint {
     font-size: 11px;
-    color: var(--muted-foreground);
+    color: #666;
   }
 
   .input {
     width: 100%;
     padding: 8px 10px;
     font-size: 13px;
-    color: var(--foreground);
-    background: var(--background);
-    border: 1px solid var(--border);
+    color: #e5e5e5;
+    background: #1c1c1c;
+    border: 1px solid #404040;
     border-radius: 6px;
   }
 
   .input:focus {
     outline: none;
-    border-color: var(--ring);
+    border-color: #525252;
   }
 
   .note {
     font-size: 11px;
     line-height: 1.4;
-    color: var(--muted-foreground);
+    color: #5c5c5c;
     margin: 0;
   }
 
@@ -698,7 +698,7 @@
     margin: 0;
     font-size: 13px;
     font-weight: 600;
-    color: var(--foreground);
+    color: #d4d4d4;
   }
 
   .token-group-label {
@@ -707,7 +707,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--muted-foreground);
+    color: #525252;
   }
 
   .linkish {
@@ -730,13 +730,13 @@
 
   .btn.ghost {
     background: transparent;
-    color: var(--muted-foreground);
-    border-color: var(--border);
+    color: #737373;
+    border-color: #383838;
   }
 
   .btn.ghost:hover {
-    background: var(--accent);
-    color: var(--foreground);
+    background: #2a2a2a;
+    color: #d4d4d4;
   }
 
   .theme-preview {
@@ -746,7 +746,7 @@
     gap: 4px;
     padding: 22px 12px 12px;
     border-radius: 8px;
-    border: 1px solid var(--border);
+    border: 1px solid #383838;
     font-size: 12px;
     line-height: 1.5;
   }
@@ -759,7 +759,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--muted-foreground);
+    color: #737373;
   }
 
   .theme-preview--syntax {

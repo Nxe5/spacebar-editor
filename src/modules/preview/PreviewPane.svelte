@@ -1,11 +1,12 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import { isLocalPreviewUrl } from "$lib/previewUrl";
   import { untrack } from "svelte";
   import { settings } from "$lib/stores/settings";
-  import GlobeIcon from "phosphor-svelte/lib/GlobeIcon";
+  import ArrowLeftIcon from "phosphor-svelte/lib/ArrowLeftIcon";
+  import ArrowRightIcon from "phosphor-svelte/lib/ArrowRightIcon";
+  import ArrowClockwiseIcon from "phosphor-svelte/lib/ArrowClockwiseIcon";
   import CursorIcon from "phosphor-svelte/lib/CursorIcon";
   import { toast } from "svelte-sonner";
 
@@ -35,19 +36,17 @@
     if (untrack(() => inspecting)) stopInspecting();
   });
 
-  /** Common local dev server ports, shown in the Ports dropdown. */
-  const PORT_PRESETS: { label: string; port: number }[] = [
-    { label: "Vite", port: 5173 },
-    { label: "Next.js", port: 3000 },
-    { label: "Angular", port: 4200 },
-    { label: "Astro", port: 4321 },
-    { label: "Storybook", port: 6006 },
-    { label: "Spacebar dev", port: 14200 },
-  ];
+  function reloadFrame() {
+    if (!frameEl || !loadedUrl) return;
+    frameEl.src = loadedUrl;
+  }
 
-  function openPort(port: number) {
-    urlInput = `http://127.0.0.1:${port}`;
-    navigate();
+  function goBack() {
+    try { frameEl?.contentWindow?.history.back(); } catch { /* cross-origin */ }
+  }
+
+  function goForward() {
+    try { frameEl?.contentWindow?.history.forward(); } catch { /* cross-origin */ }
   }
 
   function navigate() {
@@ -173,45 +172,42 @@
 
 <div class="preview-pane flex h-full min-h-0 flex-1 flex-col gap-2 bg-background p-2">
   <div class="preview-pane__toolbar flex flex-wrap items-center gap-1 border-b border-transparent pb-2">
-    <!-- Ports dropdown -->
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        {#snippet child({ props })}
-          <Button {...props} variant="outline" size="sm" class="preview-toolbar-btn gap-1.5" title="Open a common dev server port">
-            <GlobeIcon size={14} />
-            Ports
-          </Button>
-        {/snippet}
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content align="start">
-        {#each PORT_PRESETS as preset (preset.port + preset.label)}
-          <DropdownMenu.Item onclick={() => openPort(preset.port)}>
-            <span class="flex-1">{preset.label}</span>
-            <span class="font-mono text-xs text-muted-foreground">:{preset.port}</span>
-          </DropdownMenu.Item>
-        {/each}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+    <!-- Back / Forward / Reload -->
+    <Button variant="ghost" size="icon-sm" onclick={goBack} title="Go back" disabled={!loadedUrl} class="nav-btn preview-toolbar-btn">
+      <ArrowLeftIcon size={14} />
+    </Button>
+    <Button variant="ghost" size="icon-sm" onclick={goForward} title="Go forward" disabled={!loadedUrl} class="nav-btn preview-toolbar-btn">
+      <ArrowRightIcon size={14} />
+    </Button>
+    <Button variant="ghost" size="icon-sm" onclick={reloadFrame} title="Reload" disabled={!loadedUrl} class="nav-btn preview-toolbar-btn">
+      <ArrowClockwiseIcon size={14} />
+    </Button>
 
-    <!-- URL / search bar -->
+    <!-- URL bar -->
     <Input
       class="max-w-xl flex-1 font-mono text-xs"
       bind:value={urlInput}
       placeholder="http://127.0.0.1:3000"
       onkeydown={(e) => e.key === "Enter" && navigate()}
     />
+    <Button variant="secondary" size="sm" onclick={navigate} class="preview-toolbar-btn">Go</Button>
+    <Button variant="outline" size="sm" onclick={() => { urlInput = "http://127.0.0.1:3000"; navigate(); }} class="preview-toolbar-btn">:3000</Button>
+    <Button variant="outline" size="sm" onclick={() => { urlInput = "http://127.0.0.1:14200"; navigate(); }} class="preview-toolbar-btn">:14200</Button>
 
-    <!-- Select element (icon only) -->
+    <!-- Spacer -->
+    <span class="flex-1"></span>
+
+    <!-- Select element -->
     <Button
       variant={inspecting ? "default" : "outline"}
-      size="icon-sm"
+      size="sm"
       onclick={toggleInspect}
       title={inspecting ? "Stop selecting (Esc)" : "Select an element to add to chat"}
-      aria-label={inspecting ? "Stop selecting element" : "Select an element to add to chat"}
       aria-pressed={inspecting}
-      class="nav-btn preview-toolbar-btn"
+      class="preview-toolbar-btn gap-1.5"
     >
       <CursorIcon size={14} />
+      {inspecting ? "Stop" : "Select element"}
     </Button>
   </div>
 

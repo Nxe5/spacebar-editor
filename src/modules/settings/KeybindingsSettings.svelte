@@ -177,35 +177,35 @@
     margin: 0 0 4px;
     font-size: 16px;
     font-weight: 600;
-    color: var(--foreground);
+    color: #e8e8e8;
   }
 
   .note {
     margin: 0;
     font-size: 12px;
-    color: var(--muted-foreground);
+    color: #737373;
   }
 
   .hint {
     margin: 0;
     font-size: 11px;
-    color: var(--muted-foreground);
+    color: #5c5c5c;
   }
 
   .filter-input {
     width: 100%;
     padding: 7px 10px;
     font-size: 13px;
-    color: var(--foreground);
-    background: var(--background);
-    border: 1px solid var(--border);
+    color: #e5e5e5;
+    background: #1c1c1c;
+    border: 1px solid #404040;
     border-radius: 6px;
     box-sizing: border-box;
   }
 
   .filter-input:focus {
     outline: none;
-    border-color: var(--ring);
+    border-color: #525252;
   }
 
   .kbd-table {
@@ -216,13 +216,13 @@
 
   .kbd-table th {
     padding: 6px 8px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid #333;
     text-align: left;
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--muted-foreground);
+    color: #666;
   }
 
   .kbd-table td {
@@ -283,7 +283,7 @@
   }
 
   .category-cell {
-    color: var(--muted-foreground);
+    color: #666;
     font-size: 11px;
   }
 
@@ -344,7 +344,7 @@
   .empty-note {
     margin: 0;
     font-size: 12px;
-    color: var(--muted-foreground);
+    color: #5c5c5c;
     text-align: center;
     padding: 12px;
   }

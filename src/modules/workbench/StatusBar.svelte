@@ -1,10 +1,17 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { get } from "svelte/store";
   import { settings } from "$lib/stores/settings";
   import { files } from "$lib/stores/files";
+  import { activeEditorFile, activeWorkbenchTab } from "$lib/stores/workbench";
   import { cloudApiKeysForStream } from "$lib/apiSecrets";
   import { backendStatus, pollBackendHealth } from "$lib/stores/backendStatus";
   import { gitCurrentBranch, gitStatus, isTauriAvailable } from "$lib/ipc";
+  import {
+    isPrettierSupportedPath,
+    isContentPrettierFormatted,
+  } from "$lib/editor/formatDocument";
+  import PrettierIcon from "$lib/components/PrettierIcon.svelte";
   import AppIcon from "$lib/components/AppIcon.svelte";
   import SidebarIcon from "phosphor-svelte/lib/SidebarIcon";
   import RowsIcon from "phosphor-svelte/lib/RowsIcon";
@@ -12,8 +19,17 @@
   import { chat, activeSession } from "$lib/stores/chat";
   import Globe from "phosphor-svelte/lib/Globe";
   import { workspaceRestricted } from "$lib/workspaceTrust";
+  import { EXPLORER_PANEL_TABS, type ExplorerPanelTab } from "$lib/explorerPanel";
+  import type { AppIconName } from "$lib/icons/appIcons";
+
+  const EXPLORER_TAB_ICONS: Record<ExplorerPanelTab, AppIconName> = {
+    files: "page-search",
+    search: "search",
+    git: "git",
+  };
 
   const POLL_MS = 10_000;
+  const PRETTIER_CHECK_MS = 500;
 
   let {
     showLeftPanel = true,
@@ -25,6 +41,8 @@
     onToggleRight,
     onToggleBottom,
     rightExplorerOpen = false,
+    explorerActiveTab = "files",
+    onExplorerTab,
     onOpenWorkspace,
     onOpenSettings,
     onOpenFeedback,
@@ -35,20 +53,36 @@
     showBottomPanel?: boolean;
     showTabStrip?: boolean;
     rightExplorerOpen?: boolean;
+    explorerActiveTab?: ExplorerPanelTab;
     onToggleLeft?: () => void;
     onToggleTabStrip?: () => void;
     onToggleRight?: () => void;
     onToggleBottom?: () => void;
+    onExplorerTab?: (tab: ExplorerPanelTab) => void;
     onOpenWorkspace?: () => void;
     onOpenSettings?: () => void;
     onOpenFeedback?: () => void;
     onToggleWebAccess?: () => void;
   } = $props();
 
+  function explorerTabPressed(tab: ExplorerPanelTab): boolean {
+    return Boolean(showRightPanel && rightExplorerOpen && explorerActiveTab === tab);
+  }
+
   let timer: ReturnType<typeof setInterval> | null = null;
   let gitBranch = $state<string | null>(null);
   let gitCounts = $state<{ dirty: number } | null>(null);
+  let prettierState = $state<"idle" | "checking" | "formatted" | "unformatted">("idle");
+  let prettierTimer: ReturnType<typeof setTimeout> | null = null;
 
+  let editorTabActive = $derived($activeWorkbenchTab?.kind === "editor");
+  let showPrettier = $derived(
+    editorTabActive &&
+      $activeEditorFile != null &&
+      $activeEditorFile.diffBase === undefined &&
+      isPrettierSupportedPath($activeEditorFile.path)
+  );
+  let wordWrapOn = $derived($settings.editor.wordWrap);
   let webAccessOn = $derived($activeSession?.webAccessEnabled === true);
 
   async function refreshGit() {
@@ -91,13 +125,43 @@
     backendStatus.set(line);
   }
 
+  async function refreshPrettierStatus() {
+    const file = $activeEditorFile;
+    if (!showPrettier || !file) {
+      prettierState = "idle";
+      return;
+    }
+    prettierState = "checking";
+    const result = await isContentPrettierFormatted(file.content, file.path);
+    prettierState = result === "formatted" ? "formatted" : "unformatted";
+  }
+
+  function schedulePrettierCheck() {
+    if (prettierTimer) clearTimeout(prettierTimer);
+    prettierTimer = setTimeout(() => void refreshPrettierStatus(), PRETTIER_CHECK_MS);
+  }
+
+  function formatDocument() {
+    window.dispatchEvent(new CustomEvent("sidebar:format-document"));
+  }
+
+  function toggleWordWrap() {
+    const current = get(settings).editor.wordWrap;
+    settings.setEditorSettings({ wordWrap: !current });
+  }
+
   onMount(() => {
     void tick();
     timer = setInterval(() => void tick(), POLL_MS);
+    window.addEventListener("sidebar:editor-saved", schedulePrettierCheck);
+    window.addEventListener("sidebar:format-document-done", schedulePrettierCheck);
   });
 
   onDestroy(() => {
     if (timer) clearInterval(timer);
+    if (prettierTimer) clearTimeout(prettierTimer);
+    window.removeEventListener("sidebar:editor-saved", schedulePrettierCheck);
+    window.removeEventListener("sidebar:format-document-done", schedulePrettierCheck);
   });
 
   $effect(() => {
@@ -116,6 +180,14 @@
     ];
     void tick();
     void refreshGit();
+  });
+
+  $effect(() => {
+    void showPrettier;
+    const file = $activeEditorFile;
+    void file?.path;
+    void file?.content;
+    schedulePrettierCheck();
   });
 </script>
 
@@ -190,7 +262,51 @@
     <span class="status-detail">{$backendStatus.detail}</span>
   </div>
   <div class="status-bar__right">
-    <div class="status-bar__group" role="toolbar" aria-label="Web access">
+    {#if editorTabActive}
+      <div class="status-bar__group" role="toolbar" aria-label="Editor">
+          <button
+            type="button"
+            class="status-editor-btn"
+            aria-pressed={wordWrapOn}
+            title={wordWrapOn ? "Disable line wrap" : "Enable line wrap"}
+            aria-label="Toggle line wrap"
+            onclick={() => toggleWordWrap()}
+          >
+            <AppIcon name="wrap-text" size={15} dimmed={!wordWrapOn} />
+          </button>
+        {#if showPrettier}
+          <button
+            type="button"
+            class="status-editor-btn"
+            title={prettierState === "formatted"
+              ? "Formatted with Prettier (click to re-format)"
+              : prettierState === "checking"
+                ? "Checking Prettier…"
+                : "Not Prettier-formatted (click to format)"}
+            aria-label="Format with Prettier"
+            onclick={formatDocument}
+          >
+            <PrettierIcon size={15} dimmed={prettierState !== "formatted"} />
+          </button>
+        {/if}
+      </div>
+      <span class="status-sep" aria-hidden="true"></span>
+    {/if}
+
+    <div class="status-bar__group" role="toolbar" aria-label="Explorer panels">
+      {#each EXPLORER_PANEL_TABS as tab (tab.id)}
+        <button
+          type="button"
+          class="status-toggle workbench-icon-btn"
+          class:active={explorerTabPressed(tab.id)}
+          aria-pressed={explorerTabPressed(tab.id)}
+          title={tab.title}
+          aria-label={tab.title}
+          onclick={() => onExplorerTab?.(tab.id)}
+        >
+          <AppIcon name={EXPLORER_TAB_ICONS[tab.id]} size={16} />
+        </button>
+      {/each}
       <button
         type="button"
         class="status-toggle workbench-icon-btn web-access-btn"
@@ -374,4 +490,28 @@
     min-width: 0;
   }
 
+  .status-editor-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  .status-editor-btn:hover,
+  .status-editor-btn:focus-visible,
+  .status-editor-btn[aria-pressed="true"] {
+    background: transparent;
+  }
+
+  .status-editor-btn:focus-visible {
+    outline: 1px solid var(--ring);
+    outline-offset: 1px;
+  }
 </style>

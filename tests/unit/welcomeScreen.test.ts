@@ -49,7 +49,6 @@ import {
   applyWorkspaceFolder,
 } from "../../src/lib/workspace";
 import { layoutOverride } from "../../src/lib/stores/layoutOverride";
-import { MICRO_EDITOR_LAYOUT } from "../../src/lib/launch/microEditorLayout";
 
 // ---------------------------------------------------------------------------
 // Recent projects: add on successful open
@@ -117,13 +116,12 @@ describe("layoutOverride store", () => {
     expect(get(layoutOverride)).toBeNull();
   });
 
-  it("CLI file-open sets micro-editor layout (all panels off)", () => {
-    layoutOverride.set(MICRO_EDITOR_LAYOUT);
+  it("CLI file-open sets both panels false", () => {
+    // Simulates what FileTree onMount does after detecting is_file: true
+    layoutOverride.set({ showLeftPanel: false, showRightPanel: false });
     const o = get(layoutOverride);
     expect(o?.showLeftPanel).toBe(false);
     expect(o?.showRightPanel).toBe(false);
-    expect(o?.showBottomPanel).toBe(false);
-    expect(o?.showTabStrip).toBe(false);
   });
 });
 

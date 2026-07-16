@@ -27,8 +27,8 @@ Improve the **main IDE text editor** (CodeMirror in `EditorSurface.svelte`) with
 | Syntax highlight | `src/lib/stores/syntaxTheme.ts` + `styles/editor-syntax.css` | ✅ |
 | Syntax settings | Settings → **Appearance → Syntax** | ✅ (code + markdown fields) |
 | Editor chrome colors | Settings → **Appearance → Editor** + workbench presets | ✅ |
-| Line wrap | `settings.editor.wordWrap` — defaults `true`, toggle in Settings → General (no toolbar button) | ✅ |
-| Prettier | Format command + `formatOnSave` — defaults `true`, toggle in Settings → General (no toolbar button) | ✅ |
+| Line wrap | `settings.editor.wordWrap` | ✅ |
+| Prettier | Format command + `formatOnSave` | ✅ |
 | Prettier | — | ❌ Not in project |
 
 ### Settings → Appearance → Syntax (today)

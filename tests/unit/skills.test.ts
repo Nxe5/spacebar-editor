@@ -115,35 +115,31 @@ describe("buildActiveSkillBlocks", () => {
       [skill({ id: "a", title: "A", modes: ["agent"] })],
       { a: "Skill A content" }
     );
-    const blocks = buildActiveSkillBlocks(s, "agent", emptyVariableContext(), {
-      includeBundled: false,
-    });
+    const blocks = buildActiveSkillBlocks(s, "agent", emptyVariableContext());
     expect(blocks).toHaveLength(1);
     expect(blocks[0]).toEqual({ id: "a", label: "A", text: "Skill A content" });
   });
 
   it("excludes skills whose modes do not include the active mode", () => {
     const s = state([skill({ id: "a", modes: ["plan"] })], { a: "x" });
-    expect(buildActiveSkillBlocks(s, "agent", emptyVariableContext(), { includeBundled: false })).toHaveLength(0);
+    expect(buildActiveSkillBlocks(s, "agent", emptyVariableContext())).toHaveLength(0);
   });
 
   it("excludes disabled skills", () => {
     const s = state([skill({ id: "a", enabled: false, modes: ["agent"] })], { a: "x" });
-    expect(buildActiveSkillBlocks(s, "agent", emptyVariableContext(), { includeBundled: false })).toHaveLength(0);
+    expect(buildActiveSkillBlocks(s, "agent", emptyVariableContext())).toHaveLength(0);
   });
 
   it("drops skills whose interpolated content is empty/whitespace", () => {
     const s = state([skill({ id: "a", modes: ["agent"] })], { a: "   \n  " });
-    expect(buildActiveSkillBlocks(s, "agent", emptyVariableContext(), { includeBundled: false })).toHaveLength(0);
+    expect(buildActiveSkillBlocks(s, "agent", emptyVariableContext())).toHaveLength(0);
   });
 
   it("interpolates variables in skill content", () => {
     const s = state([skill({ id: "a", title: "A", modes: ["agent"] })], {
       a: "Branch is {{git_branch}}",
     });
-    const blocks = buildActiveSkillBlocks(s, "agent", { ...emptyVariableContext(), gitBranch: "main" }, {
-      includeBundled: false,
-    });
+    const blocks = buildActiveSkillBlocks(s, "agent", { ...emptyVariableContext(), gitBranch: "main" });
     expect(blocks[0].text).toBe("Branch is main");
   });
 
@@ -155,13 +151,11 @@ describe("buildActiveSkillBlocks", () => {
       ],
       { a: "first", b: "second" }
     );
-    const blocks = buildActiveSkillBlocks(s, "agent", emptyVariableContext(), {
-      includeBundled: false,
-    });
+    const blocks = buildActiveSkillBlocks(s, "agent", emptyVariableContext());
     expect(blocks.map((b) => b.id)).toEqual(["a", "b"]);
   });
 
   it("returns empty array for empty state", () => {
-    expect(buildActiveSkillBlocks(state([], {}), "agent", emptyVariableContext(), { includeBundled: false })).toEqual([]);
+    expect(buildActiveSkillBlocks(state([], {}), "agent", emptyVariableContext())).toEqual([]);
   });
 });

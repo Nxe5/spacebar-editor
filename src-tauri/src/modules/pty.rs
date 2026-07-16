@@ -31,42 +31,11 @@ struct PtyExitPayload {
 }
 
 fn shell_command() -> CommandBuilder {
-    let shell = default_shell();
-    let mut cmd = CommandBuilder::new(&shell);
-
-    // Spawn as a login shell on Unix so profile files (.zprofile, .bash_profile)
-    // run and the user gets their real prompt + PATH. GUI apps launched from
-    // Finder/Dock otherwise inherit a minimal environment with no prompt setup.
-    #[cfg(unix)]
-    {
-        let name = std::path::Path::new(&shell)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
-        if matches!(name, "zsh" | "bash" | "fish") {
-            cmd.arg("-l");
-        }
-    }
-
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    let mut cmd = CommandBuilder::new(shell);
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd
-}
-
-fn default_shell() -> String {
-    if let Ok(shell) = std::env::var("SHELL") {
-        if !shell.trim().is_empty() {
-            return shell;
-        }
-    }
-    // Packaged GUI apps may lack $SHELL; fall back to the platform default.
-    if cfg!(target_os = "macos") {
-        "/bin/zsh".to_string()
-    } else if cfg!(windows) {
-        std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
-    } else {
-        "/bin/sh".to_string()
-    }
 }
 
 #[tauri::command]

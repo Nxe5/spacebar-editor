@@ -410,19 +410,19 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--muted-foreground);
+    color: #737373;
     margin: 4px 0 -4px;
   }
 
   .note {
     font-size: 12px;
     line-height: 1.45;
-    color: var(--muted-foreground);
+    color: #737373;
     margin: 0;
   }
 
   .note.muted {
-    color: var(--muted-foreground);
+    color: #5c5c5c;
   }
 
   .linkish {
@@ -443,12 +443,12 @@
 
   .name {
     font-size: 12px;
-    color: var(--muted-foreground);
+    color: #a3a3a3;
   }
 
   .hint {
     font-size: 11px;
-    color: var(--muted-foreground);
+    color: #666;
   }
 
   .inline-code {
@@ -456,23 +456,23 @@
     font-size: 11px;
     padding: 1px 5px;
     border-radius: 4px;
-    background: var(--background);
-    color: var(--muted-foreground);
+    background: #1c1c1c;
+    color: #c5c5c5;
   }
 
   .input {
     width: 100%;
     padding: 8px 10px;
     font-size: 13px;
-    color: var(--foreground);
-    background: var(--background);
-    border: 1px solid var(--border);
+    color: #e5e5e5;
+    background: #1c1c1c;
+    border: 1px solid #404040;
     border-radius: 6px;
   }
 
   .input:focus {
     outline: none;
-    border-color: var(--ring);
+    border-color: #525252;
   }
 
   .textarea {
@@ -490,24 +490,24 @@
 
   .btn.ghost {
     background: transparent;
-    color: var(--muted-foreground);
-    border-color: var(--border);
+    color: #a3a3a3;
+    border-color: #404040;
   }
 
   .btn.ghost:hover {
-    background: var(--accent);
-    color: var(--foreground);
+    background: #333;
+    color: #e5e5e5;
   }
 
   .btn.secondary {
-    background: var(--secondary);
-    color: var(--secondary-foreground);
-    border-color: var(--border);
+    background: #333;
+    color: #e5e5e5;
+    border-color: #404040;
     white-space: nowrap;
   }
 
   .btn.secondary:hover:not(:disabled) {
-    background: var(--muted);
+    background: #404040;
   }
 
   .tags {
@@ -521,9 +521,9 @@
     font-family: ui-monospace, monospace;
     padding: 3px 8px;
     border-radius: 4px;
-    background: var(--background);
+    background: #1c1c1c;
     color: #86c9b7;
-    border: 1px solid var(--border);
+    border: 1px solid #333;
   }
 
   .tool-policy-table {
@@ -538,8 +538,8 @@
     gap: 10px;
     align-items: start;
     padding: 10px 12px;
-    background: var(--background);
-    border: 1px solid var(--border);
+    background: #1e1e1e;
+    border: 1px solid #383838;
     border-radius: 8px;
   }
 
@@ -551,7 +551,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--muted-foreground);
+    color: #666;
   }
 
   .tool-policy-actions-head {
@@ -574,13 +574,13 @@
     border: none;
     border-radius: 4px;
     background: transparent;
-    color: var(--muted-foreground);
+    color: #888;
     cursor: pointer;
   }
 
   .tool-policy-icon-btn:hover {
-    background: var(--accent);
-    color: var(--foreground);
+    background: #2a2a2a;
+    color: #e0e0e0;
   }
 
   .tool-policy-footer {
@@ -605,13 +605,13 @@
     font-size: 9px;
     padding: 1px 5px;
     border-radius: 3px;
-    background: var(--muted);
-    color: var(--muted-foreground);
+    background: #2a2a2a;
+    color: #888;
     text-transform: uppercase;
   }
 
   .tool-policy-badge.custom {
-    color: var(--primary);
+    color: #a8d4ff;
   }
 
   .tool-policy-badge.edited {
@@ -622,12 +622,12 @@
     margin: 4px 0 0;
     font-size: 11px;
     line-height: 1.4;
-    color: var(--muted-foreground);
+    color: #737373;
   }
 
   .tool-rule-toggle {
     display: flex;
-    border: 1px solid var(--border);
+    border: 1px solid #404040;
     border-radius: 6px;
     overflow: hidden;
     flex-shrink: 0;
@@ -638,23 +638,23 @@
     font-size: 10px;
     text-transform: capitalize;
     border: none;
-    background: var(--background);
-    color: var(--muted-foreground);
+    background: #1c1c1c;
+    color: #888;
     cursor: pointer;
   }
 
   .tool-rule-btn + .tool-rule-btn {
-    border-left: 1px solid var(--border);
+    border-left: 1px solid #404040;
   }
 
   .tool-rule-btn:hover {
-    color: var(--foreground);
-    background: var(--accent);
+    color: #e0e0e0;
+    background: #2a2a2a;
   }
 
   .tool-rule-btn.active {
-    background: color-mix(in srgb, var(--primary) 25%, var(--background));
-    color: var(--foreground);
+    background: #1a3a52;
+    color: #e8e8e8;
   }
 
   .tool-policy-remove {
@@ -664,14 +664,14 @@
     border: none;
     border-radius: 4px;
     background: transparent;
-    color: var(--muted-foreground);
+    color: #666;
     font-size: 18px;
     cursor: pointer;
   }
 
   .tool-policy-remove:hover {
-    background: color-mix(in srgb, var(--destructive) 15%, transparent);
-    color: var(--destructive);
+    background: #3a2020;
+    color: #e57373;
   }
 
   .removed-tools {
@@ -682,11 +682,11 @@
 
   .tag-btn {
     cursor: pointer;
-    border: 1px dashed var(--border);
+    border: 1px dashed #444;
   }
 
   .tag-btn:hover {
-    border-color: var(--primary);
-    color: var(--primary);
+    border-color: #007acc;
+    color: #a8d4ff;
   }
 </style>

@@ -5,11 +5,7 @@ import { EMPTY_PARAMETERS_JSON } from "../../src/lib/toolSchema";
 
 describe("projectTools", () => {
   it("mergeProjectToolsLayer narrows project tool rules but ignores widening", () => {
-    const userPolicy = {
-      ...DEFAULT_TOOL_POLICY,
-      toolRules: { ...DEFAULT_TOOL_POLICY.toolRules, run_shell: "ask" as const },
-    };
-    const merged = mergeProjectToolsLayer(userPolicy, {
+    const merged = mergeProjectToolsLayer(DEFAULT_TOOL_POLICY, {
       toolRules: { grep: "deny", run_shell: "allow" },
       customTools: [
         {
@@ -27,11 +23,7 @@ describe("projectTools", () => {
   });
 
   it("mergeProjectToolsLayerDetailed reports ignored policy widening", () => {
-    const userPolicy = {
-      ...DEFAULT_TOOL_POLICY,
-      toolRules: { ...DEFAULT_TOOL_POLICY.toolRules, run_shell: "ask" as const },
-    };
-    const { ignoredPolicyWidening } = mergeProjectToolsLayerDetailed(userPolicy, {
+    const { ignoredPolicyWidening } = mergeProjectToolsLayerDetailed(DEFAULT_TOOL_POLICY, {
       toolRules: { run_shell: "allow" },
     });
     expect(ignoredPolicyWidening).toContain("run_shell");

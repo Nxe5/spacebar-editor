@@ -4,6 +4,7 @@
   import { files, type FileEntry } from "$lib/stores/files";
   import { workbench, activeWorkbenchTab } from "$lib/stores/workbench";
   import {
+    getLaunchArgs,
     listDir,
     readFile,
     getLanguageFromPath,
@@ -16,6 +17,7 @@
     createDir,
   } from "$lib/ipc";
   import { refreshDirectoryInTree } from "$lib/filesystemSync";
+  import { layoutOverride } from "$lib/stores/layoutOverride";
   import {
     anySubfolderExpanded,
     applyWorkspaceFolder,
@@ -191,11 +193,31 @@
     }
 
     try {
-      // Workspace is opened via Welcome screen, CLI (WorkbenchShell), or drag-drop.
-      const ws = $files.workspacePath;
-      if (ws) {
-        await reloadWorkspaceTree();
+      // CLI launch: `sidebar <file>` or `sidebar <dir>` takes priority over
+      // the persisted workspace override.
+      const launch = await getLaunchArgs();
+
+      if (launch.path && launch.is_file) {
+        // File mode: open the file's parent directory as workspace, then open
+        // the file in the editor, and collapse all panels (focus-on-file mode).
+        const filePath = launch.path;
+        const parentDir = filePath.split("/").slice(0, -1).join("/") || "/";
+        await applyWorkspaceFolder(parentDir);
+        const content = await readFile(null, filePath);
+        workbench.openEditorFile({
+          path: filePath,
+          name: filePath.split("/").pop() ?? filePath,
+          content,
+          isDirty: false,
+          language: getLanguageFromPath(filePath),
+        });
+        // Signal WorkbenchShell to collapse all surrounding panes.
+        layoutOverride.set({ showLeftPanel: false, showRightPanel: false, showBottomPanel: false, showTabStrip: false });
+      } else if (launch.path && !launch.is_file) {
+        // Directory mode: open the given folder directly.
+        await applyWorkspaceFolder(launch.path);
       }
+      // No CLI argument → stay at welcome screen; user picks a folder manually.
     } catch (e) {
       error = String(e);
     } finally {

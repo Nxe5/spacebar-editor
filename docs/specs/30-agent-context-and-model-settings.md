@@ -1,6 +1,6 @@
 # Spec 30 — Agent Context & Model Settings
 
-> **Status:** ✅ Core complete (Phase 0 + Skills Phase 1) — settings v4 migration, Agent Context section, per-model + provider defaults, assembly preview, `assembleSystemPrompt`, `toolCallFormat` branching, chat workspace toggle. **Skills are implemented**: the Skills manager (Settings → Agent Context → Skills, Addendum A) provides full CRUD with per-mode scoping over `.sidebar/skills/<id>/` (`skill.json` + `skill.md`); `buildActiveSkillBlocks` filters enabled skills by mode and `interpolateSkill` substitutes `{{variables}}` per §10 (unknown tokens left literal, §10.3); loaded on workspace open via `projectState` and injected by `assemble.ts`. A **code-defined bundled starter pack** now ships (§9 — `src/lib/skills/bundled/index.ts`: `typescript`, `svelte`, `git-conventions`, `testing`), merged into the assembled prompt unless a project skill shares its `id`. Deferred to a later release: auto-detection signals (§5.4), drag-reorder priority, global scope + `.md`-backed/read-only bundled UI (§5.5), `skills-config.json` overrides, `{{file_tree}}`/`{{project_type}}` population.
+> **Status:** ✅ Core complete (Phase 0 + Skills Phase 1) — settings v4 migration, Agent Context section, per-model + provider defaults, assembly preview, `assembleSystemPrompt`, `toolCallFormat` branching, chat workspace toggle. **Skills are implemented**: the Skills manager (Settings → Agent Context → Skills, Addendum A) provides full CRUD with per-mode scoping over `.sidebar/skills/<id>/` (`skill.json` + `skill.md`); `buildActiveSkillBlocks` filters enabled skills by mode and `interpolateSkill` substitutes `{{variables}}` per §10 (unknown tokens left literal, §10.3); loaded on workspace open via `projectState` and injected by `assemble.ts`. Deferred to a later release: auto-detection signals (§5.4), drag-reorder priority, global/bundled scopes (§5.5), `skills-config.json` overrides, `{{file_tree}}`/`{{project_type}}` population.
 > **Version:** 1.0 — May 2026
 > **Area:** Settings · Agent Prompts · Skills · System Prompts · Providers
 > **Phase:** Final — implemented after all other Enhancement Program specs ([17-roadmap.md](17-roadmap.md))
@@ -601,22 +601,9 @@ from the same file as the component.
 
 ## 9. Bundled Skills
 
-> **Status:** 🔶 **Partial — shipped as a code-defined starter pack.** A first set of bundled skills ships in `src/lib/skills/bundled/index.ts` as typed `BUNDLED_SKILLS` constants (not `.md` directories, and without the auto-detection engine or duplicate-to-edit UI originally specced below). `buildActiveSkillBlocks(state, mode, ctx, { includeBundled })` merges them into the assembled system prompt for the active mode **unless** a project skill uses the same `id` (project skills win). Auto-activation signals (§9.1 original table), read-only UI rows, and global scope remain deferred.
+Shipped in `src/lib/skills/bundled/`. Read-only in the UI — users can duplicate to create an editable copy.
 
-### 9.1 Shipped Starter Pack (`src/lib/skills/bundled/index.ts`)
-
-| Skill ID | Title | Modes | Notes |
-|----------|-------|-------|-------|
-| `typescript` | TypeScript | plan, agent | Strict typing, project scripts, Svelte 5 runes |
-| `svelte` | Svelte 5 | plan, agent | `$props`/`$state`/`$derived` patterns |
-| `git-conventions` | Git Conventions | plan, agent | Small reviewable edits; prefer `str_replace`; don't commit unless asked |
-| `testing` | Testing | agent | Vitest under `tests/unit/`; mock Tauri IPC |
-
-Each entry carries `id`, `title`, `description`, `modes`, `version`, and `content`. `bundledSkillIds()` exposes the id set (used by tests and the merge dedupe). Covered by `tests/unit/bundledSkills.test.ts`.
-
-### 9.2 Deferred (original design)
-
-The richer starter pack below (auto-activation signals, `.md`-backed directories, duplicate-to-edit, global scope) is retained as the target design and remains **not started**:
+### 9.1 Starter Pack
 
 | Skill ID | Title | Auto-activates on | Default modes |
 |----------|-------|-------------------|---------------|
@@ -631,7 +618,7 @@ The richer starter pack below (auto-activation signals, `.md`-backed directories
 | `git-conventions` | Git Conventions | always | all modes |
 | `testing` | Testing | `vitest`/`jest`/`pytest` in deps | plan, agent |
 
-### 9.3 Bundled Skill Content Guidelines
+### 9.2 Bundled Skill Content Guidelines
 
 Each bundled skill should contain:
 - What the framework/tool is and its conventions (2–3 sentences max — the model likely knows the framework; this is about *this project's usage*)

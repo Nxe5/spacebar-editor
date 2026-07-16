@@ -23,8 +23,6 @@
     openFilePaths?: string[];
     errorCountByRel?: Map<string, number>;
     onContextMenu?: (entry: FileEntry, clientX: number, clientY: number) => void;
-    /** Directory paths of ancestors, root-first, one per indent level — drives guide lines. */
-    ancestorPaths?: string[];
   }
 
   let {
@@ -38,7 +36,6 @@
     openFilePaths = [],
     errorCountByRel = new Map(),
     onContextMenu,
-    ancestorPaths = [],
   }: Props = $props();
 
   const normPath = $derived(normalizeFilePath(entry.path));
@@ -62,27 +59,9 @@
       ? folderTreeTone(entry.path, gitByRel, workspacePath, openFilePaths, errorCountByRel)
       : { tone: null as FolderTreeTone, errorCount: 0 }
   );
-
-  /** Only the innermost guide — the selected item's direct parent — should highlight. */
-  function isGuideActive(ancestorPath: string): boolean {
-    if (selectedPath == null) return false;
-    const normSel = normalizeFilePath(selectedPath);
-    const lastSlash = normSel.lastIndexOf("/");
-    if (lastSlash <= 0) return false;
-    const selectedParent = normSel.slice(0, lastSlash);
-    return normalizeFilePath(ancestorPath) === selectedParent;
-  }
 </script>
 
 <div class="tree-row">
-  {#each ancestorPaths as ancestorPath, i (ancestorPath)}
-    <span
-      class="indent-guide"
-      class:indent-guide--active={isGuideActive(ancestorPath)}
-      style="left: {i * 16 + 14}px"
-      aria-hidden="true"
-    ></span>
-  {/each}
   <button
     type="button"
     class="tree-button"
@@ -131,7 +110,6 @@
       {openFilePaths}
       {errorCountByRel}
       {onContextMenu}
-      ancestorPaths={[...ancestorPaths, entry.path]}
     />
   {/each}
 {/if}
@@ -140,20 +118,6 @@
   .tree-row {
     display: block;
     width: 100%;
-    position: relative;
-  }
-
-  .indent-guide {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: var(--explorer-indent-guide, color-mix(in srgb, var(--sidebar-foreground) 14%, transparent));
-    pointer-events: none;
-  }
-
-  .indent-guide--active {
-    background: var(--explorer-indent-guide-active, var(--explorer-folder-open, #d4a656));
   }
 
   .tree-button {

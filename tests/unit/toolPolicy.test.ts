@@ -28,7 +28,7 @@ describe("toolPolicy", () => {
       toolRules: { ...DEFAULT_TOOL_POLICY.toolRules, grep: "deny" },
     };
     expect(resolveToolRule(state, "grep")).toBe("deny");
-    expect(resolveToolRule(state, "run_shell")).toBe("allow");
+    expect(resolveToolRule(state, "run_shell")).toBe("ask");
   });
 
   it("custom tool rule takes precedence", () => {
@@ -49,22 +49,18 @@ describe("toolPolicy", () => {
 
   it("toolNeedsUserApproval only for ask", () => {
     expect(toolNeedsUserApproval(DEFAULT_TOOL_POLICY, "read_file")).toBe(false);
-    expect(toolNeedsUserApproval(DEFAULT_TOOL_POLICY, "run_shell")).toBe(false);
-    const askState = {
-      ...DEFAULT_TOOL_POLICY,
-      toolRules: { ...DEFAULT_TOOL_POLICY.toolRules, delete_file: "ask", move_file: "ask" },
-    };
-    expect(toolNeedsUserApproval(askState, "delete_file")).toBe(true);
-    expect(toolNeedsUserApproval(askState, "move_file")).toBe(true);
+    expect(toolNeedsUserApproval(DEFAULT_TOOL_POLICY, "run_shell")).toBe(true);
+    expect(toolNeedsUserApproval(DEFAULT_TOOL_POLICY, "delete_file")).toBe(true);
+    expect(toolNeedsUserApproval(DEFAULT_TOOL_POLICY, "move_file")).toBe(true);
   });
 
-  it("DEFAULT_TOOL_POLICY allows all tools out of the box", () => {
+  it("DEFAULT_TOOL_POLICY allows most tools, asks for destructive", () => {
     expect(DEFAULT_TOOL_POLICY.defaultRule).toBe("allow");
     expect(DEFAULT_TOOL_POLICY.toolRules.read_file).toBe("allow");
     expect(DEFAULT_TOOL_POLICY.toolRules.write_file).toBe("allow");
-    expect(DEFAULT_TOOL_POLICY.toolRules.run_shell).toBe("allow");
-    expect(DEFAULT_TOOL_POLICY.toolRules.delete_file).toBe("allow");
-    expect(DEFAULT_TOOL_POLICY.toolRules.move_file).toBe("allow");
+    expect(DEFAULT_TOOL_POLICY.toolRules.run_shell).toBe("ask");
+    expect(DEFAULT_TOOL_POLICY.toolRules.delete_file).toBe("ask");
+    expect(DEFAULT_TOOL_POLICY.toolRules.move_file).toBe("ask");
   });
 
   it("getToolsForPolicy excludes denied and removed", () => {
@@ -77,7 +73,7 @@ describe("toolPolicy", () => {
   it("migrateLegacyToolPolicy maps allow_all and ask_each", () => {
     const allowAll = migrateLegacyToolPolicy({ mode: "allow_all" });
     expect(allowAll.defaultRule).toBe("allow");
-    expect(allowAll.toolRules.run_shell).toBe("allow");
+    expect(allowAll.toolRules.run_shell).toBe("ask");
     expect(migrateLegacyToolPolicy({ mode: "ask_each" }).defaultRule).toBe("ask");
   });
 

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const mockReadFileRanged = vi.fn();
-const mockReadFile = vi.fn();
 const mockWriteFile = vi.fn();
 const mockListDir = vi.fn();
 const mockGrepWorkspace = vi.fn();
@@ -15,7 +14,7 @@ const mockGitDiff = vi.fn();
 const mockIsTauriAvailable = vi.fn();
 
 vi.mock("../../src/lib/ipc", () => ({
-  readFile: (...args: unknown[]) => mockReadFile(...args),
+  readFile: vi.fn(),
   readFileRanged: (...args: unknown[]) => mockReadFileRanged(...args),
   writeFile: (...args: unknown[]) => mockWriteFile(...args),
   listDir: (...args: unknown[]) => mockListDir(...args),
@@ -109,38 +108,6 @@ describe("toolRunner", () => {
         const result = await executeTool("read_file", { path: "/etc/passwd" }, workspacePath);
         expect(result.success).toBe(false);
         expect(result.output).toContain("outside the workspace");
-      });
-    });
-
-    describe("str_replace", () => {
-      it("replaces unique text in an existing file", async () => {
-        mockPathExists.mockResolvedValue(true);
-        mockReadFile.mockResolvedValue("const x = 1;");
-        mockWriteFile.mockResolvedValue("");
-        const result = await executeTool(
-          "str_replace",
-          { path: "src/a.ts", old_str: "const x = 1;", new_str: "const x = 2;" },
-          workspacePath
-        );
-        expect(result.success).toBe(true);
-        expect(mockWriteFile).toHaveBeenCalledWith(
-          workspacePath,
-          "/test/workspace/src/a.ts",
-          "const x = 2;"
-        );
-      });
-
-      it("fails when old_str is ambiguous", async () => {
-        mockPathExists.mockResolvedValue(true);
-        mockReadFile.mockResolvedValue("foo foo");
-        const result = await executeTool(
-          "str_replace",
-          { path: "src/a.ts", old_str: "foo", new_str: "bar" },
-          workspacePath
-        );
-        expect(result.success).toBe(false);
-        expect(result.output).toContain("2 times");
-        expect(mockWriteFile).not.toHaveBeenCalled();
       });
     });
 

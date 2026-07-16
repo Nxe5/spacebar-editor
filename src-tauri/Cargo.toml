@@ -1,6 +1,6 @@
 [package]
 name = "sidebar"
-version = "0.1.10"
+version = "0.1.6"
 edition = "2021"
 
 [build-dependencies]
@@ -22,8 +22,6 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 flate2 = "1"
 zip = "2"
 dunce = "1"
-tauri-plugin-updater = "2.10.1"
-tauri-plugin-process = "2.3.1"
 
 [profile.release]
 panic = "abort"
