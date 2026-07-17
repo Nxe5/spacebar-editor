@@ -387,7 +387,7 @@ function effectiveToolsForSession(policy, modeTools, webAccessEnabled) {
 **Suggested sequencing:**
 
 1. **v0.1.6 — Trust boundary:** All P0 items + §4.7 globe toggle + §2.2 fix (confirmed bug) + §2.3 IPC cleanup. **Landed so far:** §2.1 Workspace Trust gate (✅ shipped) and §4.7 web access toggle (🔶 shipped, UI/schema-level only — see §4.7 for the remaining execution-layer gap). Still open: §2.2, §2.3, §2.4, §3.1, §3.3.
-2. **v0.1.7 — Hardening + leverage:** P1 enforcement audits, `str_replace`, adversarial eval fixtures.
+2. **v0.1.7 — Hardening + leverage:** P1 enforcement audits, adversarial eval fixtures. (`str_replace` shipped in v0.1.7 as scheduled — see §4.1 row above.)
 3. **Backlog:** P2 capability and disclosure items.
 
 ---

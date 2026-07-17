@@ -1,6 +1,6 @@
 # Spacebar Editor — Specifications
 
-> **Last aligned with codebase:** 2026-07-16 · **v0.1.7 (restored)** — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
+> **Last aligned with codebase:** 2026-07-16 · **v0.1.14** — Tauri 2, **two-tier runtime** (Svelte agent + Rust IPC). **No Node sidecar** — LLM HTTP via webview `fetch`. See [03-architecture.md](03-architecture.md#agent-runtime-model-current).
 >
 > **v0.1.7 feature set:** `str_replace` patch-style edit tool + write-approval edit preview ([09](09-tool-system.md), [45](45-security-hardening-and-capability-expansion.md) §4.1) · code-defined bundled skills starter pack ([30](30-agent-context-and-model-settings.md) §9) · CLI launch refactor + micro-editor layout ([36](36-first-run-onboarding.md)) · macOS/Homebrew packaging · word-wrap/Prettier default-on (toolbar buttons removed) · Explorer/Search/Git switcher moved to top of `RightSidebar` · file-tree indent guide lines. **A v0.1.6 working-tree revert briefly removed this feature set; it was restored (see [17-roadmap.md](17-roadmap.md#recent-completions-2026)).**
 >

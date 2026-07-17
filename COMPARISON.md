@@ -1,6 +1,6 @@
 # Spacebar Editor vs. Open-Source AI Coding Tools for Local Models
 
-> Snapshot: 2026-07-16 (v0.1.6 working tree). A candid comparison against the widely used open-source options for running coding assistants on **local models** (Ollama, llama.cpp, etc.). See [docs/specs/](docs/specs/) for what each claim maps to.
+> Snapshot: 2026-07-16 (v0.1.14). A candid comparison against the widely used open-source options for running coding assistants on **local models** (Ollama, llama.cpp, etc.). See [docs/specs/](docs/specs/) for what each claim maps to.
 
 ---
 
@@ -11,7 +11,7 @@
 | **What it is** | Standalone local-first AI IDE | Standalone high-perf editor with agent panel | Extension: chat/edit/autocomplete | Extension: autonomous agent | OSS Cursor-style VS Code fork | Terminal pair-programmer |
 | **Runtime** | Tauri 2 (system webview + Rust) | Native (Rust/GPUI) | Electron host | Electron host | Electron | Python CLI |
 | **Local models (Ollama/llama.cpp)** | First-class: health checks, pull UI, per-model settings, eval harness | Supported | First-class | Supported (works best on big models) | Supported | Supported |
-| **Agentic tool loop** | Yes — 16 tools, policy gates, parallel read-only, caps + continue | Yes (agent panel) | Partial (agent mode newer) | Yes — its core strength | Yes | Yes (git-centric) |
+| **Agentic tool loop** | Yes — 17 tools, policy gates, parallel read-only, caps + continue | Yes (agent panel) | Partial (agent mode newer) | Yes — its core strength | Yes | Yes (git-centric) |
 | **Inline completion** | ❌ planned ([28](docs/specs/28-inline-edit-autocomplete.md)) | Yes | Yes | ❌ | Yes | n/a |
 | **LSP / language smarts** | Partial: diagnostics + hover, LSP agent tools | Full (built-in) | Full (VS Code) | Full (VS Code) | Full (VS Code) | Uses repo map, no LSP |
 | **Extension ecosystem** | ❌ none (skills + custom tools only) | Growing | Entire VS Code marketplace | Entire VS Code marketplace | VS Code compatible | n/a |

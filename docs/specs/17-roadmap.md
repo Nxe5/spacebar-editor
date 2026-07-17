@@ -20,8 +20,8 @@
 | **v0.1.11** | Shipped | ✅ **Shipped** | Dracula themes, `workbenchChrome.syncFromActiveTheme()` fix, streaming render throttle, terminal focus fix, CI release-notes generator |
 | **v0.1.12** | Shipped (CI failed) | ⚠️ Superseded by v0.1.13 | Stability program specs 49–52 landed, but the tag's release build failed on all platforms (`pnpm-lock.yaml` missing the new `@xterm/addon-webgl` entry) |
 | **v0.1.13** | Shipped | ✅ **Shipped** | Fixed the v0.1.12 lockfile gap; stability program (specs 49–52) released |
-| **v0.1.14** | Next | 🔶 In progress | Restore the v0.1.7–v0.1.10 feature set after a working-tree revert removed it in error; rename `dracula-experimental` → `dark-dracula` |
-| **v0.1.15** | Planned | 📋 Planned | Trust boundary hardening — [45](45-security-hardening-and-capability-expansion.md) (narrow-only tool policy §2.2, remaining P0 enforcement audits) |
+| **v0.1.14** | Shipped | ✅ **Shipped** | Restored the v0.1.7–v0.1.10 feature set after a working-tree revert removed it in error; renamed `dracula-experimental` → `dark-dracula`; onboarding wizard theme step now offers Dark Dracula / Dark Bubblegum / Spacebar; fixed a duplicate `$effect` in `TerminalPane.svelte` left over from the revert/merge |
+| **v0.1.15** | Next | 📋 Planned | Trust boundary hardening — [45](45-security-hardening-and-capability-expansion.md) (narrow-only tool policy §2.2, remaining P0 enforcement audits) |
 
 ---
 
@@ -189,6 +189,7 @@
 
 | Date | Item |
 |------|------|
+| 2026-07-16 | **v0.1.11 regression audit** — full diff of v0.1.14 against the v0.1.11 tag confirmed zero deleted files/features; found and fixed one merge artifact (duplicate `$effect` in `TerminalPane.svelte`, harmless double re-fit on pane activation) |
 | 2026-07-16 | **Feature restoration** — a v0.1.6 working-tree revert briefly dropped `str_replace`, bundled skills, CLI launch args, Homebrew packaging, and the onboarding wizard; all five restored on top of the stability program (specs 49–52). `dracula-experimental` renamed to `dark-dracula`. |
 | 2026-07-16 | **Stability program (49–52)** — terminal WebGL renderer + font-ready gating + mounted panes, `overflow: clip` scroll containment, sticky chat auto-scroll, streaming render throttle, crash-restore of workspace, agent caps raised to 100 steps / 300 tool calls |
 | 2026-07-13 | **v0.1.7 feature set** — workspace trust gate ([45](45-security-hardening-and-capability-expansion.md) §2.1, `workspaceTrust.ts`), web access globe toggle (§4.7, UI/schema-level only), `str_replace` patch tool + write-approval edit preview, code-defined bundled skills, CLI launch refactor (`initLaunchArgs` + micro-editor layout), macOS/Homebrew packaging, editor focus-on-open fix |

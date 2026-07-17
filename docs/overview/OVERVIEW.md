@@ -187,4 +187,4 @@ Dev server default port: **14200**. No Node sidecar build step.
 
 ---
 
-*Last updated: 2026-07-16 · v0.1.7*
+*Last updated: 2026-07-16 · v0.1.14*
