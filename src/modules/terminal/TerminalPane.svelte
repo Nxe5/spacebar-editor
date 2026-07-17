@@ -176,15 +176,6 @@
     term.refresh(0, term.rows - 1);
   });
 
-  // Re-fit and refocus when switching back to a pane that was hidden — its
-  // container may have been resized (or never sized) while display:none.
-  $effect(() => {
-    if (active && term && fit) {
-      syncPtySize();
-      term.focus();
-    }
-  });
-
   onDestroy(() => {
     teardown();
   });
