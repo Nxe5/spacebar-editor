@@ -1,8 +1,6 @@
 /** Maintainer contact for in-app feedback (mailto). */
 export const FEEDBACK_CONTACT_EMAIL = "higueylabs-s1@protonmail.com";
 
-export const APP_VERSION = "0.1.0";
-
 export type FeedbackKind = "inquiry" | "bug" | "suggestion";
 
 export const FEEDBACK_KIND_OPTIONS: { id: FeedbackKind; label: string }[] = [

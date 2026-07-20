@@ -12,6 +12,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "resources": [
       "../scripts/spacebar-cli.sh"
     ],
@@ -53,7 +54,7 @@
         "style-src": "'self' 'unsafe-inline' tauri: asset:",
         "img-src": "'self' data: tauri: asset: blob: http://localhost:* http://127.0.0.1:*",
         "font-src": "'self' tauri: asset: data:",
-        "connect-src": "'self' tauri: asset: https://api.anthropic.com https://api.deepseek.com https://api.z.ai https://api.moonshot.ai http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
+        "connect-src": "'self' tauri: asset: https://api.anthropic.com https://api.deepseek.com https://api.z.ai https://api.moonshot.ai https://api.github.com https://ping.spacebar.dev http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
         "media-src": "'self' tauri: asset: blob:",
         "worker-src": "'self' blob:",
         "frame-src": "'self' tauri: asset: http://localhost:* http://127.0.0.1:*"
@@ -68,6 +69,13 @@
   "plugins": {
     "shell": {
       "open": true
+    },
+    "updater": {
+      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENDNURFNDE1QjhGMDI1OApSV1JZQW85YlFkN0ZETHEzbjI2NFVIK0NJZEFuVUtUOVFVeUtERU9WZEc0cFl6eWVxMVYyK2ZQRwo=",
+      "endpoints": [
+        "https://github.com/Nxe5/spacebar-editor/releases/latest/download/latest.json"
+      ]
     }
   }
 }

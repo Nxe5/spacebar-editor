@@ -1,14 +1,34 @@
 //! PTY sessions for integrated terminal (spec §6).
 
+use crate::modules::window_state::PtyRegistry;
 use portable_pty::{Child, CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, State, Window};
 
 #[derive(Default)]
 pub struct PtyManager(pub Mutex<HashMap<String, Arc<PtySession>>>);
+
+impl PtyManager {
+    /// Kills every session tracked by this window's manager. Called when the
+    /// owning window closes.
+    pub fn close_all(&self) {
+        let mut map = match self.0.lock() {
+            Ok(m) => m,
+            Err(_) => return,
+        };
+        for (_, session) in map.drain() {
+            if let Ok(mut child_slot) = session.child.lock() {
+                if let Some(mut child) = child_slot.take() {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
+            }
+        }
+    }
+}
 
 pub struct PtySession {
     master: Mutex<Box<dyn MasterPty + Send>>,
@@ -70,7 +90,13 @@ fn default_shell() -> String {
 }
 
 #[tauri::command]
-pub fn pty_create(app: AppHandle, manager: State<'_, PtyManager>, cwd: Option<String>) -> Result<String, String> {
+pub fn pty_create(
+    app: AppHandle,
+    window: Window,
+    registry: State<'_, PtyRegistry>,
+    cwd: Option<String>,
+) -> Result<String, String> {
+    let manager = registry.get_or_init(window.label());
     let id = uuid::Uuid::new_v4().to_string();
     let pty_system = NativePtySystem::default();
     let pair = pty_system
@@ -100,6 +126,7 @@ pub fn pty_create(app: AppHandle, manager: State<'_, PtyManager>, cwd: Option<St
 
     let app2 = app.clone();
     let id2 = id.clone();
+    let label2 = window.label().to_string();
     std::thread::spawn(move || {
         let mut buf = [0u8; 8192];
         loop {
@@ -107,7 +134,8 @@ pub fn pty_create(app: AppHandle, manager: State<'_, PtyManager>, cwd: Option<St
                 Ok(0) => break,
                 Ok(n) => {
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                    let _ = app2.emit(
+                    let _ = app2.emit_to(
+                        &label2,
                         "pty:data",
                         PtyDataPayload {
                             id: id2.clone(),
@@ -118,7 +146,8 @@ pub fn pty_create(app: AppHandle, manager: State<'_, PtyManager>, cwd: Option<St
                 Err(_) => break,
             }
         }
-        let _ = app2.emit(
+        let _ = app2.emit_to(
+            &label2,
             "pty:exit",
             PtyExitPayload {
                 id: id2,
@@ -138,7 +167,8 @@ pub fn pty_create(app: AppHandle, manager: State<'_, PtyManager>, cwd: Option<St
 }
 
 #[tauri::command]
-pub fn pty_write(manager: State<'_, PtyManager>, id: String, data: String) -> Result<(), String> {
+pub fn pty_write(window: Window, registry: State<'_, PtyRegistry>, id: String, data: String) -> Result<(), String> {
+    let manager = registry.get_or_init(window.label());
     let map = manager.0.lock().map_err(|e| e.to_string())?;
     let session = map.get(&id).ok_or_else(|| "Unknown PTY session".to_string())?;
     let mut w = session.writer.lock().map_err(|e| e.to_string())?;
@@ -148,10 +178,17 @@ pub fn pty_write(manager: State<'_, PtyManager>, id: String, data: String) -> Re
 }
 
 #[tauri::command]
-pub fn pty_resize(manager: State<'_, PtyManager>, id: String, cols: u16, rows: u16) -> Result<(), String> {
+pub fn pty_resize(
+    window: Window,
+    registry: State<'_, PtyRegistry>,
+    id: String,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
     if cols == 0 || rows == 0 {
         return Ok(());
     }
+    let manager = registry.get_or_init(window.label());
     let map = manager.0.lock().map_err(|e| e.to_string())?;
     let session = map.get(&id).ok_or_else(|| "Unknown PTY session".to_string())?;
     let master = session.master.lock().map_err(|e| e.to_string())?;
@@ -166,7 +203,8 @@ pub fn pty_resize(manager: State<'_, PtyManager>, id: String, cols: u16, rows: u
 }
 
 #[tauri::command]
-pub fn pty_close(manager: State<'_, PtyManager>, id: String) -> Result<(), String> {
+pub fn pty_close(window: Window, registry: State<'_, PtyRegistry>, id: String) -> Result<(), String> {
+    let manager = registry.get_or_init(window.label());
     let mut map = manager.0.lock().map_err(|e| e.to_string())?;
     if let Some(session) = map.remove(&id) {
         if let Ok(mut child_slot) = session.child.lock() {

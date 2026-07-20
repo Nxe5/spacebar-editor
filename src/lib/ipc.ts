@@ -98,6 +98,16 @@ export function isTauriAvailable(): boolean {
   return isTauri;
 }
 
+export interface PlatformInfo {
+  os: "macos" | "linux" | "windows" | string;
+  arch: "aarch64" | "x86_64" | string;
+}
+
+export async function getPlatformInfo(): Promise<PlatformInfo> {
+  await ensureTauriApi();
+  return invoke<PlatformInfo>("get_platform_info");
+}
+
 /** Open http(s), mailto, etc. in the system handler (Tauri shell or browser). */
 export async function openExternalUrl(url: string): Promise<void> {
   if (isTauri) {
@@ -154,6 +164,17 @@ export async function listenPtyExit(
 export async function openSettingsWindow(): Promise<void> {
   await ensureTauriApi();
   await invoke<void>("open_settings_window");
+}
+
+/**
+ * Opens a new, fully independent editor window — its own workspace, PTY
+ * sessions, LSP servers, file watcher, and workspace lock. Wired to the
+ * macOS Dock's right-click "New Window" item; safe to call from other
+ * entry points (File menu, keyboard shortcut) too.
+ */
+export async function openNewEditorWindow(): Promise<void> {
+  await ensureTauriApi();
+  await invoke<void>("open_editor_window");
 }
 
 /** Start (or replace) the recursive FS watcher for the given workspace. */
@@ -274,13 +295,19 @@ export async function deleteEntry(workspaceRoot: string | null, path: string): P
   return invoke<void>("delete_entry", { workspaceRoot: workspaceRoot ?? null, path });
 }
 
+// Popout window labels that "close all windows and tabs" should sweep up.
+// Deliberately an allowlist, not a "not main" blocklist — independent editor
+// windows opened via Dock "New Window" are labeled "main-<uuid>" and must
+// NOT be closed by this action when triggered from a sibling window.
+const AUXILIARY_WINDOW_LABELS = new Set(["settings"]);
+
 export async function closeAuxiliaryWebviewWindows(): Promise<void> {
   if (!isTauri) return;
   await ensureTauriApi();
   const { getAllWebviewWindows } = await import("@tauri-apps/api/webviewWindow");
   const wins = await getAllWebviewWindows();
   for (const w of wins) {
-    if (w.label !== "main") {
+    if (AUXILIARY_WINDOW_LABELS.has(w.label)) {
       await w.close().catch(() => {});
     }
   }

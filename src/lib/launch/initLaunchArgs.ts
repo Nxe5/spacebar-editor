@@ -60,6 +60,17 @@ export async function initLaunchArgs(): Promise<boolean> {
   if (!isTauriAvailable() || launchInitStarted) return false;
   launchInitStarted = true;
 
+  // `getLaunchArgs()` reflects the process argv, which is the same for every
+  // window (they're all one process). Only the original "main" window
+  // should act on it — independent windows opened later (Dock "New Window")
+  // land on the normal welcome screen instead of re-opening the CLI target.
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    if (getCurrentWindow().label !== "main") return false;
+  } catch {
+    return false;
+  }
+
   try {
     const launch = await getLaunchArgs();
     return await handleLaunchArgs(launch);

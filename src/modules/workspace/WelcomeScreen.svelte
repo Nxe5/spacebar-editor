@@ -10,56 +10,17 @@
   import { applyWorkspaceFolder } from "$lib/workspace";
   import { files } from "$lib/stores/files";
   import { normalizeFilePath } from "$lib/fsPath";
+  import { updateStatus } from "$lib/stores/updateStatus";
 
   let recentProjects = $state<string[]>([]);
   let opening = $state(false);
   const desktop = isTauriAvailable();
 
-  type UpdateState = "checking" | "up-to-date" | "update-available" | "unknown";
-  let appVersion = $state("");
-  let updateState = $state<UpdateState>(desktop ? "checking" : "unknown");
-  let latestVersion = $state("");
-
   onMount(async () => {
     if (desktop) {
       recentProjects = await getRecentProjects().catch(() => []);
-      void checkForUpdates();
     }
   });
-
-  async function checkForUpdates() {
-    try {
-      const { getVersion } = await import("@tauri-apps/api/app");
-      appVersion = await getVersion();
-    } catch {
-      updateState = "unknown";
-      return;
-    }
-
-    try {
-      const ac = new AbortController();
-      const timer = setTimeout(() => ac.abort(), 5000);
-      const res = await fetch("https://api.github.com/repos/Jiguey/spacebar-editor/releases/latest", {
-        signal: ac.signal,
-        headers: { Accept: "application/vnd.github+json" },
-      });
-      clearTimeout(timer);
-      if (!res.ok) { updateState = "unknown"; return; }
-      const data = await res.json() as { tag_name: string };
-      latestVersion = (data.tag_name ?? "").replace(/^v/, "");
-      const current = appVersion.replace(/^v/, "");
-      updateState = compareSemver(latestVersion, current) > 0 ? "update-available" : "up-to-date";
-    } catch {
-      updateState = "unknown";
-    }
-  }
-
-  function compareSemver(a: string, b: string): number {
-    const parse = (s: string) => s.split(".").map((n) => parseInt(n, 10) || 0);
-    const [a0 = 0, a1 = 0, a2 = 0] = parse(a);
-    const [b0 = 0, b1 = 0, b2 = 0] = parse(b);
-    return a0 !== b0 ? a0 - b0 : a1 !== b1 ? a1 - b1 : a2 - b2;
-  }
 
   function folderName(path: string): string {
     const parts = normalizeFilePath(path).split("/").filter(Boolean);
@@ -151,27 +112,27 @@
     </div>
   </div>
 
-  {#if desktop && appVersion}
+  {#if desktop && $updateStatus.currentVersion}
     <footer class="version-bar">
-      <span class="version-text">v{appVersion}</span>
-      {#if updateState === "update-available"}
+      <span class="version-text">v{$updateStatus.currentVersion}</span>
+      {#if $updateStatus.dot === "yellow"}
         <span class="version-sep" aria-hidden="true"></span>
         <button
           type="button"
           class="update-btn"
           onclick={() => void openExternalUrl("https://spacebareditor.com/downloads")}
         >
-          Update available{latestVersion ? ` — v${latestVersion}` : ""}
+          Update available{$updateStatus.latestVersion ? ` — v${$updateStatus.latestVersion}` : ""}
         </button>
       {/if}
       <span class="version-spacer"></span>
-      {#if updateState !== "unknown"}
+      {#if $updateStatus.dot !== "idle"}
         <span
           class="version-dot"
-          class:version-dot--green={updateState === "up-to-date"}
-          class:version-dot--amber={updateState === "update-available"}
-          class:version-dot--grey={updateState === "checking"}
-          title={updateState === "up-to-date" ? "Up to date" : updateState === "update-available" ? "Update available" : "Checking for updates…"}
+          class:version-dot--green={$updateStatus.dot === "green"}
+          class:version-dot--yellow={$updateStatus.dot === "yellow"}
+          class:version-dot--red={$updateStatus.dot === "red"}
+          title={$updateStatus.detail}
         ></span>
       {/if}
     </footer>
@@ -375,12 +336,12 @@
     background: #3fb950;
   }
 
-  .version-dot--amber {
+  .version-dot--yellow {
     background: #d29922;
   }
 
-  .version-dot--grey {
-    background: #444;
+  .version-dot--red {
+    background: #f85149;
   }
 
   .update-btn {

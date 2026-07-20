@@ -1,13 +1,13 @@
 <script lang="ts">
   import { toast } from "svelte-sonner";
   import {
-    APP_VERSION,
     FEEDBACK_CONTACT_EMAIL,
     FEEDBACK_KIND_OPTIONS,
     buildFeedbackMailto,
     type FeedbackKind,
   } from "$lib/feedback";
   import { openExternalUrl } from "$lib/ipc";
+  import { updateStatus } from "$lib/stores/updateStatus";
 
   interface Props {
     open: boolean;
@@ -43,7 +43,7 @@
     }
     sending = true;
     try {
-      const url = buildFeedbackMailto({ kind, body, appVersion: APP_VERSION });
+      const url = buildFeedbackMailto({ kind, body, appVersion: $updateStatus.currentVersion });
       await openExternalUrl(url);
       toast.success("Opening your email app…");
       resetForm();

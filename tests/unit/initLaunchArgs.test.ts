@@ -23,6 +23,10 @@ vi.mock("../../src/lib/stores/workbench", () => ({
   },
 }));
 
+vi.mock("@tauri-apps/api/window", () => ({
+  getCurrentWindow: () => ({ label: "main" }),
+}));
+
 import { layoutOverride } from "../../src/lib/stores/layoutOverride";
 import {
   handleLaunchArgs,

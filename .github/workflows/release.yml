@@ -154,6 +154,10 @@ jobs:
       # secrets are configured; falls back to Tauri's default ad-hoc signature
       # otherwise. Without this, the .dmg gets Gatekeeper-quarantined on
       # download and macOS reports "app is damaged" (see docs/specs/16-build.md).
+      # TAURI_SIGNING_PRIVATE_KEY(_PASSWORD) sign the updater artifacts
+      # (bundle.createUpdaterArtifacts in tauri.conf.json) so tauri-action
+      # emits latest.json + .sig files alongside the platform installers —
+      # required for tauri-plugin-updater's GitHub-hosted endpoint to work.
       - name: Build & upload artifacts
         uses: tauri-apps/tauri-action@v0
         env:
@@ -164,8 +168,11 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          includeUpdaterJson: true
           args: ${{ matrix.args }}
 
   # ── Stage 3: Publish the draft once all platform builds succeed ─────────

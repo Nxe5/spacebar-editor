@@ -18,6 +18,8 @@
   import { chat } from "$lib/stores/chat";
   import WorkspaceReadOnlyBanner from "../workspace/WorkspaceReadOnlyBanner.svelte";
   import WelcomeScreen from "../workspace/WelcomeScreen.svelte";
+  import UpdateAvailableDialog from "../updates/UpdateAvailableDialog.svelte";
+  import { startUpdateChecks } from "$lib/appUpdate";
   import BottomDock from "./BottomDock.svelte";
   import { bottomPanelOpenRequest } from "$lib/stores/bottomPanel";
   import { bottomTerminals } from "$lib/stores/bottomTerminals";
@@ -242,6 +244,7 @@
   onMount(() => {
     void initLaunchArgs();
     void iconTheme.init();
+    startUpdateChecks();
     const clampPanesToWindow = () => {
       leftPaneWidth = clamp(leftPaneWidth, LEFT_MIN, LEFT_MAX);
       rightPaneWidth = clamp(rightPaneWidth, RIGHT_MIN, rightPaneMax());
@@ -519,6 +522,7 @@
 <FeedbackDialog open={feedbackOpen} onClose={() => (feedbackOpen = false)} />
 <WorkspaceLockDialog />
 <WorkspaceTrustDialog />
+<UpdateAvailableDialog />
 
 <style>
   .workbench-root {

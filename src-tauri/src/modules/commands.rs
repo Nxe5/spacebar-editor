@@ -4,7 +4,6 @@ use crate::modules::filesystem::{
     list_directory, path_exists as path_exists_inner, read_file_ranged,
     rename_path, web_fetch as web_fetch_inner, write_file_contents, FileEntry, ReadFileResult,
 };
-use crate::modules::watcher::WatcherState;
 use crate::modules::git::{
     git_commit as git_commit_inner, git_current_branch as git_current_branch_inner,
     git_create_checkpoint as git_create_checkpoint_inner,
@@ -220,6 +219,23 @@ pub struct LaunchArgs {
     pub is_file: bool,
 }
 
+/// OS/arch identifiers for the anonymous update ping — normalized to the
+/// same enums the ping server validates against ("macos"/"linux"/"windows",
+/// "aarch64"/"x86_64").
+#[derive(Debug, Serialize)]
+pub struct PlatformInfo {
+    pub os: String,
+    pub arch: String,
+}
+
+#[tauri::command]
+pub fn get_platform_info() -> PlatformInfo {
+    PlatformInfo {
+        os: std::env::consts::OS.to_string(),
+        arch: std::env::consts::ARCH.to_string(),
+    }
+}
+
 /// Returns the parsed CLI launch arguments so the frontend can react to
 /// `sidebar <file>` or `sidebar <directory>` invocations.
 #[tauri::command]
@@ -310,10 +326,13 @@ pub async fn pick_workspace_folder(window: WebviewWindow) -> Result<Option<Strin
 #[tauri::command]
 pub fn watch_workspace(
     app: AppHandle,
-    state: tauri::State<'_, WatcherState>,
+    window: tauri::Window,
+    registry: tauri::State<'_, crate::modules::window_state::WatcherRegistry>,
     workspace_path: String,
 ) -> Result<(), String> {
-    state.watch(app, &workspace_path)
+    let state = registry.get_or_init(window.label());
+    let label = window.label().to_string();
+    state.watch(app, label, &workspace_path)
 }
 
 #[tauri::command]
@@ -332,6 +351,41 @@ pub fn open_settings_window(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     Ok::<(), String>(())
+}
+
+/// Opens a new, fully independent editor window — its own workspace, PTY
+/// sessions, LSP servers, file watcher, and workspace lock, none shared with
+/// any other open window. Reachable from the macOS Dock's right-click menu
+/// (see `modules::macos_dock`) and can be extended to other entry points
+/// (File menu, keyboard shortcut) later.
+#[tauri::command]
+pub fn open_editor_window(app: AppHandle) -> Result<(), String> {
+    let id = uuid::Uuid::new_v4();
+    let label = format!("main-{id}");
+
+    let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
+        .title("Spacebar Editor")
+        .inner_size(1200.0, 800.0)
+        .min_inner_size(800.0, 600.0)
+        // Isolated cookie/localStorage data store so independent windows
+        // don't clobber each other's crash-restore / last-workspace keys.
+        .data_store_identifier(*id.as_bytes());
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .decorations(true)
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .hidden_title(true);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.decorations(false);
+    }
+
+    let window = builder.build().map_err(|e| e.to_string())?;
+    crate::install_window_close_handler(&app, &window);
+    Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -700,9 +754,11 @@ pub struct ActiveLockPath(pub std::sync::Mutex<Option<String>>);
 
 #[tauri::command]
 pub fn acquire_workspace_lock(
+    window: tauri::Window,
+    registry: tauri::State<crate::modules::window_state::LockRegistry>,
     workspace_path: String,
-    active_lock: tauri::State<ActiveLockPath>,
 ) -> Result<LockResult, String> {
+    let active_lock = registry.get_or_init(window.label());
     // Ensure the .spacebar directory exists before trying to write the lock.
     if let Err(e) = ensure_sidebar_dir(&workspace_path) {
         // If we can't create the dir, proceed without a lock (degraded).
@@ -736,9 +792,11 @@ pub fn acquire_workspace_lock(
 
 #[tauri::command]
 pub fn release_workspace_lock(
+    window: tauri::Window,
+    registry: tauri::State<crate::modules::window_state::LockRegistry>,
     workspace_path: String,
-    active_lock: tauri::State<ActiveLockPath>,
 ) -> Result<(), String> {
+    let active_lock = registry.get_or_init(window.label());
     let path = match lock_path(&workspace_path) {
         Ok(p) => p,
         Err(_) => return Ok(()),

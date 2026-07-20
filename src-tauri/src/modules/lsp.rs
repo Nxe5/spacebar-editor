@@ -3,13 +3,14 @@
 //! Spawns language server child processes, bridges their stdio to the webview
 //! via Tauri events, and manages server lifetimes.
 
+use crate::modules::window_state::LspRegistry;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, State, Window};
 
 // ---------------------------------------------------------------------------
 // Payloads emitted to the webview
@@ -88,11 +89,13 @@ fn read_message(reader: &mut impl BufRead) -> Option<JsonValue> {
 #[tauri::command]
 pub fn spawn_lsp(
     app: AppHandle,
-    manager: State<'_, LspManager>,
+    window: Window,
+    registry: State<'_, LspRegistry>,
     server_cmd: String,
     args: Vec<String>,
     workspace: String,
 ) -> Result<String, String> {
+    let manager = registry.get_or_init(window.label());
     let mut child = Command::new(&server_cmd)
         .args(&args)
         .stdin(Stdio::piped())
@@ -116,12 +119,14 @@ pub fn spawn_lsp(
     // Background reader thread: parse Content-Length frames, emit lsp:message.
     let id_clone = lsp_id.clone();
     let app_clone = app.clone();
+    let label_clone = window.label().to_string();
     std::thread::spawn(move || {
         let mut reader = BufReader::new(stdout);
         loop {
             match read_message(&mut reader) {
                 Some(msg) => {
-                    let _ = app_clone.emit(
+                    let _ = app_clone.emit_to(
+                        &label_clone,
                         "lsp:message",
                         LspMessagePayload { lsp_id: id_clone.clone(), message: msg },
                     );
@@ -134,7 +139,8 @@ pub fn spawn_lsp(
                         .ok()
                         .and_then(|mut c| c.try_wait().ok().flatten())
                         .and_then(|s| s.code());
-                    let _ = app_clone.emit(
+                    let _ = app_clone.emit_to(
+                        &label_clone,
                         "lsp:exit",
                         LspExitPayload { lsp_id: id_clone.clone(), code },
                     );
@@ -150,10 +156,12 @@ pub fn spawn_lsp(
 /// Send a JSON-RPC message to a running language server.
 #[tauri::command]
 pub fn lsp_send(
-    manager: State<'_, LspManager>,
+    window: Window,
+    registry: State<'_, LspRegistry>,
     lsp_id: String,
     message: JsonValue,
 ) -> Result<(), String> {
+    let manager = registry.get_or_init(window.label());
     let guard = manager.0.lock().unwrap();
     let proc = guard.get(&lsp_id).ok_or_else(|| format!("Unknown lsp_id: {lsp_id}"))?;
     let mut stdin = proc.stdin.lock().unwrap();
@@ -164,9 +172,11 @@ pub fn lsp_send(
 /// Stop a running language server.
 #[tauri::command]
 pub fn lsp_stop(
-    manager: State<'_, LspManager>,
+    window: Window,
+    registry: State<'_, LspRegistry>,
     lsp_id: String,
 ) -> Result<(), String> {
+    let manager = registry.get_or_init(window.label());
     let mut guard = manager.0.lock().unwrap();
     if let Some(proc) = guard.remove(&lsp_id) {
         let _ = proc.child.lock().unwrap().kill();

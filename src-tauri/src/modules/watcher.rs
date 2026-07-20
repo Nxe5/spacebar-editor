@@ -41,7 +41,7 @@ pub struct WatcherState {
 }
 
 impl WatcherState {
-    pub fn watch(&self, app_handle: AppHandle, watch_path: &str) -> Result<(), String> {
+    pub fn watch(&self, app_handle: AppHandle, label: String, watch_path: &str) -> Result<(), String> {
         let path = Path::new(watch_path);
         if !path.is_dir() {
             return Err(format!("Watch path is not a directory: {watch_path}"));
@@ -54,7 +54,7 @@ impl WatcherState {
             .watch(path, RecursiveMode::Recursive)
             .map_err(|e| e.to_string())?;
 
-        std::thread::spawn(move || run_debounced_loop(app_handle, rx));
+        std::thread::spawn(move || run_debounced_loop(app_handle, label, rx));
 
         let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
         *guard = Some(watcher);
@@ -64,7 +64,11 @@ impl WatcherState {
 
 /// Collapses event bursts: emit `fs:changed` at most once per DEBOUNCE_MS while
 /// relevant (non-ignored) events keep arriving.
-fn run_debounced_loop(app_handle: AppHandle, rx: std::sync::mpsc::Receiver<notify::Result<notify::Event>>) {
+fn run_debounced_loop(
+    app_handle: AppHandle,
+    label: String,
+    rx: std::sync::mpsc::Receiver<notify::Result<notify::Event>>,
+) {
     let mut pending = false;
     let mut deadline: Option<Instant> = None;
 
@@ -84,7 +88,7 @@ fn run_debounced_loop(app_handle: AppHandle, rx: std::sync::mpsc::Receiver<notif
             Ok(Err(_)) => continue,
             Err(RecvTimeoutError::Timeout) => {
                 if pending {
-                    let _ = app_handle.emit("fs:changed", ());
+                    let _ = app_handle.emit_to(&label, "fs:changed", ());
                     pending = false;
                     deadline = None;
                 }

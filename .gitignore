@@ -22,3 +22,8 @@ tests/llm/fixtures/workspace/
 
 # Separate Homebrew tap repo, cloned locally for publishing casks
 homebrew-spacebar/
+
+# Tauri updater private signing key — lives in GitHub Actions secrets
+# (TAURI_SIGNING_PRIVATE_KEY), never committed. Public key's contents are
+# baked into tauri.conf.json instead of kept as a loose file.
+src-tauri/updater.key

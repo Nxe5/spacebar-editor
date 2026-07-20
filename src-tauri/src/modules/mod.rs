@@ -3,5 +3,8 @@ pub mod filesystem;
 pub mod git;
 pub mod icon_pack;
 pub mod lsp;
+#[cfg(target_os = "macos")]
+pub mod macos_dock;
 pub mod pty;
 pub mod watcher;
+pub mod window_state;
