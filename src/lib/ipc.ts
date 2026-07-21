@@ -533,6 +533,20 @@ export async function addRecentProject(path: string): Promise<void> {
   return invoke<void>("add_recent_project", { path });
 }
 
+// Shared, update-stable settings blob (persists across app updates and all windows).
+
+export async function readAppSettings(): Promise<string | null> {
+  if (!isTauri) return null;
+  await ensureTauriApi();
+  return (await invoke<string | null>("read_app_settings")) ?? null;
+}
+
+export async function writeAppSettings(contents: string): Promise<void> {
+  if (!isTauri) return;
+  await ensureTauriApi();
+  return invoke<void>("write_app_settings", { contents });
+}
+
 export interface LaunchArgs {
   /** Absolute path passed as the first CLI argument, or null if none. */
   path: string | null;

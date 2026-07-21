@@ -170,7 +170,7 @@
   }
 
   function resetChatColor(key: keyof ChatAppearanceMap) {
-    if (key === "waitingStyle") return;
+    if (key === "waitingStyle" || key === "rainbowBorder") return;
     const cssVar = CHAT_APPEARANCE_CSS_VARS[key];
     const themeValue = readThemeCssVar(cssVar, CHAT_APPEARANCE_DEFAULTS[key]);
     setChatColor(key, themeValue);
@@ -320,6 +320,23 @@
                 <option value={opt.id}>{opt.label}</option>
               {/each}
             </select>
+          </label>
+          <label class="field field--inline">
+            <input
+              type="checkbox"
+              checked={chatColors.rainbowBorder}
+              onchange={(e) => {
+                chatColors = {
+                  ...chatColors,
+                  rainbowBorder: (e.currentTarget as HTMLInputElement).checked,
+                };
+                chatAppearance.apply(chatColors);
+              }}
+            />
+            <span class="inline-text">
+              <span class="name">Rainbow border while streaming</span>
+              <span class="field-hint">Animated multicolor outline on the composer after you send a message</span>
+            </span>
           </label>
           {#each CHAT_APPEARANCE_COLOR_FIELDS as field}
             <SettingsColorField
@@ -660,6 +677,24 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+  }
+
+  .field--inline {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .field--inline input {
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .inline-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
   .name {

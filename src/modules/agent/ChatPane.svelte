@@ -1105,6 +1105,16 @@ import {
     }
   });
 
+  /* Restore a saved composer draft once the composer is mounted and the workspace is known.
+     Tracks workspacePath so a draft saved before the (async) crash-restore reopen is recovered. */
+  $effect(() => {
+    void $files.workspacePath;
+    if (composerDraftRestored || !composerEl) return;
+    composerDraftRestored = true;
+    const draft = loadComposerDraft();
+    if (draft && !getComposerText().trim()) setComposerText(draft);
+  });
+
   onDestroy(() => {
     stopDictation();
     abortController?.abort();
@@ -1373,6 +1383,34 @@ import {
 
   function onComposerInput() {
     inputValue = getComposerText();
+    saveComposerDraft(inputValue);
+  }
+
+  /* Composer draft survives a webview reload / content-process crash so typed-but-unsent
+     text isn't lost. Keyed by workspace so separate projects keep separate drafts. */
+  const COMPOSER_DRAFT_PREFIX = "sidebar.composerDraft.v1::";
+  let composerDraftRestored = false;
+
+  function composerDraftKey(): string {
+    const ws = get(files).workspacePath?.trim() || "global";
+    return `${COMPOSER_DRAFT_PREFIX}${ws}`;
+  }
+
+  function saveComposerDraft(text: string) {
+    try {
+      if (text) localStorage.setItem(composerDraftKey(), text);
+      else localStorage.removeItem(composerDraftKey());
+    } catch {
+      /* storage unavailable — best-effort */
+    }
+  }
+
+  function loadComposerDraft(): string {
+    try {
+      return localStorage.getItem(composerDraftKey()) ?? "";
+    } catch {
+      return "";
+    }
   }
 
   function setComposerText(text: string) {
@@ -1387,6 +1425,7 @@ import {
     if (composerEl) composerEl.innerHTML = "";
     pendingAttachments = [];
     inputValue = "";
+    saveComposerDraft("");
   }
 
   function focusComposer() {
@@ -2660,7 +2699,9 @@ import {
       pendingAttachments = pendingAttachments.slice(0, -1);
       return;
     }
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Ignore Enter while an IME candidate is being composed (CJK / dictation),
+    // otherwise the composition-commit Enter sends a half-finished message.
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
       handleSubmit(e);
     }
   }
@@ -4542,6 +4583,13 @@ import {
     }
   }
 
+  /* Rainbow streaming border disabled in Settings → Appearance → Chat: plain accent border instead. */
+  :global([data-chat-rainbow="off"]) .composer-shell--chromed[data-chrome-state="working"] {
+    animation: none;
+    background: var(--composer-chrome-fill);
+    border: 1px solid var(--primary, #007acc);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .composer-shell--chromed[data-chrome-state="working"] {
       animation: none;
@@ -4830,7 +4878,8 @@ import {
     min-width: 180px;
     max-width: 240px;
     padding: 4px 0;
-    background: var(--workbench-panel-bg, var(--chat-panel-bg, var(--sidebar)));
+    /* Opaque so translucent themes (e.g. Dark Dracula) don't show through. */
+    background: var(--chat-model-popup-bg, #252526);
     border: 1px solid #3c3c3c;
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
@@ -4972,7 +5021,9 @@ import {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 4px 0;
-    background: var(--workbench-panel-bg, var(--chat-panel-bg, var(--sidebar)));
+    /* Opaque background so translucent themes (e.g. Dark Dracula) don't show through.
+       Editable via Settings → Appearance → Chat → Model picker popup. */
+    background: var(--chat-model-popup-bg, #252526);
     border: 1px solid #3c3c3c;
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
@@ -5661,7 +5712,8 @@ import {
     max-height: 220px;
     overflow-y: auto;
     padding: 4px 0;
-    background: var(--workbench-panel-bg, var(--chat-panel-bg, var(--sidebar)));
+    /* Opaque so translucent themes (e.g. Dark Dracula) don't show through. */
+    background: var(--chat-model-popup-bg, #252526);
     border: 1px solid #3c3c3c;
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);

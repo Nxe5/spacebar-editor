@@ -260,9 +260,8 @@
           class:green={$updateStatus.dot === "green"}
           class:red={$updateStatus.dot === "red"}
           class:yellow={$updateStatus.dot === "yellow"}
-          title={$updateStatus.detail}
+          title={`v${$updateStatus.currentVersion} — ${$updateStatus.detail}`}
         ></span>
-        <span class="version-text">v{$updateStatus.currentVersion}</span>
       </div>
     {/if}
   </div>
@@ -405,14 +404,6 @@
   .version-group {
     gap: 6px;
     padding: 0 4px;
-  }
-
-  .version-text {
-    font-size: 10px;
-    color: var(--muted-foreground);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    flex-shrink: 0;
   }
 
   .update-pill {

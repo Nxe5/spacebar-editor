@@ -210,6 +210,35 @@ pub fn add_recent_project(path: String) -> Result<(), String> {
     std::fs::write(&file, json).map_err(|e| e.to_string())
 }
 
+/// Shared, app-wide settings file (API keys, model config, appearance, …).
+///
+/// Lives in the config dir — NOT in the per-window WebView localStorage — so it
+/// survives app updates and is shared across every window, including the
+/// independent windows opened via `open_editor_window` (which have isolated
+/// localStorage data stores). This is what keeps API keys/settings from being
+/// lost on update or when opening a new window.
+fn app_settings_file() -> Option<PathBuf> {
+    dirs::config_local_dir().map(|d| d.join("sidebar").join("settings.json"))
+}
+
+/// Returns the persisted settings JSON blob, or `None` if no file exists yet.
+#[tauri::command]
+pub fn read_app_settings() -> Option<String> {
+    let file = app_settings_file()?;
+    std::fs::read_to_string(&file).ok()
+}
+
+/// Persists the settings JSON blob to the shared config file.
+#[tauri::command]
+pub fn write_app_settings(contents: String) -> Result<(), String> {
+    let file = app_settings_file()
+        .ok_or_else(|| "Could not resolve config directory".to_string())?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&file, contents).map_err(|e| e.to_string())
+}
+
 /// Launch arguments parsed from the process argv.
 #[derive(Debug, Serialize)]
 pub struct LaunchArgs {

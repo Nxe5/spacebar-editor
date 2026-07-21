@@ -4,6 +4,8 @@ export type ChatWaitingStyle = "spinner-row" | "dots";
 
 export const CHAT_APPEARANCE_DEFAULTS = {
   waitingStyle: "spinner-row" as ChatWaitingStyle,
+  /** Rainbow animated border on the composer while the model is streaming. */
+  rainbowBorder: true,
   thoughtLabelColor: "#b8a8e8",
   thoughtLabelActiveColor: "#c9b8f0",
   planLabelColor: "#b8a8e8",
@@ -14,12 +16,18 @@ export const CHAT_APPEARANCE_DEFAULTS = {
   toolBadgeErrorColor: "#f14c4c",
   fileLinkColor: "#4ec9b0",
   messageBoxBg: "#2d2d30",
+  /** Background of the model picker popup — kept opaque so translucent themes don't show through. */
+  modelPopupBg: "#252526",
 } as const;
+
+/** Appearance keys that are not editable hex-color swatches. */
+type NonColorAppearanceKey = "waitingStyle" | "rainbowBorder";
 
 export type ChatAppearanceKey = keyof typeof CHAT_APPEARANCE_DEFAULTS;
 
 export type ChatAppearanceMap = {
   waitingStyle: ChatWaitingStyle;
+  rainbowBorder: boolean;
   thoughtLabelColor: string;
   thoughtLabelActiveColor: string;
   planLabelColor: string;
@@ -30,6 +38,7 @@ export type ChatAppearanceMap = {
   toolBadgeErrorColor: string;
   fileLinkColor: string;
   messageBoxBg: string;
+  modelPopupBg: string;
 };
 
 export const CHAT_WAITING_STYLE_OPTIONS: { id: ChatWaitingStyle; label: string }[] = [
@@ -38,7 +47,7 @@ export const CHAT_WAITING_STYLE_OPTIONS: { id: ChatWaitingStyle; label: string }
 ];
 
 export const CHAT_APPEARANCE_CSS_VARS: Record<
-  Exclude<ChatAppearanceKey, "waitingStyle">,
+  Exclude<ChatAppearanceKey, NonColorAppearanceKey>,
   string
 > = {
   thoughtLabelColor: "--chat-thought-label",
@@ -51,10 +60,11 @@ export const CHAT_APPEARANCE_CSS_VARS: Record<
   toolBadgeErrorColor: "--chat-activity-badge-error",
   fileLinkColor: "--chat-activity-file-link",
   messageBoxBg: "--chat-message-box-bg",
+  modelPopupBg: "--chat-model-popup-bg",
 };
 
 export const CHAT_APPEARANCE_COLOR_FIELDS: {
-  key: Exclude<ChatAppearanceKey, "waitingStyle">;
+  key: Exclude<ChatAppearanceKey, NonColorAppearanceKey>;
   label: string;
   hint: string;
 }[] = [
@@ -72,6 +82,7 @@ export const CHAT_APPEARANCE_COLOR_FIELDS: {
   { key: "toolBadgeErrorColor", label: "Badge: failed", hint: "“failed” tag on tools" },
   { key: "fileLinkColor", label: "File chips", hint: "Paths opened from tool rows" },
   { key: "messageBoxBg", label: "Message boxes", hint: "User message bubbles in the chat thread" },
+  { key: "modelPopupBg", label: "Model picker popup", hint: "Background of the model / mode / context menus that open from the composer" },
 ];
 
 const STORAGE_KEY = "sidebar.chatAppearance.v1";
@@ -101,6 +112,7 @@ export function normalizeChatAppearance(
   if (!parsed || typeof parsed !== "object") return base;
   const out: ChatAppearanceMap = { ...base };
   out.waitingStyle = normalizeWaitingStyle(parsed.waitingStyle);
+  if (typeof parsed.rainbowBorder === "boolean") out.rainbowBorder = parsed.rainbowBorder;
   for (const field of CHAT_APPEARANCE_COLOR_FIELDS) {
     const v = parsed[field.key];
     if (typeof v === "string") {
@@ -134,6 +146,8 @@ export function applyChatAppearanceToDocument(appearance: ChatAppearanceMap): vo
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   root.dataset.chatWaitingStyle = appearance.waitingStyle;
+  root.dataset.chatRainbow = appearance.rainbowBorder ? "on" : "off";
+  root.style.setProperty("--chat-model-popup-bg", appearance.modelPopupBg);
   root.style.setProperty("--chat-thought-label", appearance.thoughtLabelColor);
   root.style.setProperty("--chat-thought-label-active", appearance.thoughtLabelActiveColor);
   root.style.setProperty("--chat-plan-label", appearance.planLabelColor);

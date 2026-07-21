@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { writable, get } from "svelte/store";
 import {
   DEFAULT_AGENT_COMPACTION,
   normalizeAgentCompaction,
@@ -16,6 +16,7 @@ import {
 } from "../autocompleteSettings";
 import { DEFAULT_MODEL_ROLES, normalizeModelRoles, type ModelRoleOverrides } from "../modelRoles";
 import { mergeApiKeysFromEnv } from "../envApiKeys";
+import { readAppSettings, writeAppSettings } from "../ipc";
 import { DEFAULT_LLAMACPP_ENDPOINT } from "../llamaCppClient";
 import {
   DEFAULT_LLAMACPP_SERVER_TEMPLATE,
@@ -407,16 +408,48 @@ function createSettingsStore() {
 
   const { subscribe, set, update } = writable<SettingsState>(loadSettings());
 
+  // Disk mirroring stays gated until the shared config file has been read, so the
+  // store's initial (possibly empty) value can't clobber good on-disk settings.
+  let diskHydrated = false;
+
   subscribe((state) => {
-    if (typeof localStorage === "undefined") return;
-    try {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      /* quota */
+    if (typeof localStorage !== "undefined") {
+      try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state));
+      } catch {
+        /* quota */
+      }
+    }
+    if (diskHydrated) {
+      // Mirror to the shared config file (survives updates + shared across windows).
+      void writeAppSettings(JSON.stringify(state));
     }
   });
 
+  /**
+   * Loads settings from the shared config file, which lives outside the per-window
+   * WebView localStorage and therefore survives app updates and is shared across
+   * every window (including the independent windows with isolated localStorage).
+   * When no file exists yet, seeds it from the current localStorage value so the
+   * first launch after this feature ships migrates existing settings/API keys.
+   */
+  async function hydrateFromDisk(): Promise<void> {
+    try {
+      const raw = await readAppSettings();
+      if (raw) {
+        set(normalizeLoaded(JSON.parse(raw) as Partial<SettingsState>));
+      } else {
+        await writeAppSettings(JSON.stringify(get({ subscribe })));
+      }
+    } catch {
+      /* disk unavailable (web build / no permission) — localStorage stays authoritative */
+    } finally {
+      diskHydrated = true;
+    }
+  }
+
   return {
+    hydrateFromDisk,
     subscribe,
     setApiKey: (provider: "anthropic" | "deepseek" | "glm" | "kimi" | "openai", key: string) => {
       update((state) => {
@@ -748,3 +781,5 @@ function createSettingsStore() {
 }
 
 export const settings = createSettingsStore();
+// Load the shared, update-stable settings file as soon as the module initializes.
+void settings.hydrateFromDisk();

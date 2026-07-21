@@ -20,14 +20,15 @@
   let step = $state<Step>(1);
 
   /* ── Step 1: theme ─────────────────────────────────────────── */
-  /** Swatch colors mirror each preset's --background / --primary (theme vars are root-scoped). */
-  const THEME_CHOICES: { id: WorkbenchThemeId; label: string; blurb: string; bg: string; accent: string }[] = [
-    { id: "dark-dracula", label: "Dark Dracula", blurb: "Saturated Dracula palette, translucent panels", bg: "#20222c", accent: "#ff79c6" },
-    { id: "dark-bubblegum", label: "Dark Bubblegum", blurb: "Dark with playful accents", bg: "#181818", accent: "#88c0d0" },
-    { id: "spacebar", label: "Spacebar", blurb: "The default — clean, neutral dark", bg: "#1e1e1e", accent: "#007acc" },
+  /** Swatch colors sampled from each preset's palette (--background plus three signature accents). */
+  const THEME_CHOICES: { id: WorkbenchThemeId; label: string; blurb: string; bg: string; colors: string[] }[] = [
+    { id: "dark-dracula", label: "Dark Dracula", blurb: "Saturated Dracula palette, translucent panels", bg: "#20222c", colors: ["#ff79c6", "#bd93f9", "#8be9fd"] },
+    { id: "spacebar", label: "Spacebar", blurb: "The default — clean, neutral dark", bg: "#1e1e1e", colors: ["#007acc", "#4ec9b0", "#ce9178"] },
+    { id: "dark-bubblegum", label: "Dark Bubblegum", blurb: "Dark with playful accents", bg: "#181818", colors: ["#88c0d0", "#ff4d6d", "#a6ffcb"] },
   ];
 
-  let selectedTheme = $state<WorkbenchThemeId>("dark-bubblegum");
+  /** Spacebar is the default selection (centered in the grid). */
+  let selectedTheme = $state<WorkbenchThemeId>("spacebar");
 
   function chooseTheme(id: WorkbenchThemeId) {
     selectedTheme = id;
@@ -83,6 +84,9 @@
       }
       settings.setChatBackend(selectedProvider);
     }
+    // Persist completion now — the theme + provider setup should never repeat, even if the
+    // user quits at the (optional) project step or opening a folder fails.
+    markOnboardingComplete();
     step = 3;
   }
 
@@ -91,6 +95,8 @@
   let opening = $state(false);
 
   onMount(async () => {
+    // Apply the default (Spacebar) so the app previews the selection even if the user never taps a swatch.
+    chooseTheme(selectedTheme);
     if (desktop) {
       recentProjects = await getRecentProjects().catch(() => []);
     }
@@ -161,8 +167,11 @@
             onclick={() => chooseTheme(t.id)}
           >
             <span class="theme-swatch" style="background: {t.bg};">
-              <span class="swatch-bar" style="background: color-mix(in srgb, {t.bg} 70%, {t.accent})"></span>
-              <span class="swatch-bar" style="background: {t.accent}; width: 60%;"></span>
+              <span class="swatch-squares">
+                {#each t.colors as c (c)}
+                  <span class="swatch-square" style="background: {c};"></span>
+                {/each}
+              </span>
             </span>
             <span class="theme-name">{t.label}</span>
             <span class="theme-blurb">{t.blurb}</span>
@@ -340,16 +349,23 @@
 
   .theme-swatch {
     display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
     border-radius: 6px;
     border: 1px solid var(--border);
   }
 
-  .swatch-bar {
-    height: 8px;
-    border-radius: 3px;
+  .swatch-squares {
+    display: flex;
+    gap: 6px;
+  }
+
+  .swatch-square {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
   }
 
   .theme-name {
