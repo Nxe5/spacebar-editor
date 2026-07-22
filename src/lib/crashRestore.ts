@@ -2,47 +2,38 @@
  * Crash recovery for the workbench webview.
  *
  * If the WKWebView content process crashes (observed during heavy agent runs),
- * Tauri reloads the page and the app boots to the welcome screen with the
- * project gone. Track the active workspace in localStorage plus a clean-exit
- * marker so an unclean reload can reopen the project the user was in.
+ * Tauri reloads the page in the SAME process. This module records the active
+ * workspace so that reload can reopen it. Whether a given page load is a crash
+ * reload (restore) or a fresh app launch (start on the welcome screen) is
+ * decided by the backend `take_is_webview_reload` latch — NOT by this file — so
+ * a normal close-and-reopen reliably lands on the welcome screen even when the
+ * webview never fires `beforeunload` on quit.
  *
- * The restore marker is consumed on read: a workspace that crashes the app
- * while loading gets exactly one restore attempt, never a crash loop.
+ * The workspace marker is consumed on read and re-recorded only once a project
+ * opens successfully, so a workspace that crashes the app while loading gets one
+ * restore attempt, never a crash loop.
  */
 
 const WORKSPACE_KEY = "spacebar.lastWorkspace.v1";
-const CLEAN_EXIT_KEY = "spacebar.cleanExit.v1";
 
-/** Call when a project opens successfully; re-arms crash detection. */
+/** Call when a project opens successfully; arms crash restore for this window. */
 export function recordActiveWorkspace(path: string): void {
   try {
     localStorage.setItem(WORKSPACE_KEY, path);
-    localStorage.removeItem(CLEAN_EXIT_KEY);
   } catch {
     // storage unavailable (private mode / corrupted profile) — restore is best-effort
   }
 }
 
-/** Call from beforeunload — a graceful shutdown must not trigger a restore. */
-export function markCleanExit(): void {
-  try {
-    localStorage.setItem(CLEAN_EXIT_KEY, "1");
-  } catch {
-    // ignore
-  }
-}
-
 /**
- * Workspace path to reopen after an unclean reload, or null.
- * Consumes the marker so the caller gets a single restore attempt.
+ * The workspace to reopen after a crash reload, or null. Consumes the marker so
+ * a load-time crash can't loop; a successful open re-records it.
  */
 export function takeCrashRestoreWorkspace(): string | null {
   try {
     const path = localStorage.getItem(WORKSPACE_KEY);
-    const cleanExit = localStorage.getItem(CLEAN_EXIT_KEY) === "1";
-    localStorage.setItem(CLEAN_EXIT_KEY, "1");
-    if (!path || cleanExit) return null;
-    return path;
+    localStorage.removeItem(WORKSPACE_KEY);
+    return path || null;
   } catch {
     return null;
   }

@@ -15,9 +15,11 @@ use crate::modules::git::{
     git_unstage as git_unstage_inner, GitLogEntry, GitPathStatus,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
@@ -237,6 +239,25 @@ pub fn write_app_settings(contents: String) -> Result<(), String> {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&file, contents).map_err(|e| e.to_string())
+}
+
+/// Tracks which window labels have already loaded their webview in THIS process.
+/// Lets a page load distinguish a fresh app launch (first load of a label → open
+/// the welcome screen) from a same-process webview reload after a content-process
+/// crash (label already seen → restore the workspace the user was in).
+#[derive(Default)]
+pub struct SessionLoads(Mutex<HashSet<String>>);
+
+/// Returns `false` the first time a window label loads in this process (fresh
+/// launch), and `true` on every later load of the same label (crash reload).
+#[tauri::command]
+pub fn take_is_webview_reload(
+    window: WebviewWindow,
+    state: tauri::State<'_, SessionLoads>,
+) -> bool {
+    let label = window.label().to_string();
+    // HashSet::insert returns true when the value is newly inserted.
+    !state.0.lock().unwrap().insert(label)
 }
 
 /// First-run onboarding marker. Lives in the shared config dir (not per-window

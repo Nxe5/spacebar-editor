@@ -114,9 +114,8 @@
 
   {#if desktop && $updateStatus.currentVersion}
     <footer class="version-bar">
-      <span class="version-text">v{$updateStatus.currentVersion}</span>
+      <span class="version-spacer"></span>
       {#if $updateStatus.dot === "yellow"}
-        <span class="version-sep" aria-hidden="true"></span>
         <button
           type="button"
           class="update-btn"
@@ -124,8 +123,9 @@
         >
           Update available{$updateStatus.latestVersion ? ` — v${$updateStatus.latestVersion}` : ""}
         </button>
+        <span class="version-sep" aria-hidden="true"></span>
       {/if}
-      <span class="version-spacer"></span>
+      <span class="version-text">v{$updateStatus.currentVersion}</span>
       {#if $updateStatus.dot !== "idle"}
         <span
           class="version-dot"

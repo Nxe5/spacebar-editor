@@ -559,6 +559,18 @@ export async function writeOnboardingComplete(): Promise<void> {
   return invoke<void>("write_onboarding_complete");
 }
 
+/**
+ * False on the first webview load of this window in the current process (a fresh
+ * app launch), true on a later reload of the same window (a content-process
+ * crash). Used to decide whether to reopen the last workspace or start on the
+ * welcome screen.
+ */
+export async function takeIsWebviewReload(): Promise<boolean> {
+  if (!isTauri) return false;
+  await ensureTauriApi();
+  return invoke<boolean>("take_is_webview_reload");
+}
+
 export interface LaunchArgs {
   /** Absolute path passed as the first CLI argument, or null if none. */
   path: string | null;

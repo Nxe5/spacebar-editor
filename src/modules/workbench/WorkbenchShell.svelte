@@ -33,11 +33,12 @@
     isTauriAvailable,
     closeAuxiliaryWebviewWindows,
     pickWorkspaceFolder,
+    takeIsWebviewReload,
   } from "$lib/ipc";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { applyWorkspaceFolder } from "$lib/workspace";
   import { initProjectStateAutosave, persistCurrentProjectState } from "$lib/projectState";
-  import { markCleanExit, takeCrashRestoreWorkspace } from "$lib/crashRestore";
+  import { takeCrashRestoreWorkspace } from "$lib/crashRestore";
   import { syntaxTheme } from "$lib/stores/syntaxTheme";
   import { editorChrome } from "$lib/stores/editorChrome";
   import { dispatchWithOverrides } from "../shortcuts/dispatcher";
@@ -271,21 +272,25 @@
     }
     initProjectStateAutosave();
     const onBeforeUnload = () => {
-      markCleanExit();
       void persistCurrentProjectState();
     };
     window.addEventListener("beforeunload", onBeforeUnload);
 
-    // A webview reload without a clean shutdown means the content process
-    // crashed (seen on long agent runs) — reopen the workspace the user was in
-    // instead of landing on the welcome screen.
+    // Only reopen the last workspace when the webview reloaded within the same
+    // process (a content-process crash, seen on long agent runs). A fresh app
+    // launch — including a normal close-and-reopen — starts on the welcome
+    // screen. `take_is_webview_reload` distinguishes the two reliably, unlike
+    // `beforeunload`, which often doesn't fire on quit.
     if (isTauriAvailable() && !get(files).workspacePath) {
-      const restorePath = takeCrashRestoreWorkspace();
-      if (restorePath) {
-        void applyWorkspaceFolder(restorePath).catch((e) =>
-          console.warn("[crash-restore] failed to reopen workspace:", e)
-        );
-      }
+      void takeIsWebviewReload().then((isReload) => {
+        if (!isReload || get(files).workspacePath) return;
+        const restorePath = takeCrashRestoreWorkspace();
+        if (restorePath) {
+          void applyWorkspaceFolder(restorePath).catch((e) =>
+            console.warn("[crash-restore] failed to reopen workspace:", e)
+          );
+        }
+      });
     }
 
     if (!isTauriAvailable()) {

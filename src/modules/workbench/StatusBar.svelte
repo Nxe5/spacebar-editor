@@ -4,8 +4,7 @@
   import { files } from "$lib/stores/files";
   import { cloudApiKeysForStream } from "$lib/apiSecrets";
   import { backendStatus, pollBackendHealth } from "$lib/stores/backendStatus";
-  import { gitCurrentBranch, gitStatus, isTauriAvailable, openExternalUrl } from "$lib/ipc";
-  import { updateStatus } from "$lib/stores/updateStatus";
+  import { gitCurrentBranch, gitStatus, isTauriAvailable } from "$lib/ipc";
   import AppIcon from "$lib/components/AppIcon.svelte";
   import SidebarIcon from "phosphor-svelte/lib/SidebarIcon";
   import RowsIcon from "phosphor-svelte/lib/RowsIcon";
@@ -239,31 +238,6 @@
       </button>
     </div>
 
-    {#if $updateStatus.dot !== "idle"}
-      <span class="status-sep" aria-hidden="true"></span>
-      <div class="status-bar__group version-group">
-        {#if $updateStatus.dot === "yellow"}
-          <button
-            type="button"
-            class="update-pill"
-            title={`v${$updateStatus.latestVersion} available — open release page`}
-            onclick={() =>
-              void openExternalUrl(
-                `https://github.com/Nxe5/spacebar-editor/releases/tag/v${$updateStatus.latestVersion}`,
-              )}
-          >
-            Update
-          </button>
-        {/if}
-        <span
-          class="status-dot"
-          class:green={$updateStatus.dot === "green"}
-          class:red={$updateStatus.dot === "red"}
-          class:yellow={$updateStatus.dot === "yellow"}
-          title={`v${$updateStatus.currentVersion} — ${$updateStatus.detail}`}
-        ></span>
-      </div>
-    {/if}
   </div>
 </div>
 
@@ -399,28 +373,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
-  }
-
-  .version-group {
-    gap: 6px;
-    padding: 0 4px;
-  }
-
-  .update-pill {
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 4px;
-    cursor: pointer;
-    border: 1px solid #d29922;
-    background: rgba(210, 153, 34, 0.12);
-    color: #d29922;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .update-pill:hover {
-    background: rgba(210, 153, 34, 0.22);
   }
 
 </style>

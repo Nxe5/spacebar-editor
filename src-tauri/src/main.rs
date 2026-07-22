@@ -10,7 +10,7 @@ use modules::commands::{
     list_dir_tree, icon_pack_get_dir, icon_pack_refresh_bundled, open_editor_window, open_settings_window,
     path_exists, pick_icon_pack_folder, pick_workspace_folder, read_app_settings, read_file, read_onboarding_complete,
     read_project_state, read_system_prompt, read_workspace_lock, release_active_lock_sync, release_workspace_lock,
-    write_app_settings, write_onboarding_complete,
+    write_app_settings, write_onboarding_complete, take_is_webview_reload, SessionLoads,
     rename_entry, run_shell, watch_workspace, web_fetch, write_file, write_project_state,
     write_system_prompt, ensure_system_prompts_layout, ensure_skill_dir,
 };
@@ -59,6 +59,7 @@ fn main() {
         .manage(WatcherRegistry::default())
         .manage(LockRegistry::default())
         .manage(LspRegistry::default())
+        .manage(SessionLoads::default())
         .invoke_handler(tauri::generate_handler![
             list_dir,
             read_file,
@@ -111,6 +112,7 @@ fn main() {
             write_app_settings,
             read_onboarding_complete,
             write_onboarding_complete,
+            take_is_webview_reload,
             get_launch_args,
             get_platform_info,
             spawn_lsp,
