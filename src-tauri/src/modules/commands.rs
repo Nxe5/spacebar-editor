@@ -239,6 +239,30 @@ pub fn write_app_settings(contents: String) -> Result<(), String> {
     std::fs::write(&file, contents).map_err(|e| e.to_string())
 }
 
+/// First-run onboarding marker. Lives in the shared config dir (not per-window
+/// localStorage) so the setup wizard runs exactly once per install — including
+/// in the independent windows that have isolated localStorage data stores.
+fn onboarding_file() -> Option<PathBuf> {
+    dirs::config_local_dir().map(|d| d.join("sidebar").join("onboarding.json"))
+}
+
+/// True once the onboarding wizard has been completed on this machine.
+#[tauri::command]
+pub fn read_onboarding_complete() -> bool {
+    onboarding_file().map(|f| f.exists()).unwrap_or(false)
+}
+
+/// Persists the onboarding-complete marker.
+#[tauri::command]
+pub fn write_onboarding_complete() -> Result<(), String> {
+    let file = onboarding_file()
+        .ok_or_else(|| "Could not resolve config directory".to_string())?;
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&file, "{}").map_err(|e| e.to_string())
+}
+
 /// Launch arguments parsed from the process argv.
 #[derive(Debug, Serialize)]
 pub struct LaunchArgs {

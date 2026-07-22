@@ -51,7 +51,7 @@
   import { initLaunchArgs } from "$lib/launch/initLaunchArgs";
   import { isMacPlatform } from "$lib/windowControls";
   import OnboardingWizard from "../onboarding/OnboardingWizard.svelte";
-  import { isOnboardingComplete } from "$lib/onboarding";
+  import { isOnboardingCompleteAsync } from "$lib/onboarding";
   import type { ExplorerPanelTab } from "$lib/explorerPanel";
 
   const PANE_WIDTH_KEY = "sidebar.paneWidths.v1";
@@ -96,8 +96,9 @@
 
   let settingsOpen = $state(false);
   let feedbackOpen = $state(false);
-  /** First-run wizard: theme → provider → project. */
-  let showOnboarding = $state(!isOnboardingComplete());
+  /** First-run wizard: theme → provider → project. Resolved from the shared config
+   *  file in onMount (starts hidden so it never flashes for returning users). */
+  let showOnboarding = $state(false);
   let showLeftPanel = $state(true);
   let showRightPanel = $state(true);
   /** Explorer / git / prompt panel visible (toggled from status bar). */
@@ -242,6 +243,11 @@
   });
 
   onMount(() => {
+    // Resolve first-run state from the shared config file so the wizard runs
+    // exactly once per install, even in windows with isolated localStorage.
+    void isOnboardingCompleteAsync().then((complete) => {
+      showOnboarding = !complete;
+    });
     void initLaunchArgs();
     void iconTheme.init();
     startUpdateChecks();

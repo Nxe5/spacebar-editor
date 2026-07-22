@@ -534,7 +534,12 @@
   }
 
   .btn.primary:hover:not(:disabled) {
-    filter: brightness(1.08);
+    /* Re-assert primary colors: the generic .btn:hover rule has higher specificity
+       and would otherwise swap the background to --muted, leaving unreadable text. */
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+    filter: brightness(1.12);
   }
 
   .btn:disabled {

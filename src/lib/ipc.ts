@@ -547,6 +547,18 @@ export async function writeAppSettings(contents: string): Promise<void> {
   return invoke<void>("write_app_settings", { contents });
 }
 
+export async function readOnboardingComplete(): Promise<boolean> {
+  if (!isTauri) return false;
+  await ensureTauriApi();
+  return invoke<boolean>("read_onboarding_complete");
+}
+
+export async function writeOnboardingComplete(): Promise<void> {
+  if (!isTauri) return;
+  await ensureTauriApi();
+  return invoke<void>("write_onboarding_complete");
+}
+
 export interface LaunchArgs {
   /** Absolute path passed as the first CLI argument, or null if none. */
   path: string | null;
